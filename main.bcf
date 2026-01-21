@@ -2383,7 +2383,6 @@
     <bcf:citekey order="14" intorder="1">vanwaardeDataInformativityNew2020</bcf:citekey>
     <bcf:citekey order="14" intorder="2">iannelliDesignInputDatadriven2021</bcf:citekey>
     <bcf:citekey order="15" intorder="1">vershyninIntroductionApplicationsData</bcf:citekey>
-    <bcf:citekey order="16" intorder="1">paszke2019pytorch</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">

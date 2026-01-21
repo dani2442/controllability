@@ -1,7 +1,7 @@
 \section{Numerical Experiments}
 \label{sec:experiments}
 
-We validate the theoretical results with numerical experiments implemented in PyTorch \cite{paszke2019pytorch}.
+We validate the theoretical results with numerical experiments implemented in PyTorch.
 We simulate controlled linear SDEs of the form
 \[
   \d x(t) = (\mat{A}x(t) + \mat{B}u(t))\,\d t + \beta\,\d W(t),
@@ -93,7 +93,6 @@ For compactness, we place Table~\ref{tab:omega-cutoff} next to a representative 
   \begin{minipage}[t]{0.49\textwidth}
     \centering
     \captionsetup{type=table}
-    
     \begin{tabular}{ccc}
       \toprule
       $\omega_{\max}$ & $\sigma_{\min}(\widehat{\mat{P}}_\lambda)$ & $\|\widehat{\mat{P}}_\lambda - \mat{P}_\lambda\|_2$ \\

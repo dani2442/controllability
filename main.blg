@@ -1,0 +1,18 @@
+[0] Config.pm:307> INFO - This is Biber 2.19
+[1] Config.pm:310> INFO - Logfile is 'main.blg'
+[100] biber:340> INFO - === Thu Jan 22, 2026, 00:14:43
+[116] Biber.pm:419> INFO - Reading 'main.bcf'
+[177] Biber.pm:979> INFO - Found 16 citekeys in bib section 0
+[194] Biber.pm:4419> INFO - Processing section 0
+[207] Biber.pm:4610> INFO - Looking for bibtex file 'references.bib' for section 0
+[210] bibtex.pm:1713> INFO - LaTeX decoding ...
+[237] bibtex.pm:1519> INFO - Found BibTeX data source 'references.bib'
+[467] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[468] UCollate.pm:68> INFO - Overriding locale 'en-US' defaults 'variable = shifted' with 'variable = non-ignorable'
+[468] Biber.pm:4239> INFO - Sorting list 'nty/global//global/global' of type 'entry' with template 'nty' and locale 'en-US'
+[468] Biber.pm:4245> INFO - No sort tailoring available for locale 'en-US'
+[488] bbl.pm:660> INFO - Writing 'main.bbl' with encoding 'UTF-8'
+[498] bbl.pm:763> INFO - Output to main.bbl
+[498] Biber.pm:131> WARN - ISBN '978-0-19-511777-6 978-1-61344-115-2 978-0-19-511778-3' in entry 'chenLinearSystemTheory1999' is invalid - run biber with '--validate_datamodel' for details.
+[498] Biber.pm:131> WARN - I didn't find a database entry for 'paszke2019pytorch' (section 0)
+[498] Biber.pm:133> INFO - WARNINGS: 2

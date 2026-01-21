@@ -11,7 +11,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.insert(0, "..")
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from examples import save_fig
 
@@ -152,8 +153,8 @@ def main():
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     
     # Error vs T (log-log)
-    ax1.loglog(T_values, mean_errors_time, 'o-', label='Time-domain', markersize=8)
-    ax1.loglog(T_values, mean_errors_fft, 's-', label='FFT', markersize=8)
+    ax1.loglog(T_values, mean_errors_time, 'o-', label='Time-domain', markersize=8, alpha=0.7)
+    ax1.loglog(T_values, mean_errors_fft, 's-', label='FFT', markersize=8, alpha=0.7)
     
     # Fit T^{-1/2} line
     C_fit = np.mean(mean_errors_time * np.sqrt(T_values))

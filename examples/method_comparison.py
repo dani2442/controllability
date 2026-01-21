@@ -11,7 +11,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import sys
-sys.path.insert(0, "..")
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from examples import save_fig
 
 from control import (

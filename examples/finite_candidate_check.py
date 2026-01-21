@@ -10,7 +10,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.insert(0, "..")
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from examples import save_fig
 
@@ -120,12 +121,12 @@ def main():
         print(f"  σ_min(P̂_λ) estimated: {result['sigma_min_hat']:.6f}")
     
     # Visualization
-    fig, axs = plot_controllability_margin(
-        lambdas, 
-        sigma_mins_estimated,
-        threshold=1e-6,
-        title="Controllability Margin Analysis"
-    )
+    # fig, axs = plot_controllability_margin(
+    #     lambdas, 
+    #     sigma_mins_estimated,
+    #     threshold=1e-6,
+    #     title="Controllability Margin Analysis"
+    # )
     
     # Add another figure comparing true vs estimated
     fig2, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))

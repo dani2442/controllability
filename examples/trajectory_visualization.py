@@ -9,8 +9,8 @@ This example creates various visualizations of the SDE trajectories:
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import sys
-sys.path.insert(0, "..")
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from examples import save_fig
 

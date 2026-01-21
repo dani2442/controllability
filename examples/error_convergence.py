@@ -10,6 +10,8 @@ This example validates Proposition 1 (Cross-moment error bound) by:
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -76,22 +78,34 @@ def main():
     
     # Simulation parameters
     dt = 0.05
-    batch = 1
+    batch = 50  # Use batch for Monte Carlo trials
     
     # Test value of lambda
     lam = 0.5 + 0.8j
     
-    # Range of horizon lengths
+    # Range of horizon lengths - simulate once with max T and subsample
     T_values = [10, 20, 50, 100, 200, 500, 1000]
-    
-    # Number of Monte Carlo trials
-    n_trials = 10
+    T_max = max(T_values)
     
     print(f"System: n={n}, m={m}, q={q}")
     print(f"Testing λ = {lam}")
-    print(f"Running {n_trials} trials for each T value...")
+    print(f"Simulating batch of {batch} trajectories with T_max = {T_max}...")
     
-    # Storage for results
+    # Create SDE and simulate once with maximum T
+    sde = ControlledLinearSDE(A, B, Beta).to(device)
+    ts = create_time_grid(T_max, dt, device)
+    x0 = torch.zeros(batch, n, device=device)
+    
+    # Simulate all trajectories at once: shape (N, batch, n)
+    x_full = sdeint_safe(sde, x0, ts, dt)
+    u_full = sde.u(ts, x_full[:, 0, :])  # (N, m)
+    if u_full.ndim == 3:
+        u_full = u_full[:, 0, :]  # Control is same for all batch elements
+    
+    # Storage for results - collect all individual errors for seaborn
+    from control import gramian_Sz_time
+    
+    records = []  # For DataFrame
     mean_errors_time = []
     mean_errors_fft = []
     std_errors_time = []
@@ -101,32 +115,36 @@ def main():
     for T in T_values:
         print(f"\nT = {T}...")
         
+        # Compute number of timesteps for this T
+        N_T = int(T / dt) + 1
+        
+        # Subsample trajectories up to time T
+        x_T = x_full[:N_T]  # (N_T, batch, n)
+        u_T = u_full[:N_T]  # (N_T, m)
+        
         errors_time = []
         errors_fft = []
         sigma_min_Sz_list = []
         
-        for trial in range(n_trials):
-            # Create SDE and simulate
-            sde = ControlledLinearSDE(A, B, Beta).to(device)
-            ts = create_time_grid(T, dt, device)
-            x0 = torch.zeros(batch, n, device=device)
-            
-            # Simulate
-            x = sdeint_safe(sde, x0, ts, dt)[:, 0, :]
-            u = sde.u(ts, x)
-            if u.ndim == 3:
-                u = u[:, 0, :]
+        # Process each batch element
+        for b in range(batch):
+            x_b = x_T[:, b, :]  # (N_T, n)
             
             # Compute errors
-            result_time = compare_with_true(A, B, x, u, dt, lam, ridge=1e-10, method="time")
-            result_fft = compare_with_true(A, B, x, u, dt, lam, ridge=1e-10, method="fft", omega_max=100)
+            result_time = compare_with_true(A, B, x_b, u_T, dt, lam, ridge=1e-10, method="time")
+            result_fft = compare_with_true(A, B, x_b, u_T, dt, lam, ridge=1e-10, method="fft", omega_max=100)
             
-            errors_time.append(result_time["error_norm"])
-            errors_fft.append(result_fft["error_norm"])
+            err_time = result_time["error_norm"]
+            err_fft = result_fft["error_norm"]
+            
+            errors_time.append(err_time)
+            errors_fft.append(err_fft)
+            
+            # Record for DataFrame
+            records.append({"T": T, "batch": b, "error_time": err_time, "error_fft": err_fft})
             
             # Compute normalized S_Z for theoretical bound
-            from control import gramian_Sz_time
-            Sz = gramian_Sz_time(x, u, dt)
+            Sz = gramian_Sz_time(x_b, u_T, dt)
             sigma_min_Sz_list.append(torch.linalg.svdvals(Sz).min().item() / T)
         
         mean_errors_time.append(np.mean(errors_time))
@@ -143,48 +161,49 @@ def main():
         print(f"  FFT:  {mean_errors_fft[-1]:.4f} ± {std_errors_fft[-1]:.4f}")
         print(f"  Bound: {bound:.4f}")
     
-    # Convert to arrays
-    T_values = np.array(T_values)
+    # Create DataFrame for seaborn
+    df = pd.DataFrame(records)
+    
+    # Convert to arrays for classic plots
+    T_values_arr = np.array(T_values)
     mean_errors_time = np.array(mean_errors_time)
     mean_errors_fft = np.array(mean_errors_fft)
     theoretical_bounds = np.array(theoretical_bounds)
     
-    # Plot results
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    # =========================================================================
+    # Classic plot: Theoretical bound comparison with individual trajectories
+    # =========================================================================
+    fig, ax = plt.subplots(1, 1, figsize=(7, 5))
     
-    # Error vs T (log-log)
-    ax1.loglog(T_values, mean_errors_time, 'o-', label='Time-domain', markersize=8, alpha=0.7)
-    ax1.loglog(T_values, mean_errors_fft, 's-', label='FFT', markersize=8, alpha=0.7)
+    # Plot individual batch trajectories with transparency (connected over T)
+    for b in range(batch):
+        errors_b_time = df[df['batch'] == b]['error_time'].values
+        errors_b_fft = df[df['batch'] == b]['error_fft'].values
+        ax.plot(T_values_arr, errors_b_time, '-', color='C0', alpha=0.15, linewidth=0.8)
+        ax.plot(T_values_arr, errors_b_fft, '-', color='C1', alpha=0.15, linewidth=0.8)
     
-    # Fit T^{-1/2} line
-    C_fit = np.mean(mean_errors_time * np.sqrt(T_values))
-    T_fit = np.linspace(T_values.min(), T_values.max(), 100)
-    ax1.loglog(T_fit, C_fit / np.sqrt(T_fit), '--', color='red', 
-               label='$O(T^{-1/2})$', linewidth=2)
+    # Mean lines with markers
+    ax.loglog(T_values_arr, mean_errors_time, 'o-', label='Empirical (time)', markersize=8, color='C0')
+    ax.loglog(T_values_arr, mean_errors_fft, 's-', label='Empirical (FFT)', markersize=8, color='C1')
+    ax.loglog(T_values_arr, theoretical_bounds, '^--', label='Theoretical bound (Prop. 1)', markersize=8, color='C2')
     
-    ax1.set_xlabel('Horizon length $T$')
-    ax1.set_ylabel('$\\|\\hat{P}_\\lambda - P_\\lambda\\|_2$')
-    ax1.set_title('Error Convergence Rate')
-    ax1.legend()
-    ax1.grid(True, alpha=0.3, which='both')
-    
-    # Comparison with theoretical bound
-    ax2.semilogy(T_values, mean_errors_time, 'o-', label='Empirical (time)', markersize=8)
-    ax2.semilogy(T_values, theoretical_bounds, 's--', label='Theoretical bound (Prop. 1)', markersize=8)
-    ax2.fill_between(T_values, 
+    # Fill between for std (time method)
+    ax.fill_between(T_values_arr, 
                       mean_errors_time - np.array(std_errors_time),
                       mean_errors_time + np.array(std_errors_time),
-                      alpha=0.3)
+                      alpha=0.3, color='C0')
     
-    ax2.set_xlabel('Horizon length $T$')
-    ax2.set_ylabel('Error')
-    ax2.set_title('Empirical Error vs. Theoretical Bound')
-    ax2.legend()
-    ax2.grid(True, alpha=0.3, which='both')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlabel('Horizon length $T$')
+    ax.set_ylabel('Error')
+    ax.set_title('Empirical Error vs. Theoretical Bound')
+    ax.legend()
+    ax.grid(True, alpha=0.3, which='both')
     
     plt.tight_layout()
-    p = save_fig('error_convergence.png', dpi=150)
-    print(f"\nPlot saved to '{p}'")
+    p2 = save_fig('error_convergence.png', dpi=150)
+    print(f"Classic plot saved to '{p2}'")
     plt.show()
     
     # Print summary
@@ -193,7 +212,7 @@ def main():
     print("="*60)
     
     # Estimate convergence rate
-    log_T = np.log(T_values)
+    log_T = np.log(T_values_arr)
     log_err = np.log(mean_errors_time)
     slope, intercept = np.polyfit(log_T, log_err, 1)
     

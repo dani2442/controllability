@@ -102,7 +102,7 @@ def main():
         errors_time.append(err_time)
         
         # FFT method
-        H_fft, Sz_fft = cross_moment_H_fft(x, u, lam=lam, dt=dt, omega_max=50)
+        H_fft, Sz_fft = cross_moment_H_fft(x, u, lam=lam, dt=dt, omega_max=200)
         P_hat_fft = estimate_Hautus_matrix(H_fft, Sz_fft, ridge=1e-10)
         sigma_fft = torch.linalg.svdvals(P_hat_fft).min().item()
         err_fft = torch.linalg.norm(P_hat_fft - P_true.to(P_hat_fft.dtype), ord=2).item()
@@ -158,7 +158,7 @@ def main():
     # FFT timing
     start = time.time()
     for _ in range(n_repeats):
-        H_fft, Sz_fft = cross_moment_H_fft(x, u, lam=lam_test, dt=dt, omega_max=50)
+        H_fft, Sz_fft = cross_moment_H_fft(x, u, lam=lam_test, dt=dt, omega_max=200)
         P_hat = estimate_Hautus_matrix(H_fft, Sz_fft, ridge=1e-10)
     fft_elapsed = (time.time() - start) / n_repeats
     

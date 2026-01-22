@@ -11,11 +11,11 @@
   $\mat{S}_X:=\int_0^T x(t)x(t)^\top\,\d t$ satisfies $\mat{S}_X\succ 0$.
   Set $\mat{S}_{\dot X}:=\int_0^T \dot x(t)\dot x(t)^\top\,\d t$.
   For any unit $v\in\CC^n$,
-  \[
+  \begin{align*}
     v^*\mat{G}_\lambda(u)v
-    =\big\|\dot x(\cdot)^*v-\overline{\lambda}\,x(\cdot)^*v\big\|_{L^2(0,T)}^2
-    \ge \Big(|\lambda|\|x(\cdot)^*v\|_{L^2(0,T)}-\|\dot x(\cdot)^*v\|_{L^2(0,T)}\Big)^2.
-  \]
+    &=\big\|\dot x(\cdot)^*v-\overline{\lambda}\,x(\cdot)^*v\big\|_{L^2(0,T)}^2\\
+    &\ge \Big(|\lambda|\|x(\cdot)^*v\|_{L^2(0,T)}-\|\dot x(\cdot)^*v\|_{L^2(0,T)}\Big)^2.
+  \end{align*}
   Using $\|x(\cdot)^*v\|_{L^2(0,T)}^2=v^* \mat{S}_X v\ge \lambda_{\min}(\mat{S}_X)$ and
   $\|\dot x(\cdot)^*v\|_{L^2(0,T)}^2=v^* \mat{S}_{\dot X} v\le \lambda_{\max}(\mat{S}_{\dot X})$ yields the uniform lower bound
   \[
@@ -25,14 +25,6 @@
   Since $\lambda\mapsto \sigma_{\min}(\mat{G}_\lambda(u))$ is continuous and strictly positive, it attains a positive minimum on a large enough closed ball in $\CC$, and the coercivity above controls the complement. Therefore $\inf_{\lambda\in\CC}\sigma_{\min}(\mat{G}_\lambda(u))>0$.
 \end{proof}
 
-\subsection{Proof of the cross-moment Hautus test}\label{app:proof:hautus-cross-moment-test}
-\begin{proof}
-  Under the stated assumptions, \eqref{eq:hautus-cross-moment-deterministic} holds, hence
-  $\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}=\mat{P}_\lambda \mat{S}_Z(u)^{1/2}$ and
-  $\mat{G}_\lambda(u)=\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)^*$.
-  Therefore $\operatorname{rank}(\mat{H}_\lambda(T))=n$ for all $\lambda$ if and only if $\mat{G}_\lambda(u)\succ 0$ for all $\lambda$.
-  The claim then follows from Theorem~\ref{thm:hautus-margin-necessary}.
-\end{proof}
 
 \subsection{Proof of the cross-moment error bound}\label{app:proof:hautus-cross-moment-high-prob}
 \begin{proof}
@@ -108,13 +100,13 @@
 \begin{proof}
   Since $\mat{S}_U(u)\succeq 0$, we have $\lambda_{\min}(\mat{S}_U(u))\le \tfrac{1}{m}\operatorname{tr}(\mat{S}_U(u))$.
   Moreover,
-  \[
+  \begin{align*}
     \operatorname{tr}(\mat{S}_U(u))
-    =\int_0^T \operatorname{tr}\!\big(u(t)u(t)^\top\big)\,\d t
-    =\int_0^T \|u(t)\|_2^2\,\d t
-    =\|u\|_{L^2(0,T)}^2
+    &=\int_0^T \operatorname{tr}\!\big(u(t)u(t)^\top\big)\,\d t\\
+    &=\int_0^T \|u(t)\|_2^2\,\d t\\
+    &=\|u\|_{L^2(0,T)}^2
     \le 1,
-  \]
+  \end{align*}
   which gives the upper bound.
   For achievability, pick an orthonormal set $\{\varphi_i\}_{i=1}^m\subset L^2(0,T)$ and define
   $u(t):=\frac{1}{\sqrt m}[\varphi_1(t)\ \cdots\ \varphi_m(t)]^\top$; then $\mat{S}_U(u)=\frac{1}{m}\mat{I}_m$.

@@ -73,12 +73,12 @@ def cross_moment_H_time(
     x0_c = to_complex(x0, complex_dtype)
     z0_c = to_complex(z0, complex_dtype)
 
-    # H_dx = Σ Δx_k z_k^T
-    H_dx = torch.einsum("kn,kp->np", dx_c, z0_c)
+    # H_dx = Σ Δx_k z_k^*
+    H_dx = torch.einsum("kn,kp->np", dx_c, z0_c.conj())
 
-    # H_xdt = Σ (x_k Δt_k) z_k^T
+    # H_xdt = Σ (x_k Δt_k) z_k^*
     xdt = x0_c * dt_vec[:, None].to(complex_dtype)
-    H_xdt = torch.einsum("kn,kp->np", xdt, z0_c)
+    H_xdt = torch.einsum("kn,kp->np", xdt, z0_c.conj())
 
     H_lam = H_dx - lam_c * H_xdt
 

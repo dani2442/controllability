@@ -1,93 +1,112 @@
 \section{Introduction}\label{sec:intro}
 
-\paragraph{Motivation: learning models that are \emph{control-relevant}.}
+\noindent\textbf{Motivation: learning models that are \emph{control-relevant}.}
 Modern system identification and data-driven control rely on experiments that generate \emph{informative} data, so that the learned model supports reliable closed-loop guarantees.
 In particular, for linear systems, a fundamental prerequisite for many synthesis and certification tasks is that the data reveals the system's \emph{controllable subspace} and, ideally, certifies controllability.
 However, learning objectives that focus only on trajectory matching (prediction or simulation error) do \emph{not} automatically preserve control-theoretic properties such as controllability or stabilizability, since distinct systems can generate similar trajectories on a finite horizon while having different reachable dynamics.
 This gap motivates experiment design criteria that directly encode control-relevant identifiability.
 
-\paragraph{Persistent excitation and universality in data-driven control.}
+\noindent\textbf{Persistent excitation and universality in data-driven control.}
 The classical notion of \emph{persistent excitation} formalizes the idea that the input must excite all relevant degrees of freedom so that system parameters (or behaviors) become identifiable \cite{willemsNotePersistencyExcitation2005}.
 In the behavioral framework, Willems' Fundamental Lemma states that, for controllable LTI systems, all finite-length trajectories can be parameterized from a single measured trajectory provided the input is persistently exciting of sufficiently high order \cite{willemsNotePersistencyExcitation2005}.
 This principle underpins a large class of methods for data-driven simulation and control and has been extended in several directions, including multiple datasets and rank-based characterizations \cite{waardeWillemsFundamentalLemma2020,vanwaardeDataInformativityNew2020}.
 Recent developments also highlight a converse viewpoint: if one seeks a single experiment design that works \emph{uniformly} for broad classes of controllable systems (``universal'' inputs), then persistent excitation is not merely sufficient but essentially necessary at the right order \cite{shakouriNewPerspectiveWillems2025}.
 For continuous-time systems, related identifiability conditions and continuous-time variants of Willems-type results have also been investigated \cite{rapisardaPersistencyExcitationCondition2023,rapisardaFundamentalLemmaContinuoustime2023}.
 
-\paragraph{Offline vs.\ online experiment design.}
+\noindent\textbf{Offline vs.\ online experiment design.}
 Most classical guidance concerns \emph{offline} experiment design, where one selects a fixed open-loop excitation signal before collecting data.
 Offline designs are attractive because they are universal and simple to implement, but they can be conservative and sample-inefficient.
 This has motivated \emph{online} (adaptive) experiment design methods that adjust the input in real time based on the observed data to accelerate identifiability and reduce the amount of data required \cite{vanwaardePersistentExcitationOnline2022,gramlichFastIdentificationStabilization2022}.
 In fact, sharp sample-efficiency results have recently been obtained for the length of an informative trajectory needed for linear system identification \cite{camlibelShortestExperimentLinear2025}.
 These developments emphasize that experiment design should be treated as a first-class component of safe data-driven control, rather than a preprocessing step.
 
-\paragraph{Controllability certification from data.}
+\noindent\textbf{Controllability certification from data.}
 Alongside trajectory-based learning, there is a growing literature on \emph{control-theoretic tests from data}, including controllability/stabilizability certificates that avoid explicit system identification.
 In discrete time, informativity-based tests provide purely data-dependent rank conditions for control properties \cite{vanwaardeDataInformativityNew2020,iannelliDesignInputDatadriven2021}.
 More recently, Mishra et al.\ developed algebraic data-driven tests for controllability of LTI systems from batches of measurements \cite{mishraDataDrivenTestsControllability2021}.
 These results collectively suggest that controllability can, in principle, be certified directly from suitably designed experiments, even when the system matrices are unknown.
 
-\paragraph{Scope of this paper.}
+\noindent\textbf{Scope of this paper.}
 In this work we revisit experiment design for LTI systems from the perspective of certifying the \emph{dimension of the controllable subspace}.
-Let $(\mat A,\mat B)$ be unknown and consider the continuous-time LTI dynamics
+Consider an unknown continuous-time LTI system with state matrix $\mat A\in\R^{n\times n}$ and input matrix $\mat B\in\R^{n\times m}$, governed by
+\begin{equation}\label{eq:lti-intro}
+  \dot x(t)=\mat A x(t)+\mat B u(t),\qquad x(0)=x_0.
+\end{equation}
+The controllable subspace is characterized by the Kalman controllability matrix
 \[
-  \dot x(t)=\mat A x(t)+\mat B u(t),\qquad x(0)=0.
+  \mat{C}:=[\mat{B},\mat{A}\mat{B},\dots,\mat{A}^{n-1}\mat{B}]\in\R^{n\times nm},
 \]
-The controllable subspace is characterized by the reachability matrix
-\[
-  \mat{C}:=[\mat{B},\mat{A}\mat{B},\dots,\mat{A}^{n-1}\mat{B}],
-\]
-and its rank $r:=\operatorname{rank}(\mat{C})$ \cite{kalmanMathematicalDescriptionLinear1963a,chenLinearSystemTheory1999}.
-Rather than assuming stochastic richness or averaging over random inputs, we study \emph{structured deterministic} input families that are \emph{persistently exciting in a generic sense}, meaning that for almost all parameters (and, in the snapshot setting, for generic distinct sampling times) they induce snapshot matrices whose rank equals $r$ (Definition~\ref{def:pei}).
-This yields identifiability guarantees that are constructive and compatible with deterministic experiment design.
-
+and $\operatorname{rank}(\mat{C})$ determines the dimension of the reachable set from the origin \cite{kalmanMathematicalDescriptionLinear1963a,chenLinearSystemTheory1999}.
+An equivalent characterization is given in terms of the Hautus (PBH) test. 
+Recall that for the continuous-time LTI system~\eqref{eq:lti-intro}, the classical Hautus (Popov--Belevitch--Hautus, PBH) test \cite[Theorem~3.13]{trentelmanControlTheoryLinear2001} characterizes controllability and stabilizability as follows:
+\begin{align*}
+(\mat{A},\mat{B}) \text{ is controllable }\quad &\Leftrightarrow \quad \operatorname{rank}[\mat{A}-\lambda \mat{I},\, \mat{B}]=n \quad \forall \lambda\in\CC,\\
+(\mat{A},\mat{B}) \text{ \ is stabilizable } \quad &\Leftrightarrow \quad \operatorname{rank}[\mat{A}-\lambda \mat{I},\, \mat{B}]=n \quad \forall \lambda\in\CC \text{ with } \Re(\lambda)\ge 0.
+\end{align*}
+The data-driven Hautus test estimates the rank of the matrix using the following \textit{trick}:
+$$
+[\mat{A}-\lambda \mat{I},\, \mat{B}]\begin{bmatrix}x(t)\\u(t)\end{bmatrix} = \dot{x}(t) - \lambda x(t)
+$$
+Therefore, assuming access to $u(\cdot)$ and $x(\cdot)$ on a finite horizon $[0,T]$, one can estimate the rank of the Hautus matrix from data without explicitly identifying $(\mat{A},\mat{B})$. However, the quality of this estimate depends on the choice of input $u$. So, the main question we address in this paper is: \emph{how to design inputs $u$ that reliably reveal the controllability rank from data?}
 \subsection{Main Contributions}
 \begin{itemize}
   \item \textbf{A continuous-time data-driven Hautus margin.}
-  Complementing terminal-state guarantees, we provide a continuous-time, data-driven analogue of the classical Hautus (PBH) test \cite{trentelmanControlTheoryLinear2001}, based on the residual Gramian
-  $\mat G_\lambda(u)=\int_0^T(\dot x(t)-\lambda x(t))(\dot x(t)-\lambda x(t))^*\,\d t$ and its frequency-domain representation.
+  Complementing terminal-state guarantees, we provide a continuous-time, data-driven analogue of the classical Hautus (PBH) test \cite{trentelmanControlTheoryLinear2001}.
+  Defining the residual Gramian
+  \[
+    \mat G_\lambda(u):=\int_0^T(\dot x(t)-\lambda x(t))(\dot x(t)-\lambda x(t))^*\,\d t,
+  \]
+  we establish the equivalence
   \[
     (\mat{A},\mat{B}) \text{ is controllable}\quad\Leftrightarrow\quad
-    \operatorname{rank}(\mat{G}_\lambda(u))=n \text{ for all } \lambda\in\CC.
+    \operatorname{rank}(\mat{G}_\lambda(u))=n\quad \forall\lambda\in\CC.
   \]
-  We further develop a derivative-free cross-moment formulation and give basic concentration bounds under an It\^o noise model
+  We proof that we only have to check a finite number of $\lambda\in \Lambda$.We further develop a derivative-free formulation using Fourier transform.
+  \item \textbf{Concentration bounds under It\^o noise.} Consider the It\^o noise model
   \[
-    \d x(t) = \big(\mat{A}x(t) + \mat{B}u(t)\big)\,\d t + \beta\,\d W(t).
+    \d x(t) = \big(\mat{A}x(t) + \mat{B}u(t)\big)\,\d t + \beta\,\d W(t),
   \]
+  where $W$ is a $q$-dimensional standard Brownian motion and $\beta\in\R^{n\times q}$ is the noise intensity matrix.
+  Specifically, with probability at least $1-\delta$,
+  \[
+    \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
+    \le
+    \frac{\|\beta\|_2}{\sqrt{T\,\sigma_{\min}(\bar{\mat{S}}_Z(T))}}
+    \Big(\sqrt{q}+\sqrt{n+m}+\sqrt{2\log(1/\delta)}\Big),
+  \]
+  where $\mat{P}_\lambda:=[\mat{A}-\lambda \mat{I}, \, \mat{B}]$, $\hat{\mat{P}}_\lambda(T)$ is the data-driven estimate, $z(t):=[x(t);u(t)]\in\R^{n+m}$ is the stacked state-input vector and $\bar{\mat{S}}_Z(T):=\frac{1}{T}\int_0^T [x(t);u(t)][x(t)^\top,u(t)^\top]\,\d t$ is its normalized Gramian.
+  Notably, this bound is uniform over all $\lambda\in\CC$ (Proposition~\ref{prop:hautus-cross-moment-high-prob}).
   \item \textbf{Input design for conditioning the Hautus margin.}
-  We provide sharp, model-agnostic designs for conditioning the input Gramian $\mat{S}_U(u)=\int_0^T u(t)u(t)^\top\,\d t$, which in turn stabilizes the data-driven Hautus margin.
-  Under an $L^2$ energy budget, the best possible conditioning is achieved by choosing $m$ orthonormal time functions (isotropic $\mat{S}_U(u)$; Proposition~\ref{prop:hautus-isotropic-input}).
-  Under an $H^1$ smoothness budget, the optimal isotropic design is given by the first $m$ Neumann modes on $[0,T]$, i.e., the constant mode and cosines $\cos(k\pi t/T)$ (Proposition~\ref{prop:hautus-isotropic-input-h1}).
+  We provide sharp, model-agnostic designs for conditioning the input, which improves the data-driven test:\\
+  (1) Under an $L^2$ energy budget $\|u\|_{L^2}\le 1$, the best possible conditioning is achieved by any input with $m$ orthonormal time functions (Proposition~\ref{prop:hautus-isotropic-input}), yielding
+  $$\int_0^T u(t)u(t)^\top\,\d t=\frac{1}{m}\mat{I}_m.$$
+  (2) Under an $H^1$ smoothness budget $\|u\|_{H^1}\le 1$, the optimal design is given by
+  \[
+    u(t) = \sqrt{\alpha}\,Q\begin{bmatrix}\psi_0(t)\\ \vdots\\ \psi_{m-1}(t)\end{bmatrix},
+    \quad\text{where}\quad
+    \psi_k(t):=\sqrt{\tfrac{2}{T}}\cos\!\Big(\frac{k\pi t}{T}\Big),
+  \]
+  with $Q\in\R^{m\times m}$ an orthogonal matrix and $\alpha$ a normalization term (Proposition~\ref{prop:hautus-isotropic-input-h1}).
 \end{itemize}
-%
 Together, these results provide a principled experiment-design toolkit for learning models that preserve controllability structure and are therefore suitable for safe downstream control.
 
 
-\section{Problem Statement}
+\section{Problem Statement}\label{sec:problem}
 
 We consider the continuous-time Linear Time-Invariant (LTI) system
 \begin{equation}\label{eq:lti}
-  \dot x(t) = \mat{A} x(t) + \mat{B} u(t),
+  \dot x(t) = \mat{A} x(t) + \mat{B} u(t),\quad x(0) = x_0,
 \end{equation}
-where the matrices $\mat{A}\in \mathbb{R}^{n \times n}$ and $\mat{B} \in \mathbb{R}^{n \times m}$ are unknown.
-The solution is
-\begin{equation*}
+where the state $x(t)\in\R^n$, the input $u(t)\in\R^m$, and the system matrices $\mat{A}\in \mathbb{R}^{n \times n}$ and $\mat{B} \in \mathbb{R}^{n \times m}$ are unknown.
+Given an initial condition $x(0)\in\R^n$, the state trajectory admits the closed-form solution
+\begin{equation}\label{eq:solution}
   x(t) = e^{\mat{A}t}x(0) + \int_0^t e^{\mat{A}(t-\tau)}\mat{B}\, u(\tau) \, \d\tau.
-\end{equation*}
-For simplicity, we assume the initial state is zero, $x(0)=0$.
-A fundamental property of the system is \textbf{controllability}, which characterizes the ability to steer the state throughout the full state space.
-The reachable (controllable) subspace from the origin is characterized by the controllability matrix
-\begin{equation*}
-  \mat{C} = [\mat{B}, \; \mat{A}\mat{B}, \; \mat{A}^2\mat{B}, \; \cdots, \; \mat{A}^{n-1}\mat{B}].
-\end{equation*}
-Let $r:=\operatorname{rank}(\mat{C})$ denote the dimension of the controllable subspace \cite{kalmanMathematicalDescriptionLinear1963a,chenLinearSystemTheory1999}; the pair $(\mat{A},\mat{B})$ is controllable if and only if $r=n$.
-Our objective is to design inputs $u(t)$ such that observed trajectories reveal $r$ from finitely many snapshots.
-If only outputs $y(t)=\mat{C}_y x(t)$ are measured (with known $\mat{C}_y\in\R^{p\times n}$), then the same rank statements apply to the output-restricted reachability matrix $\mat{C}_y\mat{C}$.
-
-The definition below formalizes a deterministic, generic notion of ``informativeness'' that is common to all of our proofs: (i) the trajectory stays in the controllable subspace, (ii) the chosen input family produces enough distinguishable time signatures to identify vector coefficients, and (iii) those coefficients generically span the controllable subspace.
-
-\begin{defn}[Persistently exciting inputs]\label{def:pei}
-  A parameterized family of inputs $\{u_\theta\}_{\theta\in\Theta}$ is \emph{persistently exciting} if, for every pair $(\mat{A},\mat{B})$ with controllability rank $r:=\operatorname{rank}(\mat{C})$, there exist an integer $N\ge r$ and a horizon $T>0$ such that, for Lebesgue almost every admissible parameter choice (a single $\theta$ in (i), or the tuple $(\theta_1,\dots,\theta_N)$ in (ii)), the corresponding data matrix has rank exactly $r$.
-  Concretely, the data matrix is taken to be either:
-  (i) \emph{single-trajectory snapshots} $[x_\theta(t_1),\dots,x_\theta(t_N)]$ from one experiment, where $t_1,\dots,t_N\in(0,T]$ are pairwise distinct sampling times fixed in advance; or
-  (ii) \emph{multi-trajectory terminal states} $[x_{\theta_1}(T),\dots,x_{\theta_N}(T)]$ from $N$ experiments at a common terminal time $T$ (so repeated sampling times are allowed across experiments).
-\end{defn}
+\end{equation}
+A fundamental property of the system is \textbf{controllability}: the ability to steer the state to any point in $\R^n$ using an appropriate input signal.
+More precisely, the reachable (controllable) subspace from the origin is the image of the Kalman controllability matrix
+\begin{equation}\label{eq:controllability-matrix}
+  \mat{C} := [\mat{B}, \; \mat{A}\mat{B}, \; \mat{A}^2\mat{B}, \; \cdots, \; \mat{A}^{n-1}\mat{B}]\in\R^{n\times nm}.
+\end{equation}
+Let $r:=\operatorname{rank}(\mat{C})$ denote the dimension of this subspace~\cite{kalmanMathematicalDescriptionLinear1963a,chenLinearSystemTheory1999}; the pair $(\mat{A},\mat{B})$ is said to be \emph{controllable} if and only if $r=n$.
+Our objective is to design input signals $u(t)$ such that the observed trajectories reveal the controllability rank~$r$ from finitely many state snapshots.
+When only output measurements $y(t)=\mat{C}_y x(t)$ are available (with a known output matrix $\mat{C}_y\in\R^{p\times n}$), the same rank analysis applies to the output-restricted controllability matrix $\mat{C}_y\mat{C}$.

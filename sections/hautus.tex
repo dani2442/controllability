@@ -1,23 +1,21 @@
 \section{Data-Driven Hautus Tests for Continuous-Time Systems}
 \label{sec:hautus}
-One route to certifying controllability (more precisely, the dimension of the controllable subspace) from data is via terminal-state information under structural assumptions (e.g., a fixed initial condition and structured input families).
-Here we develop an alternative route based on rank conditions that are equivalent to controllability/stabilizability.
-For continuous-time LTI systems \eqref{eq:lti}, the classical Hautus (PBH) test \cite[Theorem~3.13]{trentelmanControlTheoryLinear2001} states:
-\begin{itemize}
-  \item $(\mat{A},\mat{B})$ is controllable if and only if $\operatorname{rank}\begin{bmatrix}\mat{A}-\lambda \mat{I} & \mat{B}\end{bmatrix}=n$ for all $\lambda\in\CC$;
-  \item $(\mat{A},\mat{B})$ is stabilizable if and only if $\operatorname{rank}\begin{bmatrix}\mat{A}-\lambda \mat{I} & \mat{B}\end{bmatrix}=n$ for all $\lambda\in\CC$ with $\Re(\lambda)\ge 0$.
-\end{itemize}
-%
-Using only measured data, one can test controllability/stabilizability without explicitly identifying $(\mat{A},\mat{B})$; see \cite{vanwaardeDataInformativityNew2020,iannelliDesignInputDatadriven2021} for the discrete-time case.
+
+A natural route to certifying controllability from data is via terminal-state information under structural assumptions, such as a fixed initial condition and structured input families.
+In this section, we develop an alternative approach based on rank conditions that are equivalent to controllability and stabilizability.
+
+Recall that for the continuous-time LTI system~\eqref{eq:lti}, the classical Hautus (Popov--Belevitch--Hautus, PBH) test \cite[Theorem~3.13]{trentelmanControlTheoryLinear2001} characterizes controllability and stabilizability
 Here we state a continuous-time version based on time-domain moments of the state and input signals.
-\paragraph{Data model.}
+\noindent\textbf{Data model.}
 We assume access to $u(\cdot)$ and the resulting state $x(\cdot)$ on a finite horizon $[0,T]$ (either as a continuous-time record or via sufficiently fine sampling so that the integrals below can be approximated numerically).
 When $\dot x$ is not directly available or is too noisy to estimate reliably, we rely on the cross-moment formulation in Section~\ref{subsec:hautus-ito}, which only uses increments of $x$ in the stochastic setting and avoids forming $\dot x$ in the deterministic setting.
 
-\paragraph{Outline.}
-We first introduce a residual Gramian $\mat{G}_\lambda(u)$ whose invertibility for all $\lambda\in\CC$ is equivalent to controllability under a mild data-richness condition.
-We then develop a derivative-free cross-moment formulation (deterministic and It\^o) that enables estimating $\mat{G}_\lambda(u)$ and a corresponding Hautus margin directly from measured data.
-Finally, we give an operator formulation that reduces checking all $\lambda\in\CC$ to a finite candidate set and discuss a simple $L^2$-budget design principle for conditioning the input Gramian.
+\noindent\textbf{Outline.}
+The remainder of this section is organized as follows.
+In Section~\ref{subsec:hautus-time-domain}, we introduce a residual Gramian $\mat{G}_\lambda(u)$ and show that its invertibility for all $\lambda\in\CC$ is equivalent to controllability under a mild data-richness condition.
+Section~\ref{subsec:hautus-ito} develops a derivative-free cross-moment formulation---applicable in both deterministic and It\^o settings---that enables estimating $\mat{G}_\lambda(u)$ and a corresponding Hautus margin directly from measured data.
+In Section~\ref{subsec:hautus-operator}, we present an operator formulation that reduces checking all $\lambda\in\CC$ to a finite candidate set.
+Finally, Sections~\ref{subsec:hautus-best-conditioning-l2} and~\ref{subsec:hautus-best-conditioning-h1} discuss optimal input design principles for conditioning the input Gramian under $L^2$ and $H^1$ budgets, respectively.
 
 \subsection{Time-domain Gramian formulation}
 \label{subsec:hautus-time-domain}
@@ -79,11 +77,11 @@ Fix $v\in\CC^n$. Since  $\mat{P}_\lambda\mat{S}_Z(u)\mat{P}_\lambda^*\succeq 0$ 
 \]
 By definition of $\sigma_{\min}$, $\|\mat{P}_\lambda^*v\|_2\ge \sigma_{\min}(\mat{P}_\lambda^*)\|v\|_2=\sigma_{\min}(\mat{P}_\lambda)\|v\|_2$.
 Taking the minimum over $\|v\|_2=1$ and using \eqref{eq:hautus-continuous-factorization} yields
-\[
+\begin{equation}\label{eq:hautus-cross-moment-margin}
   \sigma_{\min}\big(\mat{G}_\lambda(u)\big) = \sigma_{\min}(\mat{P}_\lambda\mat{S}_Z(u)\mat{P}_\lambda^*)
   \ge
   \sigma_{\min}(\mat{P}_\lambda)^2\,\sigma_{\min}\big(\mat{S}_Z(u)\big).
-\]
+\end{equation}
 This bound holds for every $\lambda\in\CC$.
 
 
@@ -119,61 +117,41 @@ For $\lambda\in\CC$, define the It\^o residual differential
 
 \paragraph{Cross-moment factorization.}
 Define the (matrix-valued) cross-moment
-\begin{equation}\label{eq:hautus-cross-moment-H}
-  \mat{H}_\lambda(T)
-  :=
+\begin{align}\label{eq:hautus-cross-moment-H}
+  \mat{H}_\lambda(T):=&
   \int_0^T \d y_\lambda(t)\,z(t)^\top
-  \in\CC^{n\times(n+m)},
-\end{equation}
-and recall $\mat{S}_Z(u)=\int_0^T z(t)z(t)^\top\,\d t$.
-Plugging \eqref{eq:hautus-ito-residual} into \eqref{eq:hautus-cross-moment-H} yields the exact decomposition
-\begin{equation}\label{eq:hautus-cross-moment-factorization}
-  \mat{H}_\lambda(T)
-  =
-  \mat{P}_\lambda \mat{S}_Z(u)
-  +
+  \in\CC^{n\times(n+m)}\\ \label{eq:hautus-cross-moment-factorization}
+  =&\mat{P}_\lambda \mat{S}_Z(u)  +
   \beta\int_0^T \d W(t)\,z(t)^\top.
-\end{equation}
+\end{align}
 The last term is a matrix-valued martingale with $\E[\int_0^T \d W(t)\,z(t)^\top]=0$, hence $\mat{H}_\lambda(T)-\mat{P}_\lambda\mat{S}_Z(u)$ has zero mean.
-
-\paragraph{Deterministic identity and a derivative-free margin.}
-If $x$ is absolutely continuous and $\beta=0$, then $\d y_\lambda(t)=m_\lambda(t)\,\d t$ and therefore
-\begin{equation}\label{eq:hautus-cross-moment-deterministic}
-  \mat{H}_\lambda(T)
-  =
-  \int_0^T m_\lambda(t)\,z(t)^\top\,\d t
-  =
-  \mat{P}_\lambda \mat{S}_Z(u).
-\end{equation}
-If moreover $\mat{S}_Z(u)$ is invertible, then the continuous-time Gramian admits the fully derivative-free representation
+%
+%
+If $x$ is absolutely continuous and $\beta=0$, then $\d y_\lambda(t)=m_\lambda(t)\,\d t$.
+If moreover $\mat{S}_Z(u)$ is invertible, then the continuous-time Gramian admits the representation
 \begin{equation}\label{eq:hautus-cross-moment-G-from-H}
-  \mat{G}_\lambda(u)=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}\mat{H}_\lambda(T)^*,
+  \mat{G}_\lambda(u)=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}\mat{H}_\lambda(T)^*.
 \end{equation}
-and
-\begin{equation}\label{eq:hautus-cross-moment-margin}
-  \sigma_{\min}\big(\mat{G}_\lambda(u)\big)
-  =
-  \sigma_{\min}\!\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)^2
-  \ge
-  \sigma_{\min}(\mat{P}_\lambda)^2\,\sigma_{\min}\!\big(\mat{S}_Z(u)\big),
-\end{equation}
-where $\mat{S}_Z(u)^{-1/2}$ denotes the unique symmetric square root of $\mat{S}_Z(u)^{-1}$.
-
-\begin{cor}[Continuous Hautus test via cross-moments]\label{cor:hautus-cross-moment-test}
-  Assume $x$ is absolutely continuous, $\beta=0$, and $\mat{S}_Z(u)$ is invertible.
-  Then $(\mat{A},\mat{B})$ is controllable if and only if $\operatorname{rank}(\mat{H}_\lambda(T))=n$ for all $\lambda\in\CC$.
-  Equivalently,
-  \[
-    (\mat{A},\mat{B})\ \text{controllable}
-    \quad\Longleftrightarrow\quad
-    \inf_{\lambda\in\CC}\sigma_{\min}\!\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)>0.
-  \]
-\end{cor}
-\begin{proof}
-  See Appendix~\ref{app:proof:hautus-cross-moment-test}.
-\end{proof}
-
-\paragraph{Estimating \texorpdfstring{$\mat{P}_\lambda$}{P\_lambda}.}
+%
+%
+%
+% \begin{cor}[Continuous Hautus test via cross-moments]\label{cor:hautus-cross-moment-test}
+%   Assume $x$ is absolutely continuous, $\beta=0$, and $\mat{S}_Z(u)$ is invertible. Then,
+%   \[
+%     (\mat{A},\mat{B})\ \text{controllable}
+%     \quad\Longleftrightarrow\quad
+%     \inf_{\lambda\in\CC}\sigma_{\min}\!\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)>0.
+%   \]
+% \end{cor}
+% \begin{proof}
+% By \eqref{eq:hautus-cross-moment-factorization} and $\beta=0$, 
+% $\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}=\mat{P}_\lambda \mat{S}_Z(u)^{1/2}$ and
+% $\mat{G}_\lambda(u)=\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)^*$.
+% Therefore $\operatorname{rank}(\mat{H}_\lambda(T))=n$ for all $\lambda$ if and only if $\mat{G}_\lambda(u)\succ 0$ for all $\lambda$.
+% The claim then follows from Theorem~\ref{thm:hautus-margin-necessary}.
+% \end{proof}
+%
+Let us estimate $\mat{P}_\lambda$.
 Assume that $\mat{S}_Z(u)$ is invertible and define
 \begin{equation}\label{eq:hautus-cross-moment-P-hat}
   \widehat{\mat{P}}_\lambda(T):=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}.
@@ -185,8 +163,8 @@ Then \eqref{eq:hautus-cross-moment-factorization} implies the exact error identi
   \beta\left(\int_0^T \d W(t)\,z(t)^\top\right)\mat{S}_Z(u)^{-1}.
 \end{equation}
 % Moreover, defining $\widehat{\mat{G}}_\lambda(T):=\widehat{\mat{P}}_\lambda(T)\mat{S}_Z(u)\widehat{\mat{P}}_\lambda(T)^*$, we obtain the fully data-dependent representation $\widehat{\mat{G}}_\lambda(T)=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}\mat{H}_\lambda(T)^*$.
-
-\paragraph{A basic \texorpdfstring{$T^{-1/2}$}{T\textasciicircum-1/2} rate via It\^o isometry.}
+%
+We want to characterize the statistical rate of convergence of $\widehat{\mat{P}}_\lambda(T)$ to $\mat{P}_\lambda$ as $T\to\infty$. For that, we will use It\^o isometry. Firstly, 
 Introduce the normalized quantities $\bar{\mat{S}}_Z(T):=\frac{1}{T}\mat{S}_Z(u)$ and $\bar{\mat{H}}_\lambda(T):=\frac{1}{T}\mat{H}_\lambda(T)$ so that $\widehat{\mat{P}}_\lambda(T)=\bar{\mat{H}}_\lambda(T)\bar{\mat{S}}_Z(T)^{-1}$.
 The It\^o isometry yields (componentwise) the bound
 \begin{equation}\label{eq:hautus-cross-moment-ito-isometry}
@@ -207,11 +185,12 @@ The $\mathcal{O}_{\mathbb{P}}(T^{-1/2})$ statement above can be strengthened to 
     \frac{\|\beta\|_2}{\sqrt{T\,\sigma_{\min}(\bar{\mat{S}}_Z(T))}}
     \Big(\sqrt{q}+\sqrt{n+m}+\sqrt{2\log(1/\delta)}\Big).
   \end{equation}
-  Moreover, this implies the uniform bound $\sup_{\lambda\in\CC}\|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2$ since the right-hand side of \eqref{eq:hautus-cross-moment-error} does not depend on $\lambda$.
 \end{prop}
 \begin{proof}
   See Appendix~\ref{app:proof:hautus-cross-moment-high-prob}.
 \end{proof}
+Moreover, this implies the uniform bound $\sup_{\lambda\in\CC}\|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2$ since the right-hand side of \eqref{eq:hautus-cross-moment-error} does not depend on $\lambda$.
+
 Finally, by Weyl's inequality,
 \[
   \big|\sigma_{\min}\big(\widehat{\mat{P}}_\lambda(T)\big)-\sigma_{\min}(\mat{P}_\lambda)\big|
@@ -221,7 +200,7 @@ Finally, by Weyl's inequality,
 which provides a simple statistical analogue of the deterministic Hautus margin. In particular, Proposition~\ref{prop:hautus-cross-moment-high-prob} yields a corresponding $(1-\delta)$ bound on the singular-value deviation.
 
 
-\paragraph{A Fourier-domain approximation without derivatives.}
+\subsection{A Fourier-domain approximation without derivatives.}
 The cross-moment $\mat{H}_\lambda(T)$ in \eqref{eq:hautus-cross-moment-H} can also be approximated in the frequency domain without forming $\dot x$.
 For each $\omega\in\R$, define the Fourier transform of the residual increment
 \begin{equation*}
@@ -359,7 +338,7 @@ The next result shows that, under a mild nondegeneracy assumption, rank failure 
 
 Consequently, for rank certification it is enough to check the finitely many candidates $\sigma(\mat{K})$.
   \begin{rmk}[Frequency-domain calculation]\label{rmk:frequency-domain-candidate-lambda}
-	  The matrix $\mat{K}$ in Theorem~\ref{thm:hautus-operator-finite-lambda} can be computed from the Fourier transforms of $x$ and $\dot x$ as
+	  The matrix $\mat{K}$ in Theorem~\ref{thm:hautus-operator-finite-lambda} can be computed from the Fourier transforms of $x$ as
 	  \[
 	    \mat{K}
 	    =\Big(\int_{\R} \widehat x(\ii\omega)\widehat x(\ii\omega)^*\,\frac{\d\omega}{2\pi}\Big)^{-1}
@@ -373,8 +352,9 @@ Consequently, for rank certification it is enough to check the finitely many can
 
 
 \subsection{Best conditioning of control inputs}
+\label{subsec:hautus-best-conditioning-l2}
 
-The data-driven Hautus margins in Corollary~\ref{cor:hautus-cross-moment-test} are controlled (up to the model-dependent factor $\sigma_{\min}(\mat{P}_\lambda)$) by the smallest singular value of the stacked Gramian $\mat{S}_Z(u)$.
+The data-driven Hautus margins established in Corollary~\ref{cor:hautus-cross-moment-test} are controlled---up to the model-dependent factor $\sigma_{\min}(\mat{P}_\lambda)$---by the smallest singular value of the stacked Gramian $\mat{S}_Z(u)$.
 Since $\mat{S}_Z(u)$ depends on the unknown response $x(\cdot)$, a natural model-agnostic surrogate is to ensure that the \emph{input} Gramian is well conditioned, so that the input directions are persistently excited and the inversion of $\mat{S}_Z(u)$ in \eqref{eq:hautus-cross-moment-G-from-H} is numerically stable.
 Under an $L^2$ energy budget, the best possible conditioning corresponds to spreading the energy isotropically across the $m$ input channels.
 
@@ -429,9 +409,8 @@ This penalizes high-frequency excitation and therefore reduces the best achievab
   \]
   and $Q\in\R^{m\times m}$ is orthogonal, then with
   \[
-    \alpha:=\Big(\sum_{k=0}^{m-1}\big(1+(\tfrac{k\pi}{T})^2\big)\Big)^{-1},
-    \qquad
-    u(t):=\sqrt{\alpha}\,Q\begin{bmatrix}\psi_0(t)\\ \vdots\\ \psi_{m-1}(t)\end{bmatrix},
+  u(t)=\sqrt{\alpha}\,Q\begin{bmatrix}\psi_0(t)\\ \vdots\\ \psi_{m-1}(t)\end{bmatrix}, \quad \text{where}\quad
+  \alpha:=\Big(\sum_{k=0}^{m-1}\big(1+(\tfrac{k\pi}{T})^2\big)\Big)^{-1}
   \]
   one has $\|u\|_{H^1(0,T)}^2=1$ and $\mat{S}_U(u)=\alpha\,\mat{I}_m$.
 \end{prop}

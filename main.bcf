@@ -2377,11 +2377,10 @@
     <bcf:citekey order="10" intorder="1">kalmanMathematicalDescriptionLinear1963a</bcf:citekey>
     <bcf:citekey order="10" intorder="2">chenLinearSystemTheory1999</bcf:citekey>
     <bcf:citekey order="11" intorder="1">trentelmanControlTheoryLinear2001</bcf:citekey>
-    <bcf:citekey order="12" intorder="1">kalmanMathematicalDescriptionLinear1963a</bcf:citekey>
-    <bcf:citekey order="12" intorder="2">chenLinearSystemTheory1999</bcf:citekey>
-    <bcf:citekey order="13" intorder="1">trentelmanControlTheoryLinear2001</bcf:citekey>
-    <bcf:citekey order="14" intorder="1">vanwaardeDataInformativityNew2020</bcf:citekey>
-    <bcf:citekey order="14" intorder="2">iannelliDesignInputDatadriven2021</bcf:citekey>
+    <bcf:citekey order="12" intorder="1">trentelmanControlTheoryLinear2001</bcf:citekey>
+    <bcf:citekey order="13" intorder="1">kalmanMathematicalDescriptionLinear1963a</bcf:citekey>
+    <bcf:citekey order="13" intorder="2">chenLinearSystemTheory1999</bcf:citekey>
+    <bcf:citekey order="14" intorder="1">trentelmanControlTheoryLinear2001</bcf:citekey>
     <bcf:citekey order="15" intorder="1">vershyninIntroductionApplicationsData</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->

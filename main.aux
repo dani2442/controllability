@@ -83,10 +83,8 @@
 \newlabel{lem:hautus-operator-margin-bound}{{3.5}{8}{A quantitative lower bound for $\sigma _{\min }(\mat {H}_\lambda (T))$ via $\mat {K}$}{thm.3.5}{}}
 \newlabel{subsec:hautus-best-conditioning-l2}{{3.5}{9}{Best conditioning of control inputs}{subsection.3.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\tocsubsection {}{3.5}{Best conditioning of control inputs}}{9}{subsection.3.5}\protected@file@percent }
-\newlabel{prop:hautus-isotropic-input}{{3.6}{9}{Best conditioning of the input Gramian under $\|u\|_{L^2}\leq 1$}{thm.3.6}{}}
-\newlabel{subsec:hautus-best-conditioning-h1}{{3.6}{9}{Best conditioning under an \texorpdfstring {$H^1$}{H1} budget}{subsection.3.6}{}}
-\@writefile{toc}{\contentsline {subsection}{\tocsubsection {}{3.6}{Best conditioning under an $H^1$ budget}}{9}{subsection.3.6}\protected@file@percent }
-\newlabel{prop:hautus-isotropic-input-h1}{{3.8}{9}{$H^1$-budget isotropic input}{thm.3.8}{}}
+\newlabel{prop:hautus-isotropic-input}{{3.7}{9}{Best conditioning under $\|u\|_{L^2}\leq 1$}{thm.3.7}{}}
+\newlabel{prop:hautus-isotropic-input-h1}{{3.8}{9}{Best conditioning under $\|u\|_{H^1}\leq 1$}{thm.3.8}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Element-wise comparison of the true Hautus matrix $\mathbf  {P}_\lambda $ (left) and its time-domain estimate $\setbox \z@ \hbox {\mathsurround \z@ $\textstyle \mathbf  {P}$}\mathaccent "0362{\mathbf  {P}}_\lambda $ (center), with absolute difference (right). The small difference magnitudes confirm the accuracy of the cross-moment estimator.}}{10}{figure.caption.3}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
 \newlabel{fig:hautus-matrix-comparison}{{1}{10}{Element-wise comparison of the true Hautus matrix $\mat {P}_\lambda $ (left) and its time-domain estimate $\widehat {\mat {P}}_\lambda $ (center), with absolute difference (right). The small difference magnitudes confirm the accuracy of the cross-moment estimator}{figure.caption.3}{}}
@@ -94,24 +92,24 @@
 \newlabel{sec:experiments}{{4}{10}{Numerical Experiments}{section.4}{}}
 \newlabel{subsec:exp-hautus}{{4.1}{10}{Validation of the Data-Driven Hautus Test}{subsection.4.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\tocsubsection {}{4.1}{Validation of the Data-Driven Hautus Test}}{10}{subsection.4.1}\protected@file@percent }
+\newlabel{subsec:exp-convergence}{{4.2}{10}{Error Convergence Rate}{subsection.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\tocsubsection {}{4.2}{Error Convergence Rate}}{10}{subsection.4.2}\protected@file@percent }
 \newlabel{fig:hautus-violinplot}{{2a}{11}{Error distribution across $50$ trajectories (eigenvalues of $\mat {A}$ and random test points)}{figure.caption.4}{}}
 \newlabel{sub@fig:hautus-violinplot}{{a}{11}{Error distribution across $50$ trajectories (eigenvalues of $\mat {A}$ and random test points)}{figure.caption.4}{}}
 \newlabel{fig:error-convergence}{{2b}{11}{Mean error versus horizon $T$ (log-log) with $\pm 1$ std shading and the theoretical bound}{figure.caption.4}{}}
 \newlabel{sub@fig:error-convergence}{{b}{11}{Mean error versus horizon $T$ (log-log) with $\pm 1$ std shading and the theoretical bound}{figure.caption.4}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Summary of estimation accuracy: variability across trials (left) and $T^{-1/2}$ convergence (right).}}{11}{figure.caption.4}\protected@file@percent }
 \newlabel{fig:hautus-error-summary}{{2}{11}{Summary of estimation accuracy: variability across trials (left) and $T^{-1/2}$ convergence (right)}{figure.caption.4}{}}
-\newlabel{subsec:exp-convergence}{{4.2}{11}{Error Convergence Rate}{subsection.4.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\tocsubsection {}{4.2}{Error Convergence Rate}}{11}{subsection.4.2}\protected@file@percent }
 \newlabel{subsec:exp-finite-candidates}{{4.3}{11}{Finite Candidate Eigenvalue Check}{subsection.4.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\tocsubsection {}{4.3}{Finite Candidate Eigenvalue Check}}{11}{subsection.4.3}\protected@file@percent }
+\newlabel{subsec:exp-method-comparison}{{4.4}{11}{Comparison of Time-Domain and FFT Methods}{subsection.4.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\tocsubsection {}{4.4}{Comparison of Time-Domain and FFT Methods}}{11}{subsection.4.4}\protected@file@percent }
 \newlabel{fig:omega-cutoff-table}{{3a}{12}{Effect of frequency cutoff $\omega _{\max }$ on FFT method accuracy for $\lambda = 0.3 + 0.8\ii $}{figure.caption.5}{}}
 \newlabel{sub@fig:omega-cutoff-table}{{a}{12}{Effect of frequency cutoff $\omega _{\max }$ on FFT method accuracy for $\lambda = 0.3 + 0.8\ii $}{figure.caption.5}{}}
 \newlabel{fig:trajectory-3d}{{3b}{12}{Three-dimensional phase portraits for $(x_0,x_1,x_2)$, $(x_3,x_4,x_5)$, and $(x_6,x_7,x_8)$}{figure.caption.5}{}}
 \newlabel{sub@fig:trajectory-3d}{{b}{12}{Three-dimensional phase portraits for $(x_0,x_1,x_2)$, $(x_3,x_4,x_5)$, and $(x_6,x_7,x_8)$}{figure.caption.5}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Frequency cutoff sensitivity and trajectory visualization. Left: accuracy of the FFT-based estimator improves with larger cutoff values, with diminishing returns beyond $\omega _{\max }\approx 100$. Right: representative phase portraits for a 9-dimensional controlled stochastic system.}}{12}{figure.caption.5}\protected@file@percent }
 \newlabel{fig:method-comparison}{{3}{12}{Frequency cutoff sensitivity and trajectory visualization. Left: accuracy of the FFT-based estimator improves with larger cutoff values, with diminishing returns beyond $\omega _{\max }\approx 100$. Right: representative phase portraits for a 9-dimensional controlled stochastic system}{figure.caption.5}{}}
-\newlabel{subsec:exp-method-comparison}{{4.4}{12}{Comparison of Time-Domain and FFT Methods}{subsection.4.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\tocsubsection {}{4.4}{Comparison of Time-Domain and FFT Methods}}{12}{subsection.4.4}\protected@file@percent }
 \newlabel{subsec:exp-trajectory}{{4.5}{12}{Trajectory Visualization}{subsection.4.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\tocsubsection {}{4.5}{Trajectory Visualization}}{12}{subsection.4.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\tocsection {}{}{References}}{12}{section*.6}\protected@file@percent }

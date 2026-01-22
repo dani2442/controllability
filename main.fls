@@ -332,6 +332,10 @@ INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/rsfs/rsfs5.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/euler/eurm10.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/euler/eurm10.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/euler/eurm7.tfm
+OUTPUT main.toc
+INPUT ./sections/introduction.tex
+INPUT ./sections/introduction.tex
+INPUT sections/introduction.tex
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/libertine/LinLibertineT-tlf-t1.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/vf/public/libertine/LinLibertineTB-tlf-t1.vf
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/libertine/LinLibertineTB-tlf-t1--base.tfm
@@ -355,10 +359,6 @@ INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/libertine/LinLibertineTI-tl
 INPUT /usr/share/texlive/texmf-dist/fonts/enc/dvips/libertine/lbtn_7grukw.enc
 INPUT /usr/share/texlive/texmf-dist/fonts/vf/public/libertine/LinLibertineT-tlf-t1.vf
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/libertine/LinLibertineT-tlf-t1--base.tfm
-OUTPUT main.toc
-INPUT ./sections/introduction.tex
-INPUT ./sections/introduction.tex
-INPUT sections/introduction.tex
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/libertine/LinLibertineTBI-tlf-t1.tfm
 INPUT /usr/share/texlive/texmf-dist/fonts/tfm/public/libertine/LinLibertineTI-tlf-t1.tfm
 INPUT /usr/share/texmf/fonts/tfm/public/lm/rm-lmbx12.tfm

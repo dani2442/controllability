@@ -8,12 +8,11 @@
 \contentsline {subsection}{\tocsubsection {}{3.3}{A Fourier-domain approximation without derivatives.}}{7}{subsection.3.3}%
 \contentsline {subsection}{\tocsubsection {}{3.4}{An operator formulation and finitely many candidate $\lambda $}}{7}{subsection.3.4}%
 \contentsline {subsection}{\tocsubsection {}{3.5}{Best conditioning of control inputs}}{9}{subsection.3.5}%
-\contentsline {subsection}{\tocsubsection {}{3.6}{Best conditioning under an $H^1$ budget}}{9}{subsection.3.6}%
 \contentsline {section}{\tocsection {}{4}{Numerical Experiments}}{10}{section.4}%
 \contentsline {subsection}{\tocsubsection {}{4.1}{Validation of the Data-Driven Hautus Test}}{10}{subsection.4.1}%
-\contentsline {subsection}{\tocsubsection {}{4.2}{Error Convergence Rate}}{11}{subsection.4.2}%
+\contentsline {subsection}{\tocsubsection {}{4.2}{Error Convergence Rate}}{10}{subsection.4.2}%
 \contentsline {subsection}{\tocsubsection {}{4.3}{Finite Candidate Eigenvalue Check}}{11}{subsection.4.3}%
-\contentsline {subsection}{\tocsubsection {}{4.4}{Comparison of Time-Domain and FFT Methods}}{12}{subsection.4.4}%
+\contentsline {subsection}{\tocsubsection {}{4.4}{Comparison of Time-Domain and FFT Methods}}{11}{subsection.4.4}%
 \contentsline {subsection}{\tocsubsection {}{4.5}{Trajectory Visualization}}{12}{subsection.4.5}%
 \contentsline {section}{\tocsection {}{}{References}}{12}{section*.6}%
 \contentsline {section}{\tocsection {Appendix}{A}{Proofs}}{14}{appendix.A}%

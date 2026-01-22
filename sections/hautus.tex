@@ -337,7 +337,16 @@ The data-driven estimate \eqref{eq:hautus-cross-moment-P-hat} and the resulting 
 Since $\mat{S}_Z(u)$ depends on the unknown response $x(\cdot)$, a natural model-agnostic surrogate is to ensure that the \emph{input} Gramian is well conditioned, so that the input directions are persistently excited and the inversion of $\mat{S}_Z(u)$ in \eqref{eq:hautus-cross-moment-G-from-H} is numerically stable.
 Under an $L^2$ energy budget, the best possible conditioning corresponds to spreading the energy isotropically across the $m$ input channels.
 
-\begin{prop}[Best conditioning of the input Gramian under $\|u\|_{L^2}\leq 1$]\label{prop:hautus-isotropic-input}
+\begin{rmk}
+The matrix $\mat{S}_U(u)$ is a principal submatrix of $\mat{S}_Z(u)$, hence
+\[
+  \sigma_{\min}(\mat{S}_Z(u))\le \sigma_{\min}(\mat{S}_U(u)).
+\]
+Thus, even though $\sigma_{\min}(\mat{S}_Z(u))$ depends on the state-response, and therefore on $(\mat{A},\mat{B})$ and the initial condition,
+choosing inputs with well-conditioned $\mat{S}_U(u)$ is a natural baseline when seeking a large $\sigma_{\min}(\mat{S}_Z(u))$ without model knowledge.
+\end{rmk}
+
+\begin{prop}[Best conditioning under $\|u\|_{L^2}\leq 1$]\label{prop:hautus-isotropic-input}
   Define the input Gramian
   \[
     \mat{S}_U(u):=\int_0^T u(t)u(t)^\top\,\d t \in \R^{m\times m}.
@@ -352,25 +361,13 @@ Under an $L^2$ energy budget, the best possible conditioning corresponds to spre
   See Appendix~\ref{app:proof:hautus-isotropic-input}.
 \end{proof}
 
-\begin{rmk}
-The matrix $\mat{S}_U(u)$ is a principal submatrix of $\mat{S}_Z(u)$, hence
-\[
-  \sigma_{\min}(\mat{S}_Z(u))\le \sigma_{\min}(\mat{S}_U(u)).
-\]
-Thus, even though $\sigma_{\min}(\mat{S}_Z(u))$ depends on the state-response, and therefore on $(\mat{A},\mat{B})$ and the initial condition,
-choosing inputs with well-conditioned $\mat{S}_U(u)$ is a natural baseline when seeking a large $\sigma_{\min}(\mat{S}_Z(u))$ without model knowledge.
-\end{rmk}
-
-\subsection{Best conditioning under an \texorpdfstring{$H^1$}{H1} budget}
-\label{subsec:hautus-best-conditioning-h1}
-
 In applications one may also constrain input \emph{smoothness}, for instance by an $H^1$ budget
 \[
   \|u\|_{H^1(0,T)}^2:=\int_0^T \big(\|u(t)\|_2^2+\|\dot u(t)\|_2^2\big)\,\d t \le 1.
 \]
 This penalizes high-frequency excitation and therefore reduces the best achievable isotropic conditioning compared to the $L^2$-only case.
 
-\begin{prop}[$H^1$-budget isotropic input]\label{prop:hautus-isotropic-input-h1}
+\begin{prop}[Best conditioning under $\|u\|_{H^1}\leq 1$]\label{prop:hautus-isotropic-input-h1}
   Let $u\in H^1(0,T;\R^m)$ satisfy $\|u\|_{H^1(0,T)}\le 1$, and define $\mat{S}_U(u):=\int_0^T u(t)u(t)^\top\,\d t$.
   Then
   \[

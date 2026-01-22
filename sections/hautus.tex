@@ -12,12 +12,12 @@ When $\dot x$ is not directly available or is too noisy to estimate reliably, we
 
 \noindent\textbf{Outline.}
 The remainder of this section is organized as follows.
-In Section~\ref{subsec:hautus-time-domain}, we introduce a residual Gramian $\mat{G}_\lambda(u)$ and show that its invertibility for all $\lambda\in\CC$ is equivalent to controllability under a mild data-richness condition.
-Section~\ref{subsec:hautus-ito} develops a derivative-free cross-moment formulation---applicable in both deterministic and It\^o settings---that enables estimating $\mat{G}_\lambda(u)$ and a corresponding Hautus margin directly from measured data.
+In Section~\ref{subsec:hautus-time-domain}, we introduce a residual $\mat{H}_\lambda(u)$ and show that its invertibility for all $\lambda\in\CC$ is equivalent to controllability under a mild data-richness condition.
+Section~\ref{subsec:hautus-ito} develops a derivative-free cross-moment formulation---applicable in both deterministic and It\^o settings---that enables estimating $\mat{H}_\lambda(u)$ and a corresponding Hautus margin directly from measured data.
 In Section~\ref{subsec:hautus-operator}, we present an operator formulation that reduces checking all $\lambda\in\CC$ to a finite candidate set.
 Finally, Sections~\ref{subsec:hautus-best-conditioning-l2} and~\ref{subsec:hautus-best-conditioning-h1} discuss optimal input design principles for conditioning the input Gramian under $L^2$ and $H^1$ budgets, respectively.
 
-\subsection{Time-domain Gramian formulation}
+\subsection{Noise-free formulation}
 \label{subsec:hautus-time-domain}
 
 For input design it is convenient to work with a continuous-time analogue in which rank is replaced by a coercive quadratic functional.
@@ -27,7 +27,7 @@ For $\lambda\in\CC$ define the residual signal and its (time-domain) Gramian
 \[
   m_\lambda(t):=\dot x(t)-\lambda x(t)\in\CC^n,
   \qquad
-  \mat{G}_\lambda(u):=\int_0^T m_\lambda(t)m_\lambda(t)^*\,\d t\in\CC^{n\times n}.
+  \mat{H}_\lambda(u):=\int_0^T m_\lambda(t)z(t)^*\,\d t\in\CC^{n\times (n+m)}.
 \]
 
 Define the stacked signal and its Gramian
@@ -40,57 +40,52 @@ Finally, define the Hautus matrix
 \[
   \mat{P}_\lambda := \begin{bmatrix}\mat{A}-\lambda \mat{I} & \mat{B}\end{bmatrix}\in\CC^{n\times(n+m)}.
 \]
-Note that $\mat{S}_Z(u)\succeq 0$ and $\mat{G}_\lambda(u)\succeq 0$ by construction. Moreover, for every admissible input $u$,
+Note that $\mat{S}_Z(u)\succeq 0$ by construction. Moreover, for every admissible input $u$,
 \[
   m_\lambda(t)=(\mat{A}-\lambda \mat{I})x(t)+\mat{B}u(t)=\mat{P}_\lambda z(t)\quad\text{for a.e.\ }t\in(0,T),
 \]
 and therefore
 \begin{equation}\label{eq:hautus-continuous-factorization}
-  \mat{G}_\lambda(u)=\mat{P}_\lambda \mat{S}_Z(u) \mat{P}_\lambda^*.
+  \mat{H}_\lambda(u)=\mat{P}_\lambda \mat{S}_Z(u).
 \end{equation}
-
-\paragraph{Frequency-domain representation.}
-To relate this to a Fourier-domain statistic, view $m_\lambda$ as a time-limited signal extended by zero outside $[0,T]$.
-That is, define $\tilde m_\lambda(t):=m_\lambda(t)\mathds{1}_{[0,T]}(t)$ and its Fourier transform by
-\[
-  \widehat m_\lambda(\ii\omega):=\int_{\R} \tilde m_\lambda(t)e^{-\ii\omega t}\,\d t=\int_0^T m_\lambda(t)e^{-\ii\omega t}\,\d t,\qquad \omega\in\R.
-\]
-By the Plancherel theorem (Parseval identity) with this convention,
-\begin{equation}\label{eq:hautus-parseval-m}
-  \mat{G}_\lambda(u)=\int_{\R} \widehat m_\lambda(\ii\omega)\widehat m_\lambda(\ii\omega)^*\,\frac{\d\omega}{2\pi}.
-\end{equation}
-This yields a direct frequency-domain analogue of the time-domain margin $\sigma_{\min}(\mat{G}_\lambda(u))$.
-In practice, one evaluates $\sigma_{\min}(\mat{G}_\lambda(u))$ on a finite set of $\lambda$ (e.g., a grid or the candidate values discussed below).
-Working with $\widehat m_\lambda$ directly avoids integration-by-parts boundary terms.
-Indeed, for $\widehat x(\ii\omega):=\int_0^T x(t)e^{-\ii\omega t}\,\d t$,
-integration by parts gives
-\[
-  \int_0^T \dot x(t)e^{-\ii\omega t}\,\d t = x(T)e^{-\ii\omega T}-x(0)+ \ii\omega\widehat x(\ii\omega),
-\]
-hence
-\[
-  \widehat m_\lambda(\ii\omega) = (\ii\omega-\lambda)\widehat x(\ii\omega) + x(T)e^{-\ii\omega T} - x(0).
-\]
-Fix $v\in\CC^n$. Since  $\mat{P}_\lambda\mat{S}_Z(u)\mat{P}_\lambda^*\succeq 0$ and $\mat{S}_Z(u)\succeq 0$,
-\[
-  v^*\mat{P}_\lambda\mat{S}_Z(u)\mat{P}_\lambda^*v = (\mat{P}_\lambda^*v)^*\mat{S}_Z(u)(\mat{P}_\lambda^*v) \ge \sigma_{\min}(\mat{S}_Z(u))\,\|\mat{P}_\lambda^*v\|_2^2.
-\]
-By definition of $\sigma_{\min}$, $\|\mat{P}_\lambda^*v\|_2\ge \sigma_{\min}(\mat{P}_\lambda^*)\|v\|_2=\sigma_{\min}(\mat{P}_\lambda)\|v\|_2$.
-Taking the minimum over $\|v\|_2=1$ and using \eqref{eq:hautus-continuous-factorization} yields
+%
+% \noindent\textbf{Frequency-domain representation.}
+% To relate this to a Fourier-domain statistic, view $m_\lambda$ as a time-limited signal extended by zero outside $[0,T]$.
+% That is, define $\tilde m_\lambda(t):=m_\lambda(t)\mathds{1}_{[0,T]}(t)$ and its Fourier transform by
+% \[
+%   \widehat m_\lambda(\ii\omega):=\int_{\R} \tilde m_\lambda(t)e^{-\ii\omega t}\,\d t=\int_0^T m_\lambda(t)e^{-\ii\omega t}\,\d t,\qquad \omega\in\R.
+% \]
+% By the Plancherel theorem (Parseval identity) with this convention,
+% \begin{equation}\label{eq:hautus-parseval-m}
+%   \mat{H}_\lambda(u)=\int_{\R} \widehat m_\lambda(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi}.
+% \end{equation}
+% This yields a direct frequency-domain analogue of the time-domain margin $\sigma_{\min}(\mat{H}_\lambda(u))$.
+% In practice, one evaluates $\sigma_{\min}(\mat{H}_\lambda(u))$ on a finite set of $\lambda$ (e.g., a grid or the candidate values discussed below).
+% Working with $\widehat m_\lambda$ directly avoids integration-by-parts boundary terms.
+% Indeed, for $\widehat x(\ii\omega):=\int_0^T x(t)e^{-\ii\omega t}\,\d t$,
+% integration by parts gives
+% \[
+%   \int_0^T \dot x(t)e^{-\ii\omega t}\,\d t = x(T)e^{-\ii\omega T}-x(0)+ \ii\omega\widehat x(\ii\omega),
+% \]
+% hence
+% \[
+%   \widehat m_\lambda(\ii\omega) = (\ii\omega-\lambda)\widehat x(\ii\omega) + x(T)e^{-\ii\omega T} - x(0).
+% \]
+Hences
 \begin{equation}\label{eq:hautus-cross-moment-margin}
-  \sigma_{\min}\big(\mat{G}_\lambda(u)\big) = \sigma_{\min}(\mat{P}_\lambda\mat{S}_Z(u)\mat{P}_\lambda^*)
+  \sigma_{\min}\big(\mat{H}_\lambda(u)\big) = \sigma_{\min}(\mat{P}_\lambda\mat{S}_Z(u))
   \ge
-  \sigma_{\min}(\mat{P}_\lambda)^2\,\sigma_{\min}\big(\mat{S}_Z(u)\big).
+  \sigma_{\min}(\mat{P}_\lambda)\,\sigma_{\min}\big(\mat{S}_Z(u)\big), \qquad \forall \lambda\in\CC.
 \end{equation}
-This bound holds for every $\lambda\in\CC$.
+Using this, we can now state the continuous-time Hautus test.
 
 
 \begin{thm}[Continuous Hautus Test]\label{thm:hautus-margin-necessary}
-  If there exists $u$ such that $\operatorname{rank}(\mat{G}_\lambda(u))=n$ for all $\lambda\in\CC$, then $(\mat{A},\mat{B})$ is controllable.
+  If there exists $u$ such that $\operatorname{rank}(\mat{H}_\lambda(u))=n$ for all $\lambda\in\CC$, then $(\mat{A},\mat{B})$ is controllable.
   Moreover, if $\mat{S}_Z(u)$ is invertible, then the converse holds
   \[
     (\mat{A},\mat{B}) \text{ is controllable}\quad\Leftrightarrow\quad
-    \operatorname{rank}(\mat{G}_\lambda(u))=n \text{ for all } \lambda\in\CC.
+    \operatorname{rank}(\mat{H}_\lambda(u))=n \text{ for all } \lambda\in\CC.
   \]
 \end{thm}
 \begin{proof}
@@ -103,7 +98,7 @@ This bound holds for every $\lambda\in\CC$.
 \subsection{Stochastic model and It\^o residual}
 \label{subsec:hautus-ito}
 
-Another alternative to direct state-derivative measurements is to estimate $\mat{P}_\lambda$, and hence $\mat{G}_\lambda(u)$, from cross-moments between the state and input signals, using only increments of $x$.
+Another alternative to direct state-derivative measurements is to estimate $\mat{P}_\lambda$, and hence $\mat{H}_\lambda(u)$, from cross-moments between the state and input signals, using only increments of $x$.
 This is particularly natural in a stochastic setting, where $\dot x$ does not exist pointwise.
 Assume that the measured state is an It\^o process satisfying the linear SDE
 \begin{equation*}
@@ -128,28 +123,8 @@ The last term is a matrix-valued martingale with $\E[\int_0^T \d W(t)\,z(t)^\top
 %
 %
 If $x$ is absolutely continuous and $\beta=0$, then $\d y_\lambda(t)=m_\lambda(t)\,\d t$.
-If moreover $\mat{S}_Z(u)$ is invertible, then the continuous-time Gramian admits the representation
-\begin{equation}\label{eq:hautus-cross-moment-G-from-H}
-  \mat{G}_\lambda(u)=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}\mat{H}_\lambda(T)^*.
-\end{equation}
 %
 %
-%
-% \begin{cor}[Continuous Hautus test via cross-moments]\label{cor:hautus-cross-moment-test}
-%   Assume $x$ is absolutely continuous, $\beta=0$, and $\mat{S}_Z(u)$ is invertible. Then,
-%   \[
-%     (\mat{A},\mat{B})\ \text{controllable}
-%     \quad\Longleftrightarrow\quad
-%     \inf_{\lambda\in\CC}\sigma_{\min}\!\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)>0.
-%   \]
-% \end{cor}
-% \begin{proof}
-% By \eqref{eq:hautus-cross-moment-factorization} and $\beta=0$, 
-% $\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}=\mat{P}_\lambda \mat{S}_Z(u)^{1/2}$ and
-% $\mat{G}_\lambda(u)=\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)^*$.
-% Therefore $\operatorname{rank}(\mat{H}_\lambda(T))=n$ for all $\lambda$ if and only if $\mat{G}_\lambda(u)\succ 0$ for all $\lambda$.
-% The claim then follows from Theorem~\ref{thm:hautus-margin-necessary}.
-% \end{proof}
 %
 Let us estimate $\mat{P}_\lambda$.
 Assume that $\mat{S}_Z(u)$ is invertible and define
@@ -267,21 +242,8 @@ Therefore, for $w\in\CC^n$,
 \[
   \mathcal{P}(\lambda)\mathcal{P}(\lambda)^*w
   =\mathcal{P}(\lambda)\big(\dot\X^*w-\overline{\lambda}\X^*w\big)
-  =\int_0^T m_\lambda(t)\,m_\lambda(t)^*w\,\d t
-  =\mat{G}_\lambda(u)\,w.
+  =\int_0^T m_\lambda(t)\,m_\lambda(t)^*w\,\d t.
 \]
-Hence,
-\begin{equation}\label{eq:hautus-operator-gram-identity}
-  \mathcal{P}(\lambda)\mathcal{P}(\lambda)^* = \mat{G}_\lambda(u)\qquad\text{as operators }\CC^n\to\CC^n.
-\end{equation}
-Since $\mathcal{P}(\lambda):L^2(0,T)\to\CC^n$ has finite-dimensional codomain, it is surjective if and only if
-$\mathcal{P}(\lambda)\mathcal{P}(\lambda)^*$ is invertible on $\CC^n$.
-By \eqref{eq:hautus-operator-gram-identity}, for every $\lambda\in\CC$,
-\begin{equation}\label{eq:hautus-operator-full-rank}
-  \operatorname{rank}(\mathcal{P}(\lambda))=n
-  \quad\Leftrightarrow\quad
-  \mat{G}_\lambda(u)\ \text{is invertible}.
-\end{equation}
 The next result shows that, under a mild nondegeneracy assumption, rank failure can only occur at finitely many ``candidate'' values of $\lambda$.
 
 \begin{thm}[Finite candidate set for $\lambda\in \CC$]\label{thm:hautus-operator-finite-lambda}

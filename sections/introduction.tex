@@ -54,12 +54,12 @@ Therefore, assuming access to $u(\cdot)$ and $x(\cdot)$ on a finite horizon $[0,
   Complementing terminal-state guarantees, we provide a continuous-time, data-driven analogue of the classical Hautus (PBH) test \cite{trentelmanControlTheoryLinear2001}.
   Defining the residual Gramian
   \[
-    \mat G_\lambda(u):=\int_0^T(\dot x(t)-\lambda x(t))(\dot x(t)-\lambda x(t))^*\,\d t,
+    \mat H_\lambda(u):=\int_0^T(\dot x(t)-\lambda x(t))z(t)^*\,\d t \in \mathbb{C}^{n\times (n+m)},
   \]
-  we establish the equivalence
+  where $z(t):=[x(t);u(t)]\in\R^{n+m}$ is the stacked state-input vector, then
   \[
     (\mat{A},\mat{B}) \text{ is controllable}\quad\Leftrightarrow\quad
-    \operatorname{rank}(\mat{G}_\lambda(u))=n\quad \forall\lambda\in\CC.
+    \operatorname{rank}(\mat{H}_\lambda(u))=n\quad \forall\lambda\in\CC.
   \]
   We proof that we only have to check a finite number of $\lambda\in \Lambda$.We further develop a derivative-free formulation using Fourier transform.
   \item \textbf{Concentration bounds under It\^o noise.} Consider the It\^o noise model
@@ -74,7 +74,7 @@ Therefore, assuming access to $u(\cdot)$ and $x(\cdot)$ on a finite horizon $[0,
     \frac{\|\beta\|_2}{\sqrt{T\,\sigma_{\min}(\bar{\mat{S}}_Z(T))}}
     \Big(\sqrt{q}+\sqrt{n+m}+\sqrt{2\log(1/\delta)}\Big),
   \]
-  where $\mat{P}_\lambda:=[\mat{A}-\lambda \mat{I}, \, \mat{B}]$, $\hat{\mat{P}}_\lambda(T)$ is the data-driven estimate, $z(t):=[x(t);u(t)]\in\R^{n+m}$ is the stacked state-input vector and $\bar{\mat{S}}_Z(T):=\frac{1}{T}\int_0^T [x(t);u(t)][x(t)^\top,u(t)^\top]\,\d t$ is its normalized Gramian.
+  where $\mat{P}_\lambda:=[\mat{A}-\lambda \mat{I}, \, \mat{B}]$, $\hat{\mat{P}}_\lambda(T)$ is the data-driven estimate and $\bar{\mat{S}}_Z(T):=\frac{1}{T}\int_0^T z(t)z(t)^\top\,\d t$ is its normalized Gramian.
   Notably, this bound is uniform over all $\lambda\in\CC$ (Proposition~\ref{prop:hautus-cross-moment-high-prob}).
   \item \textbf{Input design for conditioning the Hautus margin.}
   We provide sharp, model-agnostic designs for conditioning the input, which improves the data-driven test:\\

@@ -4,7 +4,7 @@ This module implements the data-driven Hautus tests for continuous-time systems,
 including time-domain and frequency-domain formulations.
 
 References:
-    - Theorem 1: Continuous Hautus Test (time-domain Gramian)
+    - Theorem 1: Continuous Hautus Test (time-domain cross-moment)
     - Corollary 1: Continuous Hautus test via cross-moments
     - Proposition 1: Cross-moment error bound
 """
@@ -26,7 +26,7 @@ def cross_moment_H_time(
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     r"""Compute cross-moment H_λ(T) in time domain (Eq. 10 in manuscript).
     
-    H_λ(T) = ∫ dy_λ(t) z(t)^T
+    H_λ(T) = ∫ dy_λ(t) z(t)^*
     
     where dy_λ(t) = dx(t) - λ x(t) dt and z = [x; u].
     

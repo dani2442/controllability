@@ -115,7 +115,7 @@ def compute_candidate_eigenvalues(
 ) -> torch.Tensor:
     r"""Compute the candidate eigenvalues λ from Theorem 4 (finite candidate set).
     
-    The matrix K = (∫ x x^* dt)^{-1} (∫ ẋ x^* dt) has the property that
+    The matrix K = (∫ x x^* dt)^{-1} (∫ x \dot x^* dt) has the property that
     rank failure of the Hautus pencil can only occur at λ ∈ σ(K).
 
     Args:
@@ -128,7 +128,8 @@ def compute_candidate_eigenvalues(
     Sx = integral_xxH_time(x, dt)
     Mx = integral_xdot_xH_time(x, dt)
     
-    K = torch.linalg.solve(Sx, Mx.T).T  # More stable than inv(Sx) @ Mx
+    # K = (∫ x x^* dt)^{-1} (∫ x \dot x^* dt), using Mx^T = ∫ x \dot x^* dt
+    K = torch.linalg.solve(Sx, Mx.T)  # More stable than inv(Sx) @ (Mx.T)
     return torch.linalg.eigvals(K)
 
 

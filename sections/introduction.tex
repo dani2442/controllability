@@ -52,7 +52,7 @@ Therefore, assuming access to $u(\cdot)$ and $x(\cdot)$ on a finite horizon $[0,
 \begin{itemize}
   \item \textbf{A continuous-time data-driven Hautus margin.}
   Complementing terminal-state guarantees, we provide a continuous-time, data-driven analogue of the classical Hautus (PBH) test \cite{trentelmanControlTheoryLinear2001}.
-  Defining the residual Gramian
+  Defining the residual cross-moment
   \[
     \mat H_\lambda(u):=\int_0^T(\dot x(t)-\lambda x(t))z(t)^*\,\d t \in \mathbb{C}^{n\times (n+m)},
   \]
@@ -61,7 +61,11 @@ Therefore, assuming access to $u(\cdot)$ and $x(\cdot)$ on a finite horizon $[0,
     (\mat{A},\mat{B}) \text{ is controllable}\quad\Leftrightarrow\quad
     \operatorname{rank}(\mat{H}_\lambda(u))=n\quad \forall\lambda\in\CC.
   \]
-  We proof that we only have to check a finite number of $\lambda\in \Lambda$.We further develop a derivative-free formulation using Fourier transform.
+  We prove that it suffices to check only the finite set $\Lambda=\sigma(\mat{K})$ (so $|\Lambda|\le n$), where
+  \[
+    \mat{K}:=\Big(\int_0^T x(t)x(t)^*\,\d t\Big)^{-1}\Big(\int_0^T x(t)\dot x(t)^*\,\d t\Big).
+  \]
+  We further develop a derivative-free formulation using Fourier transform.
   \item \textbf{Concentration bounds under It\^o noise.} Consider the It\^o noise model
   \[
     \d x(t) = \big(\mat{A}x(t) + \mat{B}u(t)\big)\,\d t + \beta\,\d W(t),

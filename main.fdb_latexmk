@@ -1,12 +1,12 @@
 # Fdb version 4
-["biber main"] 1769124156.16004 "main.bcf" "main.bbl" "main" 1769124585.18826 0
-  "main.bcf" 1769124584.89491 109613 018748ded21a4a197a5d4d55c4fb9754 "pdflatex"
+["biber main"] 1769124156.16004 "main.bcf" "main.bbl" "main" 1769124722.01645 0
+  "main.bcf" 1769124721.74169 109613 018748ded21a4a197a5d4d55c4fb9754 "pdflatex"
   "references.bib" 1769102010.30819 19961 550922341ab5c0c5ca350a35ff5f0a54 ""
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1769124582.45281 "/home/dani/projects/controllability_code/main.tex" "main.pdf" "main" 1769124585.18889 0
+["pdflatex"] 1769124719.32795 "/home/dani/projects/controllability_code/main.tex" "main.pdf" "main" 1769124722.01698 0
   "/etc/texmf/web2c/texmf.cnf" 1761774973.99669 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/home/dani/projects/controllability_code/main.tex" 1769122045.3183 4728 62c11966a8e4954902cdaa21dfb7a9d0 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/libertine/lbtn_76gpa5.enc" 1490131464 2933 9ad527ce78d7c5fa0a642dead095f172 ""
@@ -221,15 +221,15 @@
   "images/hautus_error_violinplot.pdf" 1769092201.99159 23272 2878537f9488781a9ba53277875a89d5 ""
   "images/hautus_matrix_comparison.pdf" 1769092202.78359 21340 9727814d1e81ff8c9a97bddc3d86aead ""
   "images/trajectory_3d.pdf" 1769091914.16365 92071 0ff95e45401667e2ca2ed5276ec3c00e ""
-  "main.aux" 1769124584.88248 15756 e4c16d449f663c69f33990cc9deaa495 "pdflatex"
+  "main.aux" 1769124721.7334 15756 e4c16d449f663c69f33990cc9deaa495 "pdflatex"
   "main.bbl" 1769124157.83633 37734 5e7a957783e298464a76d03e3ad9fabf "biber main"
-  "main.out" 1769124584.89077 5986 9ba4a6df0bf438e23c4d1ab8ec9fc8ee "pdflatex"
-  "main.run.xml" 1769124584.89905 2305 52095dfad395b381e9a32937e764a41c "pdflatex"
+  "main.out" 1769124721.73755 5986 9ba4a6df0bf438e23c4d1ab8ec9fc8ee "pdflatex"
+  "main.run.xml" 1769124721.74583 2305 52095dfad395b381e9a32937e764a41c "pdflatex"
   "main.tex" 1769122045.3183 4728 62c11966a8e4954902cdaa21dfb7a9d0 ""
-  "main.toc" 1769124584.89905 2614 e29d9524a709c9d8d416211a5a6001d7 "pdflatex"
+  "main.toc" 1769124721.74583 2614 e29d9524a709c9d8d416211a5a6001d7 "pdflatex"
   "sections/appendix_proofs.tex" 1769124226.46087 8037 0f255f6f0855f800601cbd71c75f3dbd ""
   "sections/experiments.tex" 1769122443.54483 9671 02dbc87e1ae0543afc186f340b164ead ""
-  "sections/hautus.tex" 1769124582.04971 21213 f7958e2b5fd4eaea3a1b6661274e4a09 ""
+  "sections/hautus.tex" 1769124718.90388 21108 4ddebe2ed25b06c20096c30423224566 ""
   "sections/introduction.tex" 1769123649.05536 10893 063ef869ba0dce7b0206e510375176f7 ""
   (generated)
   "main.aux"

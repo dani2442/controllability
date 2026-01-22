@@ -278,7 +278,7 @@ The next result shows that, under a mild nondegeneracy assumption, rank failure 
   This is a data-richness condition: it requires, in particular, that the trajectory does not remain in a strict subspace of $\R^n$ on $[0,T]$.
   Define
   \[
-    \mat{K}:=(\X\X^*)^{-1}\X\dot\X^*\in\CC^{n\times n}.
+    \mat{K}:=(\X\X^*)^{-1}\X\dot\X^*=\Big(\int_0^T x(t)x(t)^*\,\d t\Big)^{-1}\Big(\int_0^T x(t)\dot x(t)^*\,\d t\Big)\in\CC^{n\times n}.
   \]
   Then for every $\lambda\in\CC$,
   \[
@@ -286,12 +286,7 @@ The next result shows that, under a mild nondegeneracy assumption, rank failure 
     \quad\Longrightarrow\quad
     \lambda\in\sigma(\mat{K}).
   \]
-  In particular, the set of $\lambda$ for which $\operatorname{rank}(\mathcal{P}(\lambda))<n$ is contained in $\sigma(\mat{K})$, which has at most $n$ elements.
-  Moreover, in terms of time-domain moments,
-  \[
-    \mat{K}
-    =\Big(\int_0^T x(t)x(t)^*\,\d t\Big)^{-1}\Big(\int_0^T x(t)\dot x(t)^*\,\d t\Big).
-  \]
+  In particular, the set of $\lambda$ for which $\operatorname{rank}(\mathcal{P}(\lambda))<n$ is contained in $\sigma(\mat{K})$.
 \end{thm}
 \begin{proof}
   See Appendix~\ref{app:proof:hautus-operator-finite-lambda}.

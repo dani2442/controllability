@@ -15,7 +15,7 @@ The remainder of this section is organized as follows.
 In Section~\ref{subsec:hautus-time-domain}, we introduce a residual $\mat{H}_\lambda(u)$ and show that having full row rank for all $\lambda\in\CC$ is equivalent to controllability under a mild data-richness condition.
 Section~\ref{subsec:hautus-ito} develops a derivative-free cross-moment formulation---applicable in both deterministic and It\^o settings---that enables estimating $\mat{H}_\lambda(u)$ and a corresponding Hautus margin directly from measured data.
 In Section~\ref{subsec:hautus-operator}, we present an operator formulation that reduces checking all $\lambda\in\CC$ to a finite candidate set.
-Finally, Sections~\ref{subsec:hautus-best-conditioning-l2} and~\ref{subsec:hautus-best-conditioning-h1} discuss optimal input design principles for conditioning the input Gramian under $L^2$ and $H^1$ budgets, respectively.
+Finally, Section~\ref{subsec:hautus-best-conditioning} discuss optimal input design principles for conditioning the input Gramian under $L^2$ and $H^1$ budgets, respectively.
 
 \subsection{Noise-free cross-moment formulation}
 \label{subsec:hautus-time-domain}
@@ -331,7 +331,7 @@ Consequently, for rank certification it is enough to check the finitely many can
 
 
 \subsection{Best conditioning of control inputs}
-\label{subsec:hautus-best-conditioning-l2}
+\label{subsec:hautus-best-conditioning}
 
 The data-driven estimate \eqref{eq:hautus-cross-moment-P-hat} and the resulting singular-value margin are controlled---up to the model-dependent factor $\sigma_{\min}(\mat{P}_\lambda)$---by the smallest singular value of the stacked Gramian $\mat{S}_Z(u)$.
 Since $\mat{S}_Z(u)$ depends on the unknown response $x(\cdot)$, a natural model-agnostic surrogate is to ensure that the \emph{input} Gramian is well conditioned, so that the input directions are persistently excited and the inversion of $\mat{S}_Z(u)$ in \eqref{eq:hautus-cross-moment-G-from-H} is numerically stable.

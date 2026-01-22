@@ -205,3 +205,95 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+
+# LaTeX auxiliary files
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+# LaTeX intermediate files
+*.dvi
+*.xdv
+*-converted-to.*
+
+# Bibliography auxiliary files
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+# Build tool auxiliary files
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+*.bbl-SAVE-ERROR
+
+# Build directories
+*.pdf
+# Uncomment the line above if you don't want to track PDFs
+# Or be selective: keep only final PDFs by uncommenting:
+# *.pdf
+# !final.pdf
+
+# Glossaries
+*.acn
+*.acr
+*.glg
+*.glo
+*.gls
+*.glsdefs
+*.lzo
+*.lzs
+
+# Index files
+*.idx
+*.ilg
+*.ind
+
+# Nomenclature
+*.nlo
+*.nls
+
+# Hyperref
+*.brf
+
+# Knitr
+*-concordance.tex
+
+# Beamer
+*.nav
+*.pre
+*.snm
+*.vrb
+
+# Temporary files
+*~
+*.swp
+*.swo
+*.bak
+*.backup
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+# .vscode/
+.idea/
+*.sublime-*

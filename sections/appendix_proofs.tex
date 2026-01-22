@@ -1,0 +1,144 @@
+\section{Proofs}\label{app:proofs}
+
+\subsection{Proof of the continuous-time Hautus test}\label{app:proof:hautus-margin-necessary}
+\begin{proof}
+  If $(\mat{A},\mat{B})$ is not controllable, then by the (continuous-time) Hautus test there exist $\lambda\in\CC$ and $v\neq 0$ such that $v^*\mat{P}_\lambda=0$.
+  Using \eqref{eq:hautus-continuous-factorization}, this gives
+  $v^*\mat{G}_\lambda(u)v = v^*\mat{P}_\lambda \mat{S}_Z(u)\mat{P}_\lambda^* v = 0$, hence $\sigma_{\min}(\mat{G}_\lambda(u))=0$.
+
+  Conversely, assume $(\mat{A},\mat{B})$ is controllable and $\mat{S}_Z(u)$ is invertible. Then $\mat{P}_\lambda$ has full row rank for every $\lambda\in\CC$, so \eqref{eq:hautus-continuous-factorization} implies $\mat{G}_\lambda(u)\succ 0$ for every $\lambda$.
+  Moreover, since $\mat{S}_Z(u)\succ 0$, its state block
+  $\mat{S}_X:=\int_0^T x(t)x(t)^\top\,\d t$ satisfies $\mat{S}_X\succ 0$.
+  Set $\mat{S}_{\dot X}:=\int_0^T \dot x(t)\dot x(t)^\top\,\d t$.
+  For any unit $v\in\CC^n$,
+  \[
+    v^*\mat{G}_\lambda(u)v
+    =\big\|\dot x(\cdot)^*v-\overline{\lambda}\,x(\cdot)^*v\big\|_{L^2(0,T)}^2
+    \ge \Big(|\lambda|\|x(\cdot)^*v\|_{L^2(0,T)}-\|\dot x(\cdot)^*v\|_{L^2(0,T)}\Big)^2.
+  \]
+  Using $\|x(\cdot)^*v\|_{L^2(0,T)}^2=v^* \mat{S}_X v\ge \lambda_{\min}(\mat{S}_X)$ and
+  $\|\dot x(\cdot)^*v\|_{L^2(0,T)}^2=v^* \mat{S}_{\dot X} v\le \lambda_{\max}(\mat{S}_{\dot X})$ yields the uniform lower bound
+  \[
+    \sigma_{\min}(\mat{G}_\lambda(u))\ge \Big(|\lambda|\sqrt{\lambda_{\min}(\mat{S}_X)}-\sqrt{\lambda_{\max}(\mat{S}_{\dot X})}\Big)^2,
+  \]
+  hence $\sigma_{\min}(\mat{G}_\lambda(u))\to\infty$ as $|\lambda|\to\infty$.
+  Since $\lambda\mapsto \sigma_{\min}(\mat{G}_\lambda(u))$ is continuous and strictly positive, it attains a positive minimum on a large enough closed ball in $\CC$, and the coercivity above controls the complement. Therefore $\inf_{\lambda\in\CC}\sigma_{\min}(\mat{G}_\lambda(u))>0$.
+\end{proof}
+
+\subsection{Proof of the cross-moment Hautus test}\label{app:proof:hautus-cross-moment-test}
+\begin{proof}
+  Under the stated assumptions, \eqref{eq:hautus-cross-moment-deterministic} holds, hence
+  $\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}=\mat{P}_\lambda \mat{S}_Z(u)^{1/2}$ and
+  $\mat{G}_\lambda(u)=\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)\big(\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1/2}\big)^*$.
+  Therefore $\operatorname{rank}(\mat{H}_\lambda(T))=n$ for all $\lambda$ if and only if $\mat{G}_\lambda(u)\succ 0$ for all $\lambda$.
+  The claim then follows from Theorem~\ref{thm:hautus-margin-necessary}.
+\end{proof}
+
+\subsection{Proof of the cross-moment error bound}\label{app:proof:hautus-cross-moment-high-prob}
+\begin{proof}
+  Let $\mat{M}(T):=\int_0^T \d W(t)\,z(t)^\top\in\R^{q\times (n+m)}$. Conditional on the path $\{z(t)\}_{t\in[0,T]}$, $\mat{M}(T)$ is a centered Gaussian matrix whose rows are independent and satisfy
+  \[
+    \E\big[\mat{M}(T)_{i,:}^\top \mat{M}(T)_{i,:}\mid z\big] = \int_0^T z(t)z(t)^\top\,\d t = \mat{S}_Z(u),\qquad i=1,\dots,q.
+  \]
+  Therefore, conditional on $z$, we have the distributional identity $\mat{M}(T)\stackrel{d}{=}\mat{G}\mat{S}_Z(u)^{1/2}$ where $\mat{G}\in\R^{q\times (n+m)}$ has i.i.d.\ $\mathcal{N}(0,1)$ entries.
+  Using \eqref{eq:hautus-cross-moment-error},
+  \[
+    \widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda
+    \stackrel{d}{=}
+    \beta\,\mat{G}\mat{S}_Z(u)^{-1/2},
+  \]
+  conditional on $z$, hence
+  \[
+    \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
+    \le
+    \frac{\|\beta\|_2}{\sqrt{\sigma_{\min}(\mat{S}_Z(u))}}\;\|\mat{G}\|_2.
+  \]
+  The standard Gaussian matrix bound $\mathbb{P}\big(\|\mat{G}\|_2\ge \sqrt{q}+\sqrt{n+m}+t\big)\le e^{-t^2/2}$ (valid for all $t\ge 0$; see, e.g., \cite{vershyninIntroductionApplicationsData}) yields \eqref{eq:hautus-cross-moment-high-prob} by choosing $t=\sqrt{2\log(1/\delta)}$ and using $\sigma_{\min}(\mat{S}_Z(u))=T\sigma_{\min}(\bar{\mat{S}}_Z(T))$.
+\end{proof}
+
+\subsection{Proof of the finite candidate set result}\label{app:proof:hautus-operator-finite-lambda}
+\begin{proof}
+  Fix $\lambda\in\CC$ and assume $\operatorname{rank}(\mathcal{P}(\lambda))<n$.
+  Since the codomain is $\CC^n$, the left nullspace is nontrivial, so there exists $0\neq w\in\CC^n$ with
+  $\mathcal{P}(\lambda)^*w=0$, i.e.\ $\dot\X^*w=\overline{\lambda}\X^*w$.
+  Left-multiply by $(\X\X^*)^{-1}\X$ to obtain
+  \[
+    \mat{K}w
+    =(\X\X^*)^{-1}\X\dot\X^*w
+    =\overline{\lambda}\,(\X\X^*)^{-1}\X\X^*w
+    =\overline{\lambda}\,w,
+  \]
+  so $\overline{\lambda}\in\sigma(\mat{K})$.
+  Since $x$ is real-valued, the moments defining $\mat{K}$ are real and hence $\sigma(\mat{K})$ is closed under complex conjugation, which yields $\lambda\in\sigma(\mat{K})$.
+\end{proof}
+
+\subsection{Proof of the finite checking corollary}\label{app:proof:hautus-operator-finite-checking}
+\begin{proof}
+  If there existed $\lambda_0\in\CC$ with $\operatorname{rank}(\mathcal{P}(\lambda_0))<n$, then
+  Theorem~\ref{thm:hautus-operator-finite-lambda} would imply $\lambda_0\in\sigma(\mat{K})$, contradicting the hypothesis.
+\end{proof}
+
+\subsection{Proof of the quantitative margin bound}\label{app:proof:hautus-operator-margin-bound}
+\begin{proof}
+  Fix $w\in\CC^n$.
+  Since $w^*(\dot\X-\lambda\X)$ is a bounded linear functional on $L^2(0,T)$, we have
+  \[
+    \big\|w^*(\dot\X-\lambda\X)\big\|
+    =\big\|(\dot\X^*-\overline{\lambda}\,\X^*)w\big\|_{L^2(0,T)}.
+  \]
+  Moreover,
+  \[
+    (\mat{K}-\overline{\lambda}\,\mat{I})w
+    =(\X\X^*)^{-1}\X(\dot\X^*-\overline{\lambda}\,\X^*)w,
+  \]
+  hence
+  \[
+    \|(\mat{K}-\overline{\lambda}\,\mat{I})w\|
+    \le \|(\X\X^*)^{-1}\X\|\,\big\|(\dot\X^*-\overline{\lambda}\,\X^*)w\big\|_{L^2(0,T)}.
+  \]
+  Using \eqref{eq:hautus-operator-gram-identity}, $\|(\dot\X^*-\overline{\lambda}\,\X^*)w\|_{L^2(0,T)}^2=w^*\mat{G}_\lambda(u)w$, so
+  \[
+    w^*\mat{G}_\lambda(u)w \ge \frac{\|(\mat{K}-\overline{\lambda}\,\mat{I})w\|^2}{\|(\X\X^*)^{-1}\X\|^2}.
+  \]
+  Taking the minimum over $\|w\|_2=1$ yields the claimed bound.
+  The final claim follows since $\sigma_{\min}(\mat{K}-\overline{\lambda}\,\mat{I})>0$ whenever $\lambda\notin\sigma(\mat{K})$.
+\end{proof}
+
+\subsection{Proof of the \texorpdfstring{$L^2$}{L2}-budget isotropic design}\label{app:proof:hautus-isotropic-input}
+\begin{proof}
+  Since $\mat{S}_U(u)\succeq 0$, we have $\lambda_{\min}(\mat{S}_U(u))\le \tfrac{1}{m}\operatorname{tr}(\mat{S}_U(u))$.
+  Moreover,
+  \[
+    \operatorname{tr}(\mat{S}_U(u))
+    =\int_0^T \operatorname{tr}\!\big(u(t)u(t)^\top\big)\,\d t
+    =\int_0^T \|u(t)\|_2^2\,\d t
+    =\|u\|_{L^2(0,T)}^2
+    \le 1,
+  \]
+  which gives the upper bound.
+  For achievability, pick an orthonormal set $\{\varphi_i\}_{i=1}^m\subset L^2(0,T)$ and define
+  $u(t):=\frac{1}{\sqrt m}[\varphi_1(t)\ \cdots\ \varphi_m(t)]^\top$; then $\mat{S}_U(u)=\frac{1}{m}\mat{I}_m$.
+\end{proof}
+
+\subsection{Proof of the \texorpdfstring{$H^1$}{H1}-budget isotropic design}\label{app:proof:hautus-isotropic-input-h1}
+\begin{proof}
+  Expand $u$ in the orthonormal Neumann basis $\{\psi_k\}_{k\ge 0}$ as $u(t)=\sum_{k\ge 0}\psi_k(t)a_k$ with coefficients $a_k\in\R^m$, so that
+  \[
+    \mat{S}_U(u)=\sum_{k\ge 0} a_k a_k^\top,
+    \qquad
+    \|u\|_{H^1(0,T)}^2=\sum_{k\ge 0}\Big(1+\big(\tfrac{k\pi}{T}\big)^2\Big)\|a_k\|_2^2.
+  \]
+  Let $W:=\operatorname{diag}(w_0,w_1,\dots)$ with $w_k:=1+(\tfrac{k\pi}{T})^2$, and define $A:=[a_0\ a_1\ \cdots]$, so that $\mat{S}_U(u)=AA^\top$ and $\|u\|_{H^1(0,T)}^2=\operatorname{tr}(A W A^\top)$.
+  Write $A=\mat{S}_U(u)^{1/2}R$ where $R$ has orthonormal rows ($RR^\top=\mat{I}_m$), and set $\Pi:=R^\top R$, a rank-$m$ orthogonal projector.
+  Then
+  \begin{align*}
+    \|u\|_{H^1(0,T)}^2
+    &=\operatorname{tr}\!\big(\mat{S}_U(u)^{1/2}RWR^\top \mat{S}_U(u)^{1/2}\big)\\
+    &=\operatorname{tr}\!\big(\mat{S}_U(u)\,RWR^\top\big)\\
+    &\ge \lambda_{\min}(\mat{S}_U(u))\,\operatorname{tr}(RWR^\top)\\
+    &= \lambda_{\min}(\mat{S}_U(u))\,\operatorname{tr}(W\Pi).
+  \end{align*}
+  Since $W$ is diagonal with nondecreasing entries, the minimum of $\operatorname{tr}(W\Pi)$ over rank-$m$ projectors $\Pi$ equals $\sum_{k=0}^{m-1}w_k$, attained by projecting onto $\operatorname{span}\{\psi_0,\dots,\psi_{m-1}\}$.
+  Using $\|u\|_{H^1(0,T)}^2\le 1$ gives the stated upper bound on $\lambda_{\min}(\mat{S}_U(u))$.
+  The construction with the first $m$ Neumann modes and orthogonal $Q$ yields $\mat{S}_U(u)=\alpha \mat{I}_m$ and saturates $\|u\|_{H^1(0,T)}^2=1$.
+\end{proof}

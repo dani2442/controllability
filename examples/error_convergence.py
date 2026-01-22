@@ -173,7 +173,7 @@ def main():
     # =========================================================================
     # Classic plot: Theoretical bound comparison with individual trajectories
     # =========================================================================
-    fig, ax = plt.subplots(1, 1, figsize=(7, 5))
+    fig, ax = plt.subplots(1, 1, figsize=(5, 4))
     
     # Plot individual batch trajectories with transparency (connected over T)
     for b in range(batch):
@@ -185,7 +185,7 @@ def main():
     # Mean lines with markers
     ax.loglog(T_values_arr, mean_errors_time, 'o-', label='Empirical (time)', markersize=8, color='C0')
     ax.loglog(T_values_arr, mean_errors_fft, 's-', label='Empirical (FFT)', markersize=8, color='C1')
-    ax.loglog(T_values_arr, theoretical_bounds, '^--', label='Theoretical bound (Prop. 1)', markersize=8, color='C2')
+    ax.loglog(T_values_arr, theoretical_bounds, '^--', label='Theoretical bound', markersize=8, color='C2')
     
     # Fill between for std (time method)
     ax.fill_between(T_values_arr, 
@@ -202,7 +202,7 @@ def main():
     ax.grid(True, alpha=0.3, which='both')
     
     plt.tight_layout()
-    p2 = save_fig('error_convergence.png', dpi=150)
+    p2 = save_fig('error_convergence.pdf', dpi=150)
     print(f"Classic plot saved to '{p2}'")
     plt.show()
     

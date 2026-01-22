@@ -154,7 +154,7 @@ def main():
     # =========================================================================
     sns.set_theme(style="whitegrid")
     
-    fig_violin, ax1 = plt.subplots(figsize=(8, 5))
+    fig_violin, ax1 = plt.subplots(figsize=(5, 4))
     
     # Violinplot: Errors by method
     sns.violinplot(
@@ -164,10 +164,10 @@ def main():
     ax1.set_xlabel("Method")
     ax1.set_ylabel("$\\sigma_{\\min}(P_\\lambda) - \\sigma_{\\min}(\\hat{P}_\\lambda)$")
     ax1.set_title("Error Distribution by Method and λ Type")
-    ax1.legend(title="λ type", loc="upper right")
+    ax1.legend(title="λ type", loc="lower right")
     
     plt.tight_layout()
-    p1 = save_fig('hautus_error_violinplot.png', fig=fig_violin, dpi=150)
+    p1 = save_fig('hautus_error_violinplot.pdf', fig=fig_violin, dpi=150)
     print(f"\nViolinplot saved to '{p1}'")
     
     # =========================================================================
@@ -184,8 +184,9 @@ def main():
     fig2, axs2 = plot_matrix_comparison(
         result_time["P_true"],
         result_time["P_hat"],
-        titles=("$P_\\lambda$ (true)", "$\\hat{P}_\\lambda$ (time)", "|Difference|"),
+        titles=("$P_\\lambda$ (true)", "$\\hat{P}_\\lambda$", "|$P_\\lambda-\\hat{P}_\\lambda$|"),
     )
+    save_fig('hautus_matrix_comparison.pdf', fig=fig2, dpi=150)
     plt.suptitle(f"Time-domain method, λ = {lam}")
     
     # Compare singular values

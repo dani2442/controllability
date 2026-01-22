@@ -151,14 +151,14 @@ def main():
     
     # Save figures into images/ using shared helper
     # p1 = save_fig('trajectory_2d.png', fig=fig1, dpi=150)
-    p2 = save_fig('trajectory_3d.png', fig=fig2, dpi=150)
-    p3 = save_fig('trajectory_multipanel.png', fig=fig5, dpi=150)
+    p2 = save_fig('trajectory_3d.pdf', fig=fig2, dpi=150)
+    # p3 = save_fig('trajectory_multipanel.png', fig=fig5, dpi=150)
     # p4 = save_fig('trajectory_energy.png', fig=fig6, dpi=150)
 
     print("\nFigures saved:")
     # print(f"  - {p1}")
     print(f"  - {p2}")
-    print(f"  - {p3}")
+    # print(f"  - {p3}")
     # print(f"  - {p4}")
     
     plt.show()

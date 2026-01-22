@@ -111,7 +111,8 @@ def plot_trajectory_3d(
     ax.set_zlabel("$x_k$")
     ax.set_title(title)
     ax.legend(loc="best")
-    
+    # tight layout
+    fig.tight_layout()
     return fig, ax
 
 
@@ -228,7 +229,7 @@ def plot_matrix_comparison(
     P_true: torch.Tensor,
     P_hat: torch.Tensor,
     titles: Tuple[str, str, str] = ("$P_\\lambda$ (true)", "$\\hat{P}_\\lambda$ (estimated)", "Difference"),
-    figsize: Tuple[int, int] = (15, 4),
+    figsize: Tuple[int, int] = (10, 3),
     cmap: str = "viridis",
 ) -> Tuple[Figure, List[Axes]]:
     """Plot comparison of true and estimated Hautus matrices.

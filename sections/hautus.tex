@@ -2,38 +2,30 @@
 
 We consider the continuous-time Linear Time-Invariant (LTI) system
 \begin{equation}\label{eq:lti}
-  \dot x(t) = \mat{A} x(t) + \mat{B} u(t),\quad x(0) = x_0,
+\begin{aligned}
+  &\dot x(t) = \mat{A} x(t) + \mat{B} u(t),\\
+  &x(0) = x_0,
+\end{aligned}
 \end{equation}
 where the state $x(t)\in\R^n$, the input $u(t)\in\R^m$, and the system matrices $\mat{A}\in \mathbb{R}^{n \times n}$ and $\mat{B} \in \mathbb{R}^{n \times m}$ are unknown.
-Given an initial condition $x(0)\in\R^n$, the state trajectory admits the closed-form solution
-\begin{equation}\label{eq:solution}
-  x(t) = e^{\mat{A}t}x(0) + \int_0^t e^{\mat{A}(t-\tau)}\mat{B}\, u(\tau) \, \d\tau.
-\end{equation}
-A fundamental property of the system is \textbf{controllability}: the ability to steer the state to any point in $\R^n$ using an appropriate input signal.
-More precisely, the reachable (controllable) subspace from the origin is the image of the Kalman controllability matrix
-\begin{equation}\label{eq:controllability-matrix}
-  \mat{C} := [\mat{B}, \; \mat{A}\mat{B}, \; \mat{A}^2\mat{B}, \; \cdots, \; \mat{A}^{n-1}\mat{B}]\in\R^{n\times nm}.
-\end{equation}
-Let $r:=\operatorname{rank}(\mat{C})$ denote the dimension of this subspace~\cite{kalmanMathematicalDescriptionLinear1963a,chenLinearSystemTheory1999}; the pair $(\mat{A},\mat{B})$ is said to be \emph{controllable} if and only if $r=n$.
-Our objective is to design input signals $u(t)$ such that the observed trajectories reveal the controllability rank~$r$ from finitely many state snapshots.
-When only output measurements $y(t)=\mat{C}_y x(t)$ are available (with a known output matrix $\mat{C}_y\in\R^{p\times n}$), the same rank analysis applies to the output-restricted controllability matrix $\mat{C}_y\mat{C}$.
+% Given an initial condition $x_0\in\R^n$, the state trajectory admits the closed-form solution
+% \begin{equation}\label{eq:solution}
+%   x(t) = e^{\mat{A}t}x_0 + \int_0^t e^{\mat{A}(t-\tau)}\mat{B}\, u(\tau) \, \d\tau.
+% \end{equation}
+% A fundamental property of the system is \textbf{controllability}: the ability to steer the state to any point in $\R^n$ using an appropriate input signal.
+% Our objective is to design input signals $u(t)$ such that the observed trajectories reveal the controllability rank.
 
 
-A natural route to certifying controllability from data is via terminal-state information under structural assumptions, such as a fixed initial condition and structured input families.
-In this section, we develop an alternative approach based on rank conditions that are equivalent to controllability and stabilizability.
+% A natural route to certifying controllability from data is via terminal-state information under structural assumptions, such as a fixed initial condition and structured input families.
+% In this section, we develop an alternative approach based on rank conditions that are equivalent to controllability and stabilizability.
 
-Recall that for the continuous-time LTI system~\eqref{eq:lti}, the classical Hautus (Popov--Belevitch--Hautus, PBH) test \cite[Theorem~3.13]{trentelmanControlTheoryLinear2001} characterizes controllability and stabilizability
-Here we state a continuous-time version based on time-domain moments of the state and input signals.
+% Recall that for the continuous-time LTI system~\eqref{eq:lti}, the classical Hautus (Popov--Belevitch--Hautus, PBH) test \cite[Theorem~3.13]{trentelmanControlTheoryLinear2001} characterizes controllability and stabilizability
+% Here we state a continuous-time version based on time-domain moments of the state and input signals.
 \noindent\textbf{Data model.}
-We assume access to $u(\cdot)$ and the resulting state $x(\cdot)$ on a finite horizon $[0,T]$ (either as a continuous-time record or via sufficiently fine sampling so that the integrals below can be approximated numerically).
+We assume access to $u(\cdot)$ and the resulting state $x(\cdot)$ on a finite horizon $[0,T]$.
 When $\dot x$ is not directly available or is too noisy to estimate reliably, we rely on the cross-moment formulation in Section~\ref{subsec:hautus-ito}, which only uses increments of $x$ in the stochastic setting and avoids forming $\dot x$ in the deterministic setting.
 
-\noindent\textbf{Outline.}
-The remainder of this section is organized as follows.
-In Section~\ref{subsec:hautus-time-domain}, we introduce a residual $\mat{H}_\lambda(u)$ and show that having full row rank for all $\lambda\in\CC$ is equivalent to controllability under a mild data-richness condition.
-Section~\ref{subsec:hautus-ito} develops a derivative-free cross-moment formulation---applicable in both deterministic and It\^o settings---that enables estimating $\mat{H}_\lambda(u)$ and a corresponding Hautus margin directly from measured data.
-In Section~\ref{subsec:hautus-operator}, we present an operator formulation that reduces checking all $\lambda\in\CC$ to a finite candidate set.
-Finally, Section~\ref{subsec:hautus-best-conditioning} discuss optimal input design principles for conditioning the input Gramian under $L^2$ and $H^1$ budgets, respectively.
+
 
 \subsection{Noise-free cross-moment formulation}
 \label{subsec:hautus-time-domain}
@@ -60,7 +52,7 @@ Finally, define the Hautus matrix
 \]
 Note that $\mat{S}_Z(u)\succeq 0$ by construction. Moreover, for every admissible input $u$,
 \[
-  m_\lambda(t)=(\mat{A}-\lambda \mat{I})x(t)+\mat{B}u(t)=\mat{P}_\lambda z(t)\quad\text{for a.e.\ }t\in(0,T),
+  m_\lambda(t)=(\mat{A}-\lambda \mat{I})x(t)+\mat{B}u(t)=\mat{P}_\lambda z(t),
 \]
 and therefore
 \begin{equation}\label{eq:hautus-continuous-factorization}
@@ -140,14 +132,9 @@ The last term is a matrix-valued martingale with $\E[\int_0^T \d W(t)\,z(t)^\top
 %
 If $x$ is absolutely continuous and $\beta=0$, then $\d y_\lambda(t)=m_\lambda(t)\,\d t$.
 If moreover $\mat{S}_Z(u)$ is invertible, then the deterministic residual Gramian
-\[
-  \mat{G}_\lambda(u):=\int_0^T m_\lambda(t)m_\lambda(t)^*\,\d t=\mat{P}_\lambda\mat{S}_Z(u)\mat{P}_\lambda^*
-\]
-admits the cross-moment representation
 \begin{equation}\label{eq:hautus-cross-moment-G-from-H}
-  \mat{G}_\lambda(u)=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}\mat{H}_\lambda(T)^*.
+  \mat{G}_\lambda(u):=\int_0^T m_\lambda(t)m_\lambda(t)^*\,\d t=\mat{P}_\lambda\mat{S}_Z(u)\mat{P}_\lambda^*=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}\mat{H}_\lambda(T)^*
 \end{equation}
-%
 %
 %
 Let us estimate $\mat{P}_\lambda$.

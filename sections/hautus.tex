@@ -33,11 +33,7 @@ where the state $x(t)\in\R^n$, the input $u(t)\in\R^m$, and the system matrices 
 
 For input design it is convenient to work with a time-domain moment formulation based on the residual and the stacked state--input signal.
 Fix a horizon $T>0$ and let $u\in L^2(0,T;\R^m)$ be an input generating an absolutely continuous state trajectory $x:[0,T]\to\R^n$ with $x,\dot x\in L^2(0,T;\R^n)$.
-For $\lambda\in\CC$ define the residual signal
-\[
-  m_\lambda(t):=\dot x(t)-\lambda x(t)\in\CC^n,
-\]
-and its cross-moment
+For $\lambda\in\CC$ define the cross-moment
 \[
   \mat{H}_\lambda(T):=\int_0^T (\dot x(t)-\lambda x(t))z(t)^\top\,\d t\in\CC^{n\times (n+m)}.
 \]
@@ -53,29 +49,6 @@ Note that $\mat{S}_Z(T)\succeq 0$ by construction. Moreover, for every admissibl
 \begin{equation}\label{eq:hautus-continuous-factorization}
   \mat{H}_\lambda(T)=\mat{P}_\lambda \mat{S}_Z(T).
 \end{equation}
-%
-% \noindent\textbf{Frequency-domain representation.}
-% To relate this to a Fourier-domain statistic, view $m_\lambda$ as a time-limited signal extended by zero outside $[0,T]$.
-% That is, define $\tilde m_\lambda(t):=m_\lambda(t)\mathds{1}_{[0,T]}(t)$ and its Fourier transform by
-% \[
-%   \widehat m_\lambda(\ii\omega):=\int_{\R} \tilde m_\lambda(t)e^{-\ii\omega t}\,\d t=\int_0^T m_\lambda(t)e^{-\ii\omega t}\,\d t,\qquad \omega\in\R.
-% \]
-% By the Plancherel theorem (Parseval identity) with this convention,
-% \begin{equation}\label{eq:hautus-parseval-m}
-%   \mat{H}_\lambda(T)=\int_{\R} \widehat m_\lambda(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi}.
-% \end{equation}
-% This yields a direct frequency-domain analogue of the time-domain margin $\sigma_{\min}(\mat{H}_\lambda(T))$.
-% In practice, one evaluates $\sigma_{\min}(\mat{H}_\lambda(T))$ on a finite set of $\lambda$ (e.g., a grid or the candidate values discussed below).
-% Working with $\widehat m_\lambda$ directly avoids integration-by-parts boundary terms.
-% Indeed, for $\widehat x(\ii\omega):=\int_0^T x(t)e^{-\ii\omega t}\,\d t$,
-% integration by parts gives
-% \[
-%   \int_0^T \dot x(t)e^{-\ii\omega t}\,\d t = x(T)e^{-\ii\omega T}-x(0)+ \ii\omega\widehat x(\ii\omega),
-% \]
-% hence
-% \[
-%   \widehat m_\lambda(\ii\omega) = (\ii\omega-\lambda)\widehat x(\ii\omega) + x(T)e^{-\ii\omega T} - x(0).
-% \]
 If $\mat{S}_Z(T)$ is invertible, then right-multiplication by $\mat{S}_Z(T)$ preserves row rank and yields the continuous-time Hautus test.
 
 
@@ -205,7 +178,7 @@ Therefore, for $w\in\CC^n$,
 \[
   \mathcal{P}(\lambda)\mathcal{P}(\lambda)^*w
   =\mathcal{P}(\lambda)\big(\dot\X^*w-\overline{\lambda}\X^*w\big)
-  =\int_0^T m_\lambda(t)\,m_\lambda(t)^*w\,\d t
+  =\int_0^T \big(\dot x(t)-\lambda x(t)\big)\big(\dot x(t)-\lambda x(t)\big)^*w\,\d t
   =:\mat{G}_\lambda(u)\,w.
 \]
 Hence,

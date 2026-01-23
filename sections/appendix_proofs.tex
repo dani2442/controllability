@@ -23,22 +23,22 @@
 \begin{proof}
   Let $\mat{M}(T):=\int_0^T \d W(t)\,z(t)^\top\in\R^{q\times (n+m)}$. Conditional on the path $\{z(t)\}_{t\in[0,T]}$, $\mat{M}(T)$ is a centered Gaussian matrix whose rows are independent and satisfy
   \[
-    \E\big[\mat{M}(T)_{i,:}^\top \mat{M}(T)_{i,:}\mid z\big] = \int_0^T z(t)z(t)^\top\,\d t = \widehat{\mat{S}}_Z(T),\qquad i=1,\dots,q.
+    \E\big[\mat{M}(T)_{i,:}^\top \mat{M}(T)_{i,:}\mid z\big] = \int_0^T z(t)z(t)^\top\,\d t = \widetilde{\mat{S}}_Z(T),\qquad i=1,\dots,q.
   \]
-  Therefore, conditional on $z$, we have the distributional identity $\mat{M}(T)\stackrel{d}{=}\mat{G}\widehat{\mat{S}}_Z(T)^{1/2}$ where $\mat{G}\in\R^{q\times (n+m)}$ has i.i.d.\ $\mathcal{N}(0,1)$ entries.
+  Therefore, conditional on $z$, we have the distributional identity $\mat{M}(T)\stackrel{d}{=}\mat{G}\widetilde{\mat{S}}_Z(T)^{1/2}$ where $\mat{G}\in\R^{q\times (n+m)}$ has i.i.d.\ $\mathcal{N}(0,1)$ entries.
   Using \eqref{eq:hautus-cross-moment-error},
   \[
-    \widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda
+    \widetilde{\mat{P}}_\lambda(T)-\mat{P}_\lambda
     \stackrel{d}{=}
-    \beta\,\mat{G}\widehat{\mat{S}}_Z(T)^{-1/2},
+    \boldsymbol{\beta}\,\mat{G}\widetilde{\mat{S}}_Z(T)^{-1/2},
   \]
   conditional on $z$, hence
   \[
-    \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
+    \|\widetilde{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
     \le
-    \frac{\|\beta\|_2}{\sqrt{\sigma_{\min}(\widehat{\mat{S}}_Z(T))}}\;\|\mat{G}\|_2.
+    \frac{\|\boldsymbol{\beta}\|_2}{\sqrt{\sigma_{\min}(\widetilde{\mat{S}}_Z(T))}}\;\|\mat{G}\|_2.
   \]
-  The standard Gaussian matrix bound $\mathbb{P}\big(\|\mat{G}\|_2\ge \sqrt{q}+\sqrt{n+m}+t\big)\le e^{-t^2/2}$ (valid for all $t\ge 0$; see, e.g., \cite{vershyninIntroductionApplicationsData}) yields \eqref{eq:hautus-cross-moment-high-prob} by choosing $t=\sqrt{2\log(1/\delta)}$ and using $\sigma_{\min}(\widehat{\mat{S}}_Z(T))=T\sigma_{\min}(\bar{\mat{S}}_Z(T))$.
+  The standard Gaussian matrix bound $\mathbb{P}\big(\|\mat{G}\|_2\ge \sqrt{q}+\sqrt{n+m}+t\big)\le e^{-t^2/2}$ (valid for all $t\ge 0$; see, e.g., \cite[Theorem~4.4.5]{vershyninHighDimensionalProbability2018}) yields \eqref{eq:hautus-cross-moment-high-prob} by choosing $t=\sqrt{2\log(1/\delta)}$ and using $\sigma_{\min}(\widetilde{\mat{S}}_Z(T))=T\sigma_{\min}(\bar{\mat{S}}_Z(T))$.
 \end{proof}
 
 \subsection{Proof of the finite candidate set result}\label{app:proof:hautus-operator-finite-lambda}
@@ -54,7 +54,7 @@
     =\overline{\lambda}\,w,
   \]
   so $\overline{\lambda}\in\sigma(\mat{K})$.
-  Since $x$ is real-valued, the moments defining $\mat{K}$ are real and hence $\sigma(\mat{K})$ is closed under complex conjugation, which yields $\lambda\in\sigma(\mat{K})$.
+  Since $x$ is real-valued, the matrices $\X\X^*$ and $\X\dot\X^*$ are real, hence $\mat{K}\in\R^{n\times n}$. For real matrices, eigenvalues come in conjugate pairs, so $\sigma(\mat{K})$ is closed under complex conjugation. Therefore, $\lambda = \overline{\overline{\lambda}} \in\sigma(\mat{K})$.
 \end{proof}
 
 
@@ -122,17 +122,26 @@
   $u(t):=\frac{1}{\sqrt m}[\varphi_1(t)\ \cdots\ \varphi_m(t)]^\top$; then $\mat{S}_U(u)=\frac{1}{m}\mat{I}_m$.
 \end{proof}
 
-\subsection{Proof of the \texorpdfstring{$H^1$}{H1}-budget isotropic design}\label{app:proof:hautus-isotropic-input-h1}
+\subsection{Proof of the \texorpdfstring{$H^1$}{H1}-budget isotropic design and characterization of optimizers}
+\label{app:proof:hautus-isotropic-input-h1}
+
 \begin{proof}
-  Expand $u$ in the orthonormal Neumann basis $\{\psi_k\}_{k\ge 0}$ as $u(t)=\sum_{k\ge 0}\psi_k(t)a_k$ with coefficients $a_k\in\R^m$, so that
+  Expand $u$ in the orthonormal Neumann basis $\{\psi_k\}_{k\ge 0}$ as
+  $u(t)=\sum_{k\ge 0}\psi_k(t)a_k$ with coefficients $a_k\in\R^m$. Then
   \[
     \mat{S}_U(u)=\sum_{k\ge 0} a_k a_k^\top,
     \qquad
     \|u\|_{H^1(0,T)}^2=\sum_{k\ge 0}\Big(1+\big(\tfrac{k\pi}{T}\big)^2\Big)\|a_k\|_2^2.
   \]
-  Let $W:=\operatorname{diag}(w_0,w_1,\dots)$ with $w_k:=1+(\tfrac{k\pi}{T})^2$, and define $A:=[a_0\ a_1\ \cdots]$, so that $\mat{S}_U(u)=AA^\top$ and $\|u\|_{H^1(0,T)}^2=\operatorname{tr}(A W A^\top)$.
-  Write $A=\mat{S}_U(u)^{1/2}R$ where $R$ has orthonormal rows ($RR^\top=\mat{I}_m$), and set $\Pi:=R^\top R$, a rank-$m$ orthogonal projector.
-  Then
+  Let $w_k:=1+(\tfrac{k\pi}{T})^2$ and $W:=\operatorname{diag}(w_0,w_1,\dots)$, and define
+  $A:=[a_0\ a_1\ \cdots]\in \R^{m\times \infty}$, so that $\mat{S}_U(u)=AA^\top$ and
+  $\|u\|_{H^1(0,T)}^2=\operatorname{tr}(A W A^\top)$. Write the compact SVD of $A$ as
+  \[
+    A=\mat{S}_U(u)^{1/2}R,
+    \qquad
+    RR^\top=\mat{I}_m,
+  \]
+  so that $\Pi:=R^\top R$ is a rank-$m$ orthogonal projector. Then
   \begin{align*}
     \|u\|_{H^1(0,T)}^2
     &=\operatorname{tr}\!\big(\mat{S}_U(u)^{1/2}RWR^\top \mat{S}_U(u)^{1/2}\big)\\
@@ -140,7 +149,78 @@
     &\ge \lambda_{\min}(\mat{S}_U(u))\,\operatorname{tr}(RWR^\top)\\
     &= \lambda_{\min}(\mat{S}_U(u))\,\operatorname{tr}(W\Pi).
   \end{align*}
-  Since $W$ is diagonal with nondecreasing entries, the minimum of $\operatorname{tr}(W\Pi)$ over rank-$m$ projectors $\Pi$ equals $\sum_{k=0}^{m-1}w_k$, attained by projecting onto $\operatorname{span}\{\psi_0,\dots,\psi_{m-1}\}$.
-  Using $\|u\|_{H^1(0,T)}^2\le 1$ gives the stated upper bound on $\lambda_{\min}(\mat{S}_U(u))$.
-  The construction with the first $m$ Neumann modes and orthogonal $Q$ yields $\mat{S}_U(u)=\alpha \mat{I}_m$ and saturates $\|u\|_{H^1(0,T)}^2=1$.
+
+  \paragraph{Minimizing $\operatorname{tr}(W\Pi)$.}
+  Since $W$ is diagonal with strictly increasing entries $w_k$, we have
+  \[
+    \min_{\substack{\Pi=\Pi^\top=\Pi^2\\ \operatorname{rank}(\Pi)=m}}\operatorname{tr}(W\Pi)
+    \;=\;
+    \sum_{k=0}^{m-1} w_k,
+  \]
+  and, moreover, the minimizer is unique: $ \Pi_\star = \operatorname{diag}(\mat{I}_m,0,0,\dots)$, i.e., projection onto the span of the first $m$ coordinate vectors.
+  Therefore
+  \[
+    \|u\|_{H^1(0,T)}^2
+    \;\ge\;
+    \lambda_{\min}(\mat{S}_U(u))\sum_{k=0}^{m-1} w_k.
+  \]
+  Under the budget $\|u\|_{H^1(0,T)}^2\le 1$ this yields
+  \[
+    \lambda_{\min}(\mat{S}_U(u))
+    \;\le\;
+    \alpha
+    \;:=\;
+    \Big(\sum_{k=0}^{m-1} w_k\Big)^{-1}
+    \;=\;
+    \Big(\sum_{k=0}^{m-1}\Big(1+\big(\tfrac{k\pi}{T}\big)^2\Big)\Big)^{-1}.
+  \]
+  \noindent\textbf{Tightness and characterization of all optimizers.}
+  Suppose the bound is tight, i.e.,
+  $\|u\|_{H^1(0,T)}^2\le 1$ and $\lambda_{\min}(\mat{S}_U(u))=\alpha$.
+  Then equality must hold throughout the chain of inequalities above. In particular:
+
+  \smallskip
+  \noindent\emph{(i) Low-mode support.}
+  Equality in $\operatorname{tr}(W\Pi)\ge \sum_{k=0}^{m-1}w_k$ forces $\Pi=\Pi_\star$
+  by uniqueness of the minimizer. Equivalently, the row space of $R$ lies in the span of the
+  first $m$ coordinates, which implies that $A$ has no columns beyond the first $m$:
+  \[
+    a_k=0\quad\text{for all }k\ge m,
+    \qquad\text{hence}\qquad
+    u(t)=\sum_{k=0}^{m-1}\psi_k(t)a_k.
+  \]
+
+  \smallskip
+  \noindent\emph{(ii) Isotropy of the Gramian.}
+  Equality in
+  \[
+    \operatorname{tr}\!\big(\mat{S}_U(u)\,RWR^\top\big)
+    \;\ge\;
+    \lambda_{\min}(\mat{S}_U(u))\,\operatorname{tr}(RWR^\top)
+  \]
+  forces $\mat{S}_U(u)$ to be isotropic. Indeed, since $RWR^\top\succ 0$ (because $w_k>0$ and $R$
+  has full row rank), write $\mat{S}_U(u)=U\operatorname{diag}(s_1,\dots,s_m)U^\top$ with
+  $s_m=\lambda_{\min}(\mat{S}_U(u))$. Then
+  \[
+    \operatorname{tr}\!\big((\mat{S}_U(u)-s_m\mat{I}_m)\,RWR^\top\big)\ge 0,
+  \]
+  with equality if and only if $\mat{S}_U(u)-s_m\mat{I}_m=0$ since $RWR^\top\succ 0$.
+  Hence $\mat{S}_U(u)=\lambda_{\min}(\mat{S}_U(u))\mat{I}_m=\alpha \mat{I}_m$.
+
+  \smallskip
+  \noindent\emph{(iii) Explicit form of all maximizers.}
+  From (i), $A$ effectively reduces to an $m\times m$ matrix $A_m=[a_0\ \cdots\ a_{m-1}]$.
+  From (ii), we have $A_mA_m^\top=\mat{S}_U(u)=\alpha \mat{I}_m$, so
+  $A_m=\sqrt{\alpha}\,Q$ for some $Q\in O(m)$. Defining
+  \[
+    \Psi(t):=\begin{bmatrix}\psi_0(t)\\ \vdots\\ \psi_{m-1}(t)\end{bmatrix}\in\R^m,
+  \]
+  we obtain the complete optimizer family
+  \[
+    u(t)=\sqrt{\alpha}\,Q\,\Psi(t),
+    \qquad Q\in O(m),
+  \]
+  which satisfies $\|u\|_{H^1(0,T)}^2=\alpha\sum_{k=0}^{m-1}w_k=1$ and
+  $\mat{S}_U(u)=\alpha \mat{I}_m$.
 \end{proof}
+

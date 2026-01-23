@@ -40,76 +40,84 @@ The controllable subspace is characterized by the Kalman controllability matrix
 and $\operatorname{rank}(\mat{C})$ determines the dimension of the reachable set from the origin \cite{kalmanMathematicalDescriptionLinear1963a,chenLinearSystemTheory1999}.
 An equivalent characterization is given in terms of the classical Hautus (Popov--Belevitch--Hautus, PBH) test \cite[Theorem~3.13]{trentelmanControlTheoryLinear2001}, which characterizes controllability and stabilizability as follows:
 \begin{equation}\label{eq:hautus-classical}
-\begin{aligned}
-(\mat{A},\mat{B}) \text{ is controllable }\quad &\Leftrightarrow \quad \operatorname{rank}[\mat{A}-\lambda \mat{I},\, \mat{B}]=n \quad \forall \lambda\in\CC,\\
-(\mat{A},\mat{B}) \text{ \ is stabilizable } \quad &\Leftrightarrow \quad \operatorname{rank}[\mat{A}-\lambda \mat{I},\, \mat{B}]=n \quad \forall \lambda\in\CC \text{ with } \Re(\lambda)\ge 0.
-\end{aligned}
+  \begin{aligned}
+    (\mat{A},\mat{B}) \text{ is controllable }\quad    & \Leftrightarrow \quad \operatorname{rank}[\mat{A}-\lambda \mat{I},\, \mat{B}]=n \quad \forall \lambda\in\CC,                                 \\
+    (\mat{A},\mat{B}) \text{ is stabilizable \ } \quad & \Leftrightarrow \quad \operatorname{rank}[\mat{A}-\lambda \mat{I},\, \mat{B}]=n \quad \forall \lambda\in\CC \text{ with } \Re(\lambda)\ge 0.
+  \end{aligned}
 \end{equation}
 The data-driven Hautus test estimates the rank of the matrix using the following identity:
 $$
-[\mat{A}-\lambda \mat{I},\, \mat{B}]\begin{bmatrix}x(t)\\u(t)\end{bmatrix} = \dot{x}(t) - \lambda x(t)
+  [\mat{A}-\lambda \mat{I},\, \mat{B}]\begin{bmatrix}x(t)\\u(t)\end{bmatrix} = \dot{x}(t) - \lambda x(t)
 $$
 Therefore, assuming access to $u(\cdot)$ and $x(\cdot)$ on a finite horizon $[0,T]$, one can estimate the rank of the Hautus matrix from data without explicitly identifying $(\mat{A},\mat{B})$.
 To recover the rank property \textit{from data}, one can form the cross-moment, defined by
 \[
   \mat H_\lambda(T):=\int_0^T(\dot x(t)-\lambda x(t))z(t)^\top\,\d t
-  = [\mat{A}-\lambda \mat{I},\, \mat{B}] \underbrace{\int_0^T z(t)z(t)^\top\,\d t}_{\mat{S}_Z(T)} \in \mathbb{C}^{n\times (n+m)},
+    = [\mat{A}-\lambda \mat{I},\, \mat{B}] \underbrace{\int_0^T z(t)z(t)^\top\,\d t}_{\mat{S}_Z(T)} \in \mathbb{C}^{n\times (n+m)},
 \]
 where $z(t):=[x(t);u(t)]\in\R^{n+m}$ is the stacked state-input vector.
 The idea is that, if the Gramian $\mat{S}_Z(T)$ is invertible and well-conditioned, then the rank of $\mat H_\lambda(T)$ reveals the rank of the Hautus matrix.
-However, the quality of this estimate depends strongly on the choice of input $u$. 
+However, the quality of this estimate depends strongly on the choice of input $u$.
 So, the main question we address in this paper is: \emph{how to design inputs $u$ that reliably reveal the controllability rank from data?}
 \subsection{Main Contributions}
 \begin{itemize}
-  \item \textbf{A continuous-time data-driven Hautus margin.}
-  We provide a \textit{continuous-time} and \textit{data-driven} analogue of the Hautus test \eqref{eq:hautus-classical}:
-  \begin{equation}\label{eq:hautus-controllable}
-    (\mat{A},\mat{B}) \text{ is controllable}\quad\Leftrightarrow\quad
-    \operatorname{rank}(\mat{H}_\lambda(T))=n\quad \forall\lambda\in\CC,
-  \end{equation}
-  assuming $\mat{S}_Z(T)$ is invertible.
-  Moreover, it suffices to check a finite set $\lambda \in \sigma(\mat{K})$, where
-  \[
-    \mat{K}:=\Big(\int_0^T x(t)x(t)^*\,\d t\Big)^{-1}\Big(\int_0^T x(t)\dot x(t)^*\,\d t\Big).
-  \]
-  We further develop a derivative-free formulation using Fourier methods.
+  \item \textbf{A data-driven controllability test.}
+        We provide a \textit{continuous-time} and \textit{data-driven} analogue of the Hautus test:
+        \begin{equation*}
+          (\mat{A},\mat{B}) \text{ is controllable}\quad\Leftrightarrow\quad
+          \operatorname{rank}(\mat{H}_\lambda(T))=n\quad \forall\lambda\in\CC,
+        \end{equation*}
+        assuming $\mat{S}_Z(T)$ is invertible.
+        It suffices to check a finite set $\lambda \in \sigma(\mat{K})$, where
+        \[
+          \mat{K}:=\Big(\int_0^T x(t)x(t)^*\,\d t\Big)^{-1}\Big(\int_0^T x(t)\dot x(t)^*\,\d t\Big).
+        \]
+        We further develop a derivative-free formulation using Fourier methods.
 
-  \item \textbf{Input design for conditioning the Hautus margin.}
-  We provide sharp, model-agnostic designs for conditioning the input, which improves the data-driven test \eqref{eq:hautus-controllable}:\\
-  (1) Under an $L^2$ energy budget $\|u\|_{L^2}\le 1$, the best possible conditioning is achieved by any input with $m$ orthonormal time functions (Proposition~\ref{prop:hautus-isotropic-input}), yielding
-  $$\int_0^T u(t)u(t)^\top\,\d t=\frac{1}{m}\mat{I}_m.$$
-  (2) Under an $H^1$ smoothness budget $\|u\|_{H^1}\le 1$, an optimal design is given by
-  \[
-    u(t) = \sqrt{\alpha}\,Q\begin{bmatrix}\psi_0(t)\\ \vdots\\ \psi_{m-1}(t)\end{bmatrix},
-    \quad\text{where}\quad
-    \psi_0(t):=\tfrac{1}{\sqrt{T}},\qquad
-    \psi_k(t):=\sqrt{\tfrac{2}{T}}\cos\!\Big(\frac{k\pi t}{T}\Big)\ \ (k\ge 1),
-  \]
-  with $Q\in\R^{m\times m}$ an orthogonal matrix and $\alpha$ a normalization term (Proposition~\ref{prop:hautus-isotropic-input-h1}).
+  \item \textbf{Input design for conditioning the Hautus test.}
+        We provide sharp, model-agnostic designs for conditioning the input, which improves the data-driven test.\\
+        (1) Under an $L^2$ energy budget $\|u\|_{L^2}\le 1$, the best possible conditioning is achieved by any input with $m$ orthonormal time functions (Proposition~\ref{prop:hautus-isotropic-input}), yielding
+        $$\int_0^T u(t)u(t)^\top\,\d t=\frac{1}{m}\mat{I}_m.$$
+        (2) Under an $H^1$ smoothness budget $\|u\|_{H^1}\le 1$, the optimal design is given by
+        \[
+          \begin{aligned}
+            u(t) & = \sqrt{\alpha}\,Q
+            \begin{bmatrix}
+              \psi_0(t) \\ \vdots\\ \psi_{m-1}(t)
+            \end{bmatrix},
+            \qquad \text{where}\qquad
+            \psi_k(t) =
+            \begin{cases}
+              \tfrac{1}{\sqrt{T}},                                  & k=0,    \\[6pt]
+              \sqrt{\tfrac{2}{T}}\cos\!\big(\tfrac{k\pi t}{T}\big), & k\ge 1.
+            \end{cases}
+          \end{aligned}
+        \]
+        with $Q\in\R^{m\times m}$ an orthogonal matrix and $\alpha$ normalization term (Proposition~\ref{prop:hautus-isotropic-input-h1}).
 
-  % \item \textbf{Concentration bounds under It\^o noise.} Consider the It\^o noise model
-  % \[
-  %   \d x(t) = \big(\mat{A}x(t) + \mat{B}u(t)\big)\,\d t + \beta\,\d W(t),
-  % \]
-  % where $W$ is a $q$-dimensional standard Brownian motion and $\beta\in\R^{n\times q}$ is the noise intensity matrix.
-  % In Proposition~\ref{prop:hautus-cross-moment-high-prob}, we prove that with probability at least $1-\delta$,
-  % \[
-  %   \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
-  %   \le
-  %   \frac{\|\beta\|_2}{\sqrt{T\,\sigma_{\min}(\bar{\mat{S}}_Z(T))}}
-  %   \Big(\sqrt{q}+\sqrt{n+m}+\sqrt{2\log(1/\delta)}\Big) = \mathcal{O}\Big(\frac{1}{\sqrt{T}}\Big),
-  % \]
-  % where $\mat{P}_\lambda:=[\mat{A}-\lambda \mat{I}, \, \mat{B}]$, $\widehat{\mat{P}}_\lambda(T)$ is the data-driven estimate and $\bar{\mat{S}}_Z(T):=\frac{1}{T}\int_0^T z(t)z(t)^\top\,\d t$ is its normalized Gramian.
+        % \item \textbf{Concentration bounds under It\^o noise.} Consider the It\^o noise model
+        % \[
+        %   \d x(t) = \big(\mat{A}x(t) + \mat{B}u(t)\big)\,\d t + \beta\,\d W(t),
+        % \]
+        % where $W$ is a $q$-dimensional standard Brownian motion and $\beta\in\R^{n\times q}$ is the noise intensity matrix.
+        % In Proposition~\ref{prop:hautus-cross-moment-high-prob}, we prove that with probability at least $1-\delta$,
+        % \[
+        %   \|\widetilde{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
+        %   \le
+        %   \frac{\|\beta\|_2}{\sqrt{T\,\sigma_{\min}(\bar{\mat{S}}_Z(T))}}
+        %   \Big(\sqrt{q}+\sqrt{n+m}+\sqrt{2\log(1/\delta)}\Big) = \mathcal{O}\Big(\frac{1}{\sqrt{T}}\Big),
+        % \]
+        % where $\mat{P}_\lambda:=[\mat{A}-\lambda \mat{I}, \, \mat{B}]$, $\widetilde{\mat{P}}_\lambda(T)$ is the data-driven estimate and $\bar{\mat{S}}_Z(T):=\frac{1}{T}\int_0^T z(t)z(t)^\top\,\d t$ is its normalized Gramian.
 
-    \item \textbf{Concentration bounds under It\^o noise.} Consider the noisy LTI model given by
-  \[
-    \d x(t) = \big(\mat{A}x(t) + \mat{B}u(t)\big)\,\d t + \beta\,\d W(t),
-  \]
-  where $W$ is a $q$-dimensional standard Brownian motion. In Proposition~\ref{prop:hautus-cross-moment-high-prob}, we prove that
-  \[
-    |\sigma_{\min}(\widehat{\mat{P}}_\lambda(T)) - \sigma_{\min}(\mat{P}_\lambda)| = \mathcal{O}\left(\tfrac{1}{\sqrt{T}}\right),
-  \]
-  where $\mat{P}_\lambda:=[\mat{A}-\lambda \mat{I}, \, \mat{B}]$ and $\widehat{\mat{P}}_\lambda(T)$ is the data-driven estimate from the noisy model. In other words, the estimation error of the Hautus test decays at the rate $\mathcal{O}(T^{-1/2})$ as the observation horizon $T$ increases.
+  \item \textbf{Concentration bounds under It\^o noise.} Consider the noisy LTI model given by
+        \[
+          \d x(t) = \big(\mat{A}x(t) + \mat{B}u(t)\big)\,\d t + \boldsymbol{\beta}\,\d W(t),
+        \]
+        where $W$ is a Brownian motion. In Proposition~\ref{prop:hautus-cross-moment-high-prob}, we prove
+        \[
+          |\sigma_{\min}(\widetilde{\mat{P}}_\lambda(T)) - \sigma_{\min}(\mat{P}_\lambda)| = \mathcal{O}\left(\tfrac{1}{\sqrt{T}}\right),
+        \]
+        where $\mat{P}_\lambda:=[\mat{A}-\lambda \mat{I}, \, \mat{B}]$ and $\widetilde{\mat{P}}_\lambda(T)$ is the data-driven estimate from the noisy model. The estimation error of the Hautus test decays as the observation horizon $T$ increases.
 \end{itemize}
 Together, these results provide a principled experiment-design toolkit for learning models that preserve controllability structure and are therefore suitable for safe downstream control.
 

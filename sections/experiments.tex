@@ -4,9 +4,9 @@
 We validate the theoretical results through numerical experiments implemented in PyTorch.
 All simulations use Euler--Maruyama time stepping to integrate controlled linear SDEs of the form
 \[
-  \d x(t) = (\mat{A}x(t) + \mat{B}u(t))\,\d t + \beta\,\d W(t),
+  \d x(t) = (\mat{A}x(t) + \mat{B}u(t))\,\d t + \boldsymbol{\beta}\,\d W(t),
 \]
-where $\mat{A}\in\R^{n\times n}$ is the drift matrix, $\mat{B}\in\R^{n\times m}$ the input matrix, $\beta\in\R^{n\times q}$ the noise intensity, and $W$ a $q$-dimensional standard Brownian motion.
+where $\mat{A}\in\R^{n\times n}$ is the drift matrix, $\mat{B}\in\R^{n\times m}$ the input matrix, $\boldsymbol{\beta}\in\R^{n\times q}$ the noise intensity, and $W$ a $q$-dimensional standard Brownian motion.
 Unless stated otherwise, the input is a deterministic multi-sinusoid with each channel given by
 \[
   u_i(t)=\sin(\omega_i t),\qquad i=1,\dots,m,
@@ -16,28 +16,28 @@ where $\omega_1,\ldots,\omega_m\in\mathbb{R}$ are distinct frequencies chosen to
 \subsection{Validation of the Data-Driven Hautus Test}
 \label{subsec:exp-hautus}
 
-Our first experiment validates the data-driven Hautus test by comparing the estimated matrix $\widehat{\mat{P}}_\lambda$ with the true Hautus matrix $\mat{P}_\lambda = [\mat{A}-\lambda\mat{I}, \, \mat{B}]$.
+Our first experiment validates the data-driven Hautus test by comparing the estimated matrix $\widetilde{\mat{P}}_\lambda$ with the true Hautus matrix $\mat{P}_\lambda = [\mat{A}-\lambda\mat{I}, \, \mat{B}]$.
 We simulate a system with $n=6$ states, $m=3$ inputs, and $q=2$ noise dimensions over a horizon $T=100$ with time step $\d t = 0.05$.
 The drift matrix $\mat{A}$ is constructed to be Hurwitz stable, with all eigenvalues having real parts bounded by~$-0.1$.
 
 For each test value $\lambda\in\CC$, we compute both time-domain and FFT-based estimates via the cross-moment formulation~\eqref{eq:hautus-cross-moment-P-hat}.
 
 Figure~\ref{fig:hautus-matrix-comparison} shows the element-wise comparison between the true and estimated matrices for a representative $\lambda = 0.3 + 1.3\ii$.
-Both methods yield accurate estimates, with estimation errors $\|\widehat{\mat{P}}_\lambda - \mat{P}_\lambda\|_2$ on the order of $10^{-2}$.
+Both methods yield accurate estimates, with estimation errors $\|\widetilde{\mat{P}}_\lambda - \mat{P}_\lambda\|_2$ on the order of $10^{-2}$.
 To assess variability, we run $50$ independent trajectories and examine the distribution of errors across the eigenvalues of $\mat{A}$ and additional random test points.
-Figure~\ref{fig:hautus-error-summary} (left) summarizes the signed error $\sigma_{\min}(\mat{P}_\lambda) - \sigma_{\min}(\widehat{\mat{P}}_\lambda)$, showing near-zero bias and comparable variance for time-domain and FFT estimators.
+Figure~\ref{fig:hautus-error-summary} (left) summarizes the signed error $\sigma_{\min}(\mat{P}_\lambda) - \sigma_{\min}(\widetilde{\mat{P}}_\lambda)$, showing near-zero bias and comparable variance for time-domain and FFT estimators.
 
 \begin{figure}[ht]
   \centering
   \includegraphics[width=0.95\textwidth]{images/hautus_matrix_comparison.pdf}
-  \caption{Element-wise comparison of the true Hautus matrix $\mat{P}_\lambda$ (left) and its time-domain estimate $\widehat{\mat{P}}_\lambda$ (center), with absolute difference (right). The small difference magnitudes confirm the accuracy of the cross-moment estimator.}
+  \caption{Element-wise comparison of the true Hautus matrix $\mat{P}_\lambda$ (left) and its time-domain estimate $\widetilde{\mat{P}}_\lambda$ (center), with absolute difference (right). The small difference magnitudes confirm the accuracy of the cross-moment estimator.}
   \label{fig:hautus-matrix-comparison}
 \end{figure}
 
 \subsection{Error Convergence Rate}
 \label{subsec:exp-convergence}
 
-Proposition~\ref{prop:hautus-cross-moment-high-prob} predicts that the estimation error $\|\widehat{\mat{P}}_\lambda - \mat{P}_\lambda\|_2$ decays at the rate $\mathcal{O}(T^{-1/2})$ as the observation horizon~$T$ increases.
+Proposition~\ref{prop:hautus-cross-moment-high-prob} predicts that the estimation error $\|\widetilde{\mat{P}}_\lambda - \mat{P}_\lambda\|_2$ decays at the rate $\mathcal{O}(T^{-1/2})$ as the observation horizon~$T$ increases.
 We validate this theoretical prediction by simulating systems with $n=5$ states, $m=3$ inputs, and $q=2$ noise dimensions across horizon lengths $T \in \{10, 20, 50, 100, 200, 500, 1000\}$.
 For each value of~$T$, we run $50$ Monte Carlo trials with independent noise realizations and random test eigenvalues~$\lambda$.
 
@@ -81,16 +81,16 @@ In the noise-free case $\d x(t)=\dot x(t)\,\d t$, so $\mat{M}_X$ reduces to $\in
 
 We simulate a controllable system with $n=6$, $m=3$, $q=2$ over a horizon $T=100$.
 The candidate eigenvalues $\sigma(\mat{K})$ are computed from the trajectory data and compared with the true eigenvalues $\sigma(\mat{A})$.
-For each candidate $\lambda_i$, we compute the estimated minimum singular value $\sigma_{\min}(\widehat{\mat{P}}_{\lambda_i})$ and compare with the true value $\sigma_{\min}(\mat{P}_{\lambda_i})$.
+For each candidate $\lambda_i$, we compute the estimated minimum singular value $\sigma_{\min}(\widetilde{\mat{P}}_{\lambda_i})$ and compare with the true value $\sigma_{\min}(\mat{P}_{\lambda_i})$.
 
 The results show excellent agreement between estimated and true singular values across all candidates.
 The candidates $\sigma(\mat{K})$ cluster near the true eigenvalues $\sigma(\mat{A})$ in the complex plane, validating the theoretical prediction that the data-driven eigenvalue estimates converge to the true system eigenvalues.
-Since $\sigma_{\min}(\widehat{\mat{P}}_\lambda) > 0$ for all candidates, the system is correctly identified as controllable.
+Since $\sigma_{\min}(\widetilde{\mat{P}}_\lambda) > 0$ for all candidates, the system is correctly identified as controllable.
 
 \subsection{Comparison of Time-Domain and FFT Methods}
 \label{subsec:exp-method-comparison}
 
-We compare two computational approaches for evaluating the cross-moments: (i)~the \emph{time-domain method}, which computes $\widehat{\mat{H}}_\lambda(T)$ via direct time stepping, and (ii)~the \emph{FFT method}, which leverages frequency-domain representations (via \eqref{eq:hautus-fourier-y} and Parseval-type identities).
+We compare two computational approaches for evaluating the cross-moments: (i)~the \emph{time-domain method}, which computes $\widetilde{\mat{H}}_\lambda(T)$ via direct time stepping, and (ii)~the \emph{FFT method}, which leverages frequency-domain representations (via \eqref{eq:hautus-fourier-y} and Parseval-type identities).
 
 For a system with $n=8$ states, $m=4$ inputs, $q=2$ noise dimensions, and horizon $T=100$ with time step $\d t = 0.02$ (yielding $5001$ sample points), we test both methods across various values of~$\lambda$.
 Both methods achieve comparable accuracy, with estimation errors typically differing by less than $10\%$.
@@ -108,7 +108,7 @@ For compactness, we place the cutoff summary next to a representative 3D phase p
     \renewcommand{\arraystretch}{1.1}
     \begin{tabular}{@{}ccc@{}}
       \toprule
-      $\omega_{\max}$ & $\sigma_{\min}(\widehat{\mat{P}}_\lambda)$ & $\|\widehat{\mat{P}}_\lambda - \mat{P}_\lambda\|_2$ \\
+      $\omega_{\max}$ & $\sigma_{\min}(\widetilde{\mat{P}}_\lambda)$ & $\|\widetilde{\mat{P}}_\lambda - \mat{P}_\lambda\|_2$ \\
       \midrule
       10 & 0.412 & 0.089 \\
       20 & 0.428 & 0.051 \\
@@ -141,4 +141,4 @@ To provide intuition for the controlled stochastic dynamics, Figure~\ref{fig:tra
 The drift matrix $\mat{A}$ has eigenvalues with real parts near~$-0.05$, corresponding to slowly decaying modes.
 
 The phase portraits demonstrate that the sinusoidal input, combined with the stochastic forcing, provides sufficient excitation to explore the state space.
-This persistent excitation ensures that the stacked Gramian $\widehat{\mat{S}}_Z(T)$ is well-conditioned, which is crucial for accurate estimation of the Hautus matrix and reliable controllability certification.
+This persistent excitation ensures that the stacked Gramian $\widetilde{\mat{S}}_Z(T)$ is well-conditioned, which is crucial for accurate estimation of the Hautus matrix and reliable controllability certification.

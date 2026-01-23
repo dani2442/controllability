@@ -1,4 +1,4 @@
-\section{Problem Statement: Data-Driven Controllability Certification}\label{sec:problem}
+\section{Deterministic Framework for Controllability Certification}\label{sec:problem}
 
 
 % Given an initial condition $x_0\in\R^n$, the state trajectory admits the closed-form solution
@@ -93,8 +93,11 @@ choosing inputs with well-conditioned $\mat{S}_U(u)$ is a natural baseline when 
 Under an $L^2$ energy budget, the best possible conditioning corresponds to spreading the energy isotropically across the $m$ input channels.
 
 
-\begin{prop}[Best conditioning under $\|u\|_{L^2}\leq 1$]\label{prop:hautus-isotropic-input}
-  If $\|u\|_{L^2(0,T)}^2\leq 1$, then
+\begin{prop}[Best conditioning under $\|u\|_{L^2}\leq 1$]\label{prop:hautus-isotropic-input} Let us define the following optimization problem:
+  \[
+  \max_{u\in L^2(0,T; \mathbb{R}^m)} \lambda_{\min}\big(\mat{S_U(u)}\big)\qquad \text{s.t.}\quad \|u\|_{L^2(0,T;\mathbb{R}^m)}^2\leq 1,
+  \]
+  then
   \[
     \lambda_{\min}(\mat{S}_U(u)) \le \frac{1}{m}.
   \]
@@ -111,8 +114,11 @@ In applications one may also constrain input \emph{smoothness}, for instance by 
 This penalizes high-frequency excitation and therefore reduces the best achievable isotropic conditioning compared to the $L^2$-only case.
 
 \begin{prop}[Best conditioning under $\|u\|_{H^1}\leq 1$]\label{prop:hautus-isotropic-input-h1}
-  Let $u\in H^1(0,T;\R^m)$ satisfy $\|u\|_{H^1(0,T)}\le 1$, and define $\mat{S}_U(u):=\int_0^T u(t)u(t)^\top\,\d t$.
-  Then
+  The following optimization problem
+  \[
+  \max_{u\in H^1(0,T; \mathbb{R}^m)} \lambda_{\min}\big(\mat{S_U(u)}\big)\qquad \text{s.t.}\quad \|u\|_{H^1(0,T;\mathbb{R}^m)}^2\leq 1,
+  \]
+  admits the upper bound
   \[
     \lambda_{\min}(\mat{S}_U(u))
     \le
@@ -120,7 +126,7 @@ This penalizes high-frequency excitation and therefore reduces the best achievab
     =
     \frac{1}{\displaystyle m+\frac{\pi^2}{T^2}\cdot\frac{(m-1)m(2m-1)}{6}}.
   \]
-  Moreover, the bound is tight: if $\{\psi_k\}_{k\ge 0}$ are the Neumann eigenfunctions on $[0,T]$ given by
+  Moreover, the bound is tight if $\{\psi_k\}_{k\ge 0}$ are the Neumann eigenfunctions on $[0,T]$ given by
   \[
     \psi_0(t):=\frac{1}{\sqrt{T}},
     \qquad

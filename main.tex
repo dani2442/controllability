@@ -144,7 +144,8 @@
 \begin{document}
 
 \begin{abstract}
-  We study deterministic experiment design for continuous-time linear time-invariant systems with the goal of certifying controllability properties directly from data. We develop a continuous-time, data-driven analogue of the Hautus (PBH) test based on residual Gramians and a derivative-free cross-moment formulation, and we provide basic high-probability error bounds under an It\^o noise model.
+  We study experiment design for continuous-time linear time-invariant systems with the goal of certifying controllability and stabilizability directly from data.
+  We develop a continuous-time, data-driven analogue of the Hautus (PBH) test based on residual cross-moments, provide derivative-free and It\^o-compatible estimators, and prove high-probability error bounds under an It\^o noise model.
   Finally, we derive sharp input designs that optimally condition the relevant Gramians under $L^2$ energy and $H^1$ smoothness budgets.
 \end{abstract}
 
@@ -158,8 +159,8 @@
 
 
 \input{sections/introduction.tex}
-%\input{sections/test1.tex}
 \input{sections/hautus.tex}
+\input{sections/stochastic.tex}
 \input{sections/experiments.tex}
 
 \printbibliography

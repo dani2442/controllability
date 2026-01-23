@@ -27,7 +27,7 @@ Both methods yield accurate estimates, with estimation errors $\|\widehat{\mat{P
 To assess variability, we run $50$ independent trajectories and examine the distribution of errors across the eigenvalues of $\mat{A}$ and additional random test points.
 Figure~\ref{fig:hautus-error-summary} (left) summarizes the signed error $\sigma_{\min}(\mat{P}_\lambda) - \sigma_{\min}(\widehat{\mat{P}}_\lambda)$, showing near-zero bias and comparable variance for time-domain and FFT estimators.
 
-\begin{figure}[t]
+\begin{figure}[ht]
   \centering
   \includegraphics[width=0.95\textwidth]{images/hautus_matrix_comparison.pdf}
   \caption{Element-wise comparison of the true Hautus matrix $\mat{P}_\lambda$ (left) and its time-domain estimate $\widehat{\mat{P}}_\lambda$ (center), with absolute difference (right). The small difference magnitudes confirm the accuracy of the cross-moment estimator.}
@@ -47,7 +47,7 @@ The shaded region indicates $\pm 1$ standard deviation across trials.
 We also overlay the theoretical bound from Proposition~\ref{prop:hautus-cross-moment-high-prob} (computed with $\delta = 0.05$), which provides a valid upper envelope for the empirical errors.
 A linear regression on the log-transformed data yields an estimated slope of approximately $-0.5$, confirming the theoretical rate.
 
-\begin{figure}[t]
+\begin{figure}[ht]
   \centering
   \begin{subfigure}[t]{0.49\textwidth}
     \centering
@@ -77,6 +77,7 @@ Specifically, the operator formulation developed in Section~\ref{subsec:hautus-o
   \quad
   \mat{M}_X := \int_0^T x(t)\,\d x(t)^\top.
 \]
+In the noise-free case $\d x(t)=\dot x(t)\,\d t$, so $\mat{M}_X$ reduces to $\int_0^T x(t)\dot x(t)^\top\,\d t$; under It\^o noise, $\mat{M}_X$ is estimated directly from state increments and includes an additional martingale term.
 
 We simulate a controllable system with $n=6$, $m=3$, $q=2$ over a horizon $T=100$.
 The candidate eigenvalues $\sigma(\mat{K})$ are computed from the trajectory data and compared with the true eigenvalues $\sigma(\mat{A})$.
@@ -89,7 +90,7 @@ Since $\sigma_{\min}(\widehat{\mat{P}}_\lambda) > 0$ for all candidates, the sys
 \subsection{Comparison of Time-Domain and FFT Methods}
 \label{subsec:exp-method-comparison}
 
-We compare two computational approaches for evaluating the cross-moments: (i)~the \emph{time-domain method}, which computes $\mat{H}_\lambda(T)$ via direct numerical integration, and (ii)~the \emph{FFT method}, which leverages the Parseval identity with frequency-domain representations as in~\eqref{eq:hautus-fourier-y}.
+We compare two computational approaches for evaluating the cross-moments: (i)~the \emph{time-domain method}, which computes $\widehat{\mat{H}}_\lambda(T)$ via direct time stepping, and (ii)~the \emph{FFT method}, which leverages frequency-domain representations (via \eqref{eq:hautus-fourier-y} and Parseval-type identities).
 
 For a system with $n=8$ states, $m=4$ inputs, $q=2$ noise dimensions, and horizon $T=100$ with time step $\d t = 0.02$ (yielding $5001$ sample points), we test both methods across various values of~$\lambda$.
 Both methods achieve comparable accuracy, with estimation errors typically differing by less than $10\%$.
@@ -131,7 +132,7 @@ For compactness, we place the cutoff summary next to a representative 3D phase p
   \label{fig:method-comparison}
 \end{figure}
 
-In terms of computational efficiency, the FFT method offers modest speedups for long trajectories due to the $\mathcal{O}(N\log N)$ complexity of the FFT versus $\mathcal{O}(N)$ for direct integration, though both are fast in practice.
+In terms of computational efficiency, the FFT method can be advantageous when evaluating many $\lambda$ values, since $\widehat{x}(\ii\omega)$ and $\widehat{z}(\ii\omega)$ can be computed once and reused across all $\lambda$.
 
 \subsection{Trajectory Visualization}
 \label{subsec:exp-trajectory}
@@ -140,4 +141,4 @@ To provide intuition for the controlled stochastic dynamics, Figure~\ref{fig:tra
 The drift matrix $\mat{A}$ has eigenvalues with real parts near~$-0.05$, corresponding to slowly decaying modes.
 
 The phase portraits demonstrate that the sinusoidal input, combined with the stochastic forcing, provides sufficient excitation to explore the state space.
-This persistent excitation ensures that the stacked Gramian $\mat{S}_Z(u)$ is well-conditioned, which is crucial for accurate estimation of the Hautus matrix and reliable controllability certification.
+This persistent excitation ensures that the stacked Gramian $\widehat{\mat{S}}_Z(T)$ is well-conditioned, which is crucial for accurate estimation of the Hautus matrix and reliable controllability certification.

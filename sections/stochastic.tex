@@ -1,0 +1,134 @@
+
+\section{Stochastic model and It\^o residual}
+\label{sec:stochastic}
+
+An alternative to direct state-derivative measurements is to estimate $\mat{P}_\lambda$---and thus the rank of the data-driven residual cross-moment---from cross-moments between the state and input signals, using only increments of $x$.
+This is particularly natural in a stochastic setting, where $\dot x$ does not exist pointwise.
+Assume that the measured state is an It\^o process satisfying the linear SDE
+\begin{equation}\label{eq:hautus-ito-sde}
+\begin{aligned}
+  \d x(t)&=\big(\mat{A}x(t)+\mat{B}u(t)\big)\,\d t+\beta\,\d W(t),\\
+  x(0)&=x_0,
+\end{aligned}
+\end{equation}
+where $W$ is a $q$-dimensional standard Brownian motion and $\beta\in\R^{n\times q}$ is constant.
+As before, define the stacked signal $z(t):=[x(t);u(t)]\in\R^{n+m}$ and the Hautus matrix
+\[
+  \mat{P}_\lambda := \begin{bmatrix}\mat{A}-\lambda \mat{I} & \mat{B}\end{bmatrix}\in\CC^{n\times(n+m)}.
+\]
+For $\lambda\in\CC$, define the It\^o residual differential
+\begin{equation}\label{eq:hautus-ito-residual}
+  \d m_\lambda(t):=\d x(t)-\lambda x(t)\,\d t=\mat{P}_\lambda z(t)\,\d t+\beta\,\d W(t).
+\end{equation}
+
+\paragraph{Cross-moment factorization.}
+Define the (random) stacked Gramian
+\[
+  \widehat{\mat{S}}_Z(T):=\int_0^T z(t)z(t)^\top\,\d t\in\R^{(n+m)\times(n+m)},
+\]
+and the (matrix-valued) cross-moment
+\begin{align}\label{eq:hautus-cross-moment-H}
+  \widehat{\mat{H}}_\lambda(T):=&
+  \int_0^T \d m_\lambda(t)\,z(t)^\top
+  \in\CC^{n\times(n+m)}\\ \label{eq:hautus-cross-moment-factorization}
+  =&\mat{P}_\lambda \widehat{\mat{S}}_Z(T)  +
+  \beta\int_0^T \d W(t)\,z(t)^\top.
+\end{align}
+The last term is a matrix-valued martingale with $\E[\int_0^T \d W(t)\,z(t)^\top]=0$, hence 
+\[
+\mathbb{E}\!\big[\widehat{\mat{H}}_\lambda(T)-\mat{P}_\lambda\widehat{\mat{S}}_Z(T)\big]=0.
+\]
+%
+%
+%
+%
+Let us estimate $\mat{P}_\lambda$.
+Assume that $\widehat{\mat{S}}_Z(T)$ is invertible and define
+\begin{equation}\label{eq:hautus-cross-moment-P-hat}
+  \widehat{\mat{P}}_\lambda(T):=\widehat{\mat{H}}_\lambda(T)\widehat{\mat{S}}_Z(T)^{-1}.
+\end{equation}
+Then \eqref{eq:hautus-cross-moment-factorization} implies the exact error identity
+\begin{equation}\label{eq:hautus-cross-moment-error}
+  \widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda
+  =
+  \beta\left(\int_0^T \d W(t)\,z(t)^\top\right)\widehat{\mat{S}}_Z(T)^{-1}.
+\end{equation}
+% Moreover, defining $\widehat{\mat{G}}_\lambda(T):=\widehat{\mat{P}}_\lambda(T)\widehat{\mat{S}}_Z(T)\widehat{\mat{P}}_\lambda(T)^*$, we obtain the fully data-dependent representation $\widehat{\mat{G}}_\lambda(T)=\widehat{\mat{H}}_\lambda(T)\widehat{\mat{S}}_Z(T)^{-1}\widehat{\mat{H}}_\lambda(T)^*$.
+%
+We want to characterize the statistical rate of convergence of $\widehat{\mat{P}}_\lambda(T)$ to $\mat{P}_\lambda$ as $T\to\infty$.
+Introduce the normalized quantities $\bar{\mat{S}}_Z(T):=\frac{1}{T}\widehat{\mat{S}}_Z(T)$ and $\bar{\mat{H}}_\lambda(T):=\frac{1}{T}\widehat{\mat{H}}_\lambda(T)$ so that $\widehat{\mat{P}}_\lambda(T)=\bar{\mat{H}}_\lambda(T)\bar{\mat{S}}_Z(T)^{-1}$.
+The It\^o isometry yields (componentwise) the bound
+\begin{equation}\label{eq:hautus-cross-moment-ito-isometry}
+  \E\left\|\frac{1}{T}\int_0^T \d W(t)\,z(t)^\top\right\|_F^2
+  =
+  \frac{q}{T^2}\E\left[\int_0^T \|z(t)\|_2^2\,\d t\right].
+\end{equation}
+If $\E[\int_0^T \|z(t)\|_2^2\,\d t]=\mathcal{O}(T)$ and $\|\bar{\mat{S}}_Z(T)^{-1}\|_2=\mathcal{O}_{\mathbb{P}}(1)$, then \eqref{eq:hautus-cross-moment-error} and \eqref{eq:hautus-cross-moment-ito-isometry} imply
+\begin{equation}\label{eq:hautus-cross-moment-rate}
+  \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2=\mathcal{O}_{\mathbb{P}}(T^{-1/2}).
+\end{equation}
+The $\mathcal{O}_{\mathbb{P}}(T^{-1/2})$ statement above can be strengthened to an explicit bound holding with probability $1-\delta$ and depending only on the (random) conditioning of $\bar{\mat{S}}_Z(T)$.
+\begin{prop}[Cross-moment error bound]\label{prop:hautus-cross-moment-high-prob}
+  Assume that $\widehat{\mat{S}}_Z(T)\succ 0$. Then for every $\delta\in(0,1)$, with probability at least $1-\delta$,
+  \begin{equation}\label{eq:hautus-cross-moment-high-prob}
+    \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
+    \le
+    \frac{\|\beta\|_2}{\sqrt{T\,\sigma_{\min}(\bar{\mat{S}}_Z(T))}}
+    \Big(\sqrt{q}+\sqrt{n+m}+\sqrt{2\log(1/\delta)}\Big) = \mathcal{O}(T^{-1/2}).
+  \end{equation}
+  Moreover, this implies the uniform bound $\sup_{\lambda\in\CC}\|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2$ since the right-hand side of \eqref{eq:hautus-cross-moment-error} does not depend on $\lambda$.
+Finally, by Weyl's inequality,
+\[
+  \big|\sigma_{\min}\big(\widehat{\mat{P}}_\lambda(T)\big)-\sigma_{\min}(\mat{P}_\lambda)\big|
+  \le
+  \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2,
+\]
+\end{prop}
+\begin{proof}
+  See Appendix~\ref{app:proof:hautus-cross-moment-high-prob}.
+\end{proof}
+
+\begin{rmk}
+The above result provides statistical guarantees for the Hautus test. In particular,
+\begin{align*}
+\sigma_{\min}(\mat{P}_\lambda)
+&\ge \sigma_{\min}\!\big(\widehat{\mat{P}}_\lambda(T)\big)
+ - \big|\sigma_{\min}(\mat{P}_\lambda) - \sigma_{\min}\!\big(\widehat{\mat{P}}_\lambda(T)\big)\big| \\
+&\ge \sigma_{\min}\!\big(\widehat{\mat{P}}_\lambda(T)\big) - \|\widehat{\mat{P}}_\lambda(T) - \mat{P}_\lambda\|_2 \\
+&\ge \sigma_{\min}\!\big(\widehat{\mat{P}}_\lambda(T)\big) -  \mathcal{O}(T^{-1/2}).
+\end{align*}
+\end{rmk}
+
+\subsection{A Fourier-domain approximation without derivatives.}
+The cross-moment in \eqref{eq:hautus-cross-moment-H} can also be approximated in the frequency domain without forming $\dot x$.
+For each $\omega\in\R$, define the Fourier transform of the residual increment
+\begin{equation*}
+  \widehat m_\lambda(\ii\omega)
+  :=
+  \int_0^T e^{-\ii\omega t}\,\d m_\lambda(t)
+  =
+  \int_0^T e^{-\ii\omega t}\,\d x(t)-\lambda\widehat x(\ii\omega),
+  \qquad
+  \widehat x(\ii\omega):=\int_0^T x(t)e^{-\ii\omega t}\,\d t.
+\end{equation*}
+Since $t\mapsto e^{-\ii\omega t}$ is of bounded variation, It\^o integration by parts yields
+\[
+  \int_0^T e^{-\ii\omega t}\,\d x(t)
+  =
+  x(T)e^{-\ii\omega T}-x(0)+\ii\omega\int_0^T x(t)e^{-\ii\omega t}\,\d t,
+\]
+hence
+\begin{equation}\label{eq:hautus-fourier-y}
+  \widehat m_\lambda(\ii\omega)
+  =
+  x(T)e^{-\ii\omega T}-x(0)+(\ii\omega-\lambda)\widehat x(\ii\omega).
+\end{equation}
+Thus, $\widehat m_\lambda(\ii\omega)$ can be computed from an FFT of $x$ plus the boundary terms $x(0),x(T)$.
+Define also $\widehat z(\ii\omega):=\int_0^T z(t)e^{-\ii\omega t}\,\d t$.
+If $x$ is absolutely continuous so that $\d m_\lambda(t)=(\dot x(t)-\lambda x(t))\,\d t$, then Parseval gives the deterministic identities
+\[
+  \mat{H}_\lambda(T)=\int_{\R}\widehat m_\lambda(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi},
+  \qquad
+  \mat{S}_Z(T)=\int_{\R}\widehat z(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi}.
+\]
+In the It\^o setting, the unwindowed energy $\int_{\R}\|\widehat m_\lambda(\ii\omega)\|_2^2\,\d\omega$ is not finite, so frequency-domain computations should be interpreted with an explicit cutoff/windowing when needed.

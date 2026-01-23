@@ -1,13 +1,6 @@
 \section{Problem Statement: Data-Driven Controllability Certification}\label{sec:problem}
 
-We consider the continuous-time Linear Time-Invariant (LTI) system
-\begin{equation}\label{eq:lti}
-\begin{aligned}
-  &\dot x(t) = \mat{A} x(t) + \mat{B} u(t),\\
-  &x(0) = x_0,
-\end{aligned}
-\end{equation}
-where the state $x(t)\in\R^n$, the input $u(t)\in\R^m$, and the system matrices $\mat{A}\in \mathbb{R}^{n \times n}$ and $\mat{B} \in \mathbb{R}^{n \times m}$ are unknown.
+
 % Given an initial condition $x_0\in\R^n$, the state trajectory admits the closed-form solution
 % \begin{equation}\label{eq:solution}
 %   x(t) = e^{\mat{A}t}x_0 + \int_0^t e^{\mat{A}(t-\tau)}\mat{B}\, u(\tau) \, \d\tau.
@@ -21,42 +14,44 @@ where the state $x(t)\in\R^n$, the input $u(t)\in\R^m$, and the system matrices 
 
 % Recall that for the continuous-time LTI system~\eqref{eq:lti}, the classical Hautus (Popov--Belevitch--Hautus, PBH) test \cite[Theorem~3.13]{trentelmanControlTheoryLinear2001} characterizes controllability and stabilizability
 % Here we state a continuous-time version based on time-domain moments of the state and input signals.
-\noindent\textbf{Data model.}
 We assume access to $u(\cdot)$ and the resulting state $x(\cdot)$ on a finite horizon $[0,T]$.
-When $\dot x$ is not directly available or is too noisy to estimate reliably, we rely on the cross-moment formulation in Section~\ref{subsec:hautus-ito}, which only uses increments of $x$ in the stochastic setting and avoids forming $\dot x$ in the deterministic setting.
+When $\dot x$ is not directly available or is too noisy to estimate reliably, we rely on the cross-moment formulation in Section~\ref{sec:stochastic}, which only uses increments of $x$ in the stochastic setting and avoids forming $\dot x$ in the deterministic setting.
 
 
 
 \subsection{Noise-free cross-moment formulation}
 \label{subsec:hautus-time-domain}
 
-For input design it is convenient to work with a time-domain moment formulation based on the residual and the stacked state--input signal.
+We consider the continuous-time Linear Time-Invariant (LTI) system
+\begin{equation}\label{eq:lti}
+  \begin{aligned}
+     & \dot x(t) = \mat{A} x(t) + \mat{B} u(t), \\
+     & x(0) = x_0,
+  \end{aligned}
+\end{equation}
+where the state $x(t)\in\R^n$, the input $u(t)\in\R^m$, and the system matrices $\mat{A}\in \mathbb{R}^{n \times n}$ and $\mat{B} \in \mathbb{R}^{n \times m}$ are unknown.
 
+For input design it is convenient to work with a time-domain moment formulation based on the residual and the stacked state--input signal.
 Fix a horizon $T>0$ and let $u\in L^2(0,T;\R^m)$ be an input generating an absolutely continuous state trajectory $x:[0,T]\to\R^n$ with $x,\dot x\in L^2(0,T;\R^n)$.
-For $\lambda\in\CC$ define the residual signal and its cross-moment
+For $\lambda\in\CC$ define the residual signal
 \[
   m_\lambda(t):=\dot x(t)-\lambda x(t)\in\CC^n,
-  \qquad
-  \mat{H}_\lambda(u):=\int_0^T m_\lambda(t)z(t)^*\,\d t\in\CC^{n\times (n+m)}.
 \]
-
-Define the stacked signal and its Gramian
+and its cross-moment
 \[
-  z(t):=\begin{bmatrix}x(t)\\u(t)\end{bmatrix}\in\R^{n+m},
-  \qquad
-  \mat{S}_Z(u):=\int_0^T z(t)z(t)^\top\,\d t\in\R^{(n+m)\times(n+m)}.
+  \mat{H}_\lambda(T):=\int_0^T (\dot x(t)-\lambda x(t))z(t)^\top\,\d t\in\CC^{n\times (n+m)}.
+\]
+where $z(t):=[x(t);u(t)]\in\R^{n+m}$ is the stacked state-input vector. Define the stacked Gramian
+\[
+  \mat{S}_Z(T):=\int_0^T z(t)z(t)^\top\,\d t\in\R^{(n+m)\times(n+m)}.
 \]
 Finally, define the Hautus matrix
 \[
   \mat{P}_\lambda := \begin{bmatrix}\mat{A}-\lambda \mat{I} & \mat{B}\end{bmatrix}\in\CC^{n\times(n+m)}.
 \]
-Note that $\mat{S}_Z(u)\succeq 0$ by construction. Moreover, for every admissible input $u$,
-\[
-  m_\lambda(t)=(\mat{A}-\lambda \mat{I})x(t)+\mat{B}u(t)=\mat{P}_\lambda z(t),
-\]
-and therefore
+Note that $\mat{S}_Z(T)\succeq 0$ by construction. Moreover, for every admissible input $u$,
 \begin{equation}\label{eq:hautus-continuous-factorization}
-  \mat{H}_\lambda(u)=\mat{P}_\lambda \mat{S}_Z(u).
+  \mat{H}_\lambda(T)=\mat{P}_\lambda \mat{S}_Z(T).
 \end{equation}
 %
 % \noindent\textbf{Frequency-domain representation.}
@@ -67,10 +62,10 @@ and therefore
 % \]
 % By the Plancherel theorem (Parseval identity) with this convention,
 % \begin{equation}\label{eq:hautus-parseval-m}
-%   \mat{H}_\lambda(u)=\int_{\R} \widehat m_\lambda(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi}.
+%   \mat{H}_\lambda(T)=\int_{\R} \widehat m_\lambda(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi}.
 % \end{equation}
-% This yields a direct frequency-domain analogue of the time-domain margin $\sigma_{\min}(\mat{H}_\lambda(u))$.
-% In practice, one evaluates $\sigma_{\min}(\mat{H}_\lambda(u))$ on a finite set of $\lambda$ (e.g., a grid or the candidate values discussed below).
+% This yields a direct frequency-domain analogue of the time-domain margin $\sigma_{\min}(\mat{H}_\lambda(T))$.
+% In practice, one evaluates $\sigma_{\min}(\mat{H}_\lambda(T))$ on a finite set of $\lambda$ (e.g., a grid or the candidate values discussed below).
 % Working with $\widehat m_\lambda$ directly avoids integration-by-parts boundary terms.
 % Indeed, for $\widehat x(\ii\omega):=\int_0^T x(t)e^{-\ii\omega t}\,\d t$,
 % integration by parts gives
@@ -81,281 +76,56 @@ and therefore
 % \[
 %   \widehat m_\lambda(\ii\omega) = (\ii\omega-\lambda)\widehat x(\ii\omega) + x(T)e^{-\ii\omega T} - x(0).
 % \]
-If $\mat{S}_Z(u)$ is invertible, then right-multiplication by $\mat{S}_Z(u)$ preserves row rank, so \eqref{eq:hautus-continuous-factorization} yields
-\[
-  \operatorname{rank}(\mat{H}_\lambda(u))=\operatorname{rank}(\mat{P}_\lambda),\qquad \forall\lambda\in\CC.
-\]
-Using this, we can now state the continuous-time Hautus test.
+If $\mat{S}_Z(T)$ is invertible, then right-multiplication by $\mat{S}_Z(T)$ preserves row rank and yields the continuous-time Hautus test.
 
 
 \begin{thm}[Continuous Hautus Test]\label{thm:hautus-margin-necessary}
-  If there exists $u$ such that $\operatorname{rank}(\mat{H}_\lambda(u))=n$ for all $\lambda\in\CC$, then $(\mat{A},\mat{B})$ is controllable.
-  Moreover, if $\mat{S}_Z(u)$ is invertible, then the converse holds
-  \[
-    (\mat{A},\mat{B}) \text{ is controllable}\quad\Leftrightarrow\quad
-    \operatorname{rank}(\mat{H}_\lambda(u))=n \text{ for all } \lambda\in\CC.
-  \]
+  If there exists $u$ such that $\operatorname{rank}(\mat{H}_\lambda(T))=n$ for all $\lambda\in\CC$, then $(\mat{A},\mat{B})$ is controllable.
+  Moreover, if $\mat{S}_Z(T)$ is invertible, then the converse holds
+  \begin{align*}
+    (\mat{A},\mat{B}) \text{ is controllable}\quad & \Leftrightarrow\quad
+    \operatorname{rank}(\mat{H}_\lambda(T))=n \text{ for all } \lambda\in\CC, \\
+    (\mat{A},\mat{B}) \text{ is stabilizable}\quad & \Leftrightarrow\quad
+    \operatorname{rank}(\mat{H}_\lambda(T))=n \text{ for all } \lambda\in\CC \text{ with } \Re(\lambda)\ge 0.
+  \end{align*}
 \end{thm}
 \begin{proof}
   See Appendix~\ref{app:proof:hautus-margin-necessary}.
 \end{proof}
 
 
-
-
-\subsection{Stochastic model and It\^o residual}
-\label{subsec:hautus-ito}
-
-Another alternative to direct state-derivative measurements is to estimate $\mat{P}_\lambda$, and hence $\mat{H}_\lambda(u)$, from cross-moments between the state and input signals, using only increments of $x$.
-This is particularly natural in a stochastic setting, where $\dot x$ does not exist pointwise.
-Assume that the measured state is an It\^o process satisfying the linear SDE
-\begin{equation*}
-  \d x(t)=\big(\mat{A}x(t)+\mat{B}u(t)\big)\,\d t+\beta\,\d W(t),\qquad t\in[0,T],
-\end{equation*}
-where $W$ is a $q$-dimensional standard Brownian motion and $\beta\in\R^{n\times q}$ is constant.
-For $\lambda\in\CC$, define the It\^o residual differential
-\begin{equation}\label{eq:hautus-ito-residual}
-  \d y_\lambda(t):=\d x(t)-\lambda x(t)\,\d t=\mat{P}_\lambda z(t)\,\d t+\beta\,\d W(t).
-\end{equation}
-
-\paragraph{Cross-moment factorization.}
-Define the (matrix-valued) cross-moment
-\begin{align}\label{eq:hautus-cross-moment-H}
-  \mat{H}_\lambda(T):=&
-  \int_0^T \d y_\lambda(t)\,z(t)^\top
-  \in\CC^{n\times(n+m)}\\ \label{eq:hautus-cross-moment-factorization}
-  =&\mat{P}_\lambda \mat{S}_Z(u)  +
-  \beta\int_0^T \d W(t)\,z(t)^\top.
-\end{align}
-The last term is a matrix-valued martingale with $\E[\int_0^T \d W(t)\,z(t)^\top]=0$, hence $\mat{H}_\lambda(T)-\mat{P}_\lambda\mat{S}_Z(u)$ has zero mean.
-%
-%
-If $x$ is absolutely continuous and $\beta=0$, then $\d y_\lambda(t)=m_\lambda(t)\,\d t$.
-If moreover $\mat{S}_Z(u)$ is invertible, then the deterministic residual Gramian
-\begin{equation}\label{eq:hautus-cross-moment-G-from-H}
-  \mat{G}_\lambda(u):=\int_0^T m_\lambda(t)m_\lambda(t)^*\,\d t=\mat{P}_\lambda\mat{S}_Z(u)\mat{P}_\lambda^*=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}\mat{H}_\lambda(T)^*
-\end{equation}
-%
-%
-Let us estimate $\mat{P}_\lambda$.
-Assume that $\mat{S}_Z(u)$ is invertible and define
-\begin{equation}\label{eq:hautus-cross-moment-P-hat}
-  \widehat{\mat{P}}_\lambda(T):=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}.
-\end{equation}
-Then \eqref{eq:hautus-cross-moment-factorization} implies the exact error identity
-\begin{equation}\label{eq:hautus-cross-moment-error}
-  \widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda
-  =
-  \beta\left(\int_0^T \d W(t)\,z(t)^\top\right)\mat{S}_Z(u)^{-1}.
-\end{equation}
-% Moreover, defining $\widehat{\mat{G}}_\lambda(T):=\widehat{\mat{P}}_\lambda(T)\mat{S}_Z(u)\widehat{\mat{P}}_\lambda(T)^*$, we obtain the fully data-dependent representation $\widehat{\mat{G}}_\lambda(T)=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}\mat{H}_\lambda(T)^*$.
-%
-We want to characterize the statistical rate of convergence of $\widehat{\mat{P}}_\lambda(T)$ to $\mat{P}_\lambda$ as $T\to\infty$. For that, we will use It\^o isometry. Firstly, 
-Introduce the normalized quantities $\bar{\mat{S}}_Z(T):=\frac{1}{T}\mat{S}_Z(u)$ and $\bar{\mat{H}}_\lambda(T):=\frac{1}{T}\mat{H}_\lambda(T)$ so that $\widehat{\mat{P}}_\lambda(T)=\bar{\mat{H}}_\lambda(T)\bar{\mat{S}}_Z(T)^{-1}$.
-The It\^o isometry yields (componentwise) the bound
-\begin{equation}\label{eq:hautus-cross-moment-ito-isometry}
-  \E\left\|\frac{1}{T}\int_0^T \d W(t)\,z(t)^\top\right\|_F^2
-  =
-  \frac{q}{T^2}\E\left[\int_0^T \|z(t)\|_2^2\,\d t\right].
-\end{equation}
-If $\E[\int_0^T \|z(t)\|_2^2\,\d t]=\mathcal{O}(T)$ and $\|\bar{\mat{S}}_Z(T)^{-1}\|_2=\mathcal{O}_{\mathbb{P}}(1)$, then \eqref{eq:hautus-cross-moment-error} and \eqref{eq:hautus-cross-moment-ito-isometry} imply
-\begin{equation}\label{eq:hautus-cross-moment-rate}
-  \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2=\mathcal{O}_{\mathbb{P}}(T^{-1/2}).
-\end{equation}
-The $\mathcal{O}_{\mathbb{P}}(T^{-1/2})$ statement above can be strengthened to an explicit bound holding with probability $1-\delta$ and depending only on the (random) conditioning of $\bar{\mat{S}}_Z(T)$.
-\begin{prop}[Cross-moment error bound]\label{prop:hautus-cross-moment-high-prob}
-  Assume that $\mat{S}_Z(u)\succ 0$. Then for every $\delta\in(0,1)$, with probability at least $1-\delta$,
-  \begin{equation}\label{eq:hautus-cross-moment-high-prob}
-    \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
-    \le
-    \frac{\|\beta\|_2}{\sqrt{T\,\sigma_{\min}(\bar{\mat{S}}_Z(T))}}
-    \Big(\sqrt{q}+\sqrt{n+m}+\sqrt{2\log(1/\delta)}\Big).
-  \end{equation}
-\end{prop}
-\begin{proof}
-  See Appendix~\ref{app:proof:hautus-cross-moment-high-prob}.
-\end{proof}
-Moreover, this implies the uniform bound $\sup_{\lambda\in\CC}\|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2$ since the right-hand side of \eqref{eq:hautus-cross-moment-error} does not depend on $\lambda$.
-Finally, by Weyl's inequality,
-\[
-  \big|\sigma_{\min}\big(\widehat{\mat{P}}_\lambda(T)\big)-\sigma_{\min}(\mat{P}_\lambda)\big|
-  \le
-  \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2,
-\]
-which provides a simple statistical analogue of the deterministic Hautus margin. In particular, Proposition~\ref{prop:hautus-cross-moment-high-prob} yields a corresponding $(1-\delta)$ bound on the singular-value deviation.
-
-
-\subsection{A Fourier-domain approximation without derivatives.}
-The cross-moment $\mat{H}_\lambda(T)$ in \eqref{eq:hautus-cross-moment-H} can also be approximated in the frequency domain without forming $\dot x$.
-For each $\omega\in\R$, define the Fourier transform of the residual increment
-\begin{equation*}
-  \widehat{dy}_\lambda(\ii\omega)
-  :=
-  \int_0^T e^{-\ii\omega t}\,\d y_\lambda(t)
-  =
-  \int_0^T e^{-\ii\omega t}\,\d x(t)-\lambda\widehat x(\ii\omega),
-  \qquad
-  \widehat x(\ii\omega):=\int_0^T x(t)e^{-\ii\omega t}\,\d t.
-\end{equation*}
-Since $t\mapsto e^{-\ii\omega t}$ is of bounded variation, It\^o integration by parts yields
-\[
-  \int_0^T e^{-\ii\omega t}\,\d x(t)
-  =
-  x(T)e^{-\ii\omega T}-x(0)+\ii\omega\int_0^T x(t)e^{-\ii\omega t}\,\d t,
-\]
-hence
-\begin{equation}\label{eq:hautus-fourier-y}
-  \widehat{dy}_\lambda(\ii\omega)
-  =
-  x(T)e^{-\ii\omega T}-x(0)+(\ii\omega-\lambda)\widehat x(\ii\omega).
-\end{equation}
-Thus, $\widehat{dy}_\lambda(\ii\omega)$ can be computed from an FFT of $x$ plus the boundary terms $x(0),x(T)$.
-Define also $\widehat z(\ii\omega):=\int_0^T z(t)e^{-\ii\omega t}\,\d t$.
-If $x$ is absolutely continuous so that $\d y_\lambda(t)=m_\lambda(t)\,\d t$, then Parseval gives
-\[
-  \mat{H}_\lambda(T)=\int_{\R}\widehat{ dy}_\lambda(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi},
-  \qquad
-  \mat{S}_Z(u)=\int_{\R}\widehat z(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi}.
-\]
-In the It\^o setting, the unwindowed energy $\int_{\R}\|\widehat{dy}_\lambda(\ii\omega)\|_2^2\,\d\omega$ is not finite (it corresponds to the $L^2$-energy of a derivative that does not exist), so frequency-domain computations should be interpreted with an explicit cutoff/windowing when needed.
-
-
-
-\subsection{An operator formulation and finitely many candidate \texorpdfstring{$\lambda$}{lambda}}
-\label{subsec:hautus-operator}
-The main inconvenience of Theorem~\ref{thm:hautus-margin-necessary} is that the rank condition must hold for all $\lambda\in\CC$.
-To address this, we now develop an operator formulation that allows us to identify finitely many candidate $\lambda$ where rank failure can occur.
-%
-Let $x:[0,T]\to\R^n$ be absolutely continuous with $x,\dot x\in L^2(0,T;\R^n)$ and define operators
-\[
-  \X,\dot\X:L^2(0,T)\to\CC^n,\qquad
-  \X(\varphi):=\int_0^T x(t)\varphi(t)\,\d t,\quad
-  \dot\X(\varphi):=\int_0^T \dot x(t)\varphi(t)\,\d t.
-\]
-For $\lambda\in\CC$, define the pencil of operators
-\[
-  \mathcal{P}(\lambda):=\dot\X-\lambda \X.
-\]
-Since the codomain is finite-dimensional, $\operatorname{rank}(\mathcal{P}(\lambda)):=\dim(\operatorname{range}(\mathcal{P}(\lambda)))\le n$, and \textit{full rank} means surjectivity onto $\CC^n$.
-For $\varphi\in L^2(0,T)$ and $w\in\CC^n$,
-\[
-  \angl \X(\varphi),w\angr_{\CC^n}
-  =\Big(\int_0^T x(t)\varphi(t)\,\d t\Big)^*w
-  =\int_0^T \overline{\varphi(t)}\,x(t)^*w\,\d t
-  =\angl \varphi,\,x(\cdot)^*w\angr_{L^2(0,T)}.
-\]
-Repeating the same process for $\dot\X$ yields
-\begin{equation*}
-  (\X^*w)(t)=x(t)^*w,\qquad (\dot\X^*w)(t)=\dot x(t)^*w\qquad\text{in }L^2(0,T),
-\end{equation*}
-Therefore, for $w\in\CC^n$,
-\[
-  \mathcal{P}(\lambda)\mathcal{P}(\lambda)^*w
-  =\mathcal{P}(\lambda)\big(\dot\X^*w-\overline{\lambda}\X^*w\big)
-  =\int_0^T m_\lambda(t)\,m_\lambda(t)^*w\,\d t
-  =:\mat{G}_\lambda(u)\,w.
-\]
-Hence,
-\begin{equation}\label{eq:hautus-operator-gram-identity}
-  \mathcal{P}(\lambda)\mathcal{P}(\lambda)^* = \mat{G}_\lambda(u)\qquad\text{as operators }\CC^n\to\CC^n.
-\end{equation}
-Since $\mathcal{P}(\lambda):L^2(0,T)\to\CC^n$ has finite-dimensional codomain, it is surjective if and only if
-$\mathcal{P}(\lambda)\mathcal{P}(\lambda)^*$ is invertible on $\CC^n$.
-By \eqref{eq:hautus-operator-gram-identity}, for every $\lambda\in\CC$,
-\begin{equation}\label{eq:hautus-operator-full-rank}
-  \operatorname{rank}(\mathcal{P}(\lambda))=n
-  \quad\Leftrightarrow\quad
-  \mat{G}_\lambda(u)\ \text{is invertible}.
-\end{equation}
-When $\mat{S}_Z(u)\succ 0$, the cross-moment representation \eqref{eq:hautus-cross-moment-G-from-H} further gives
-\[
-  \mat{G}_\lambda(u)=\mat{H}_\lambda(T)\mat{S}_Z(u)^{-1}\mat{H}_\lambda(T)^*,
-\]
-so $\mat{G}_\lambda(u)$ is invertible if and only if $\mat{H}_\lambda(T)$ has full row rank.
-Thus, in the data-driven Hautus test it suffices to understand for which $\lambda$ the matrix $\mat{H}_\lambda(T)$ can lose rank.
-The next result shows that, under a mild nondegeneracy assumption, rank failure can only occur at finitely many ``candidate'' values of $\lambda$.
-
-\begin{thm}[Finite candidate set for $\lambda\in \CC$]\label{thm:hautus-operator-finite-lambda}
-  Assume $\operatorname{rank}(\X)=n$, equivalently
-  \[
-    \X\X^* = \int_0^T x(t)x(t)^*\,\d t\in\CC^{n\times n}\quad\text{is invertible}.
-  \]
-  This is a data-richness condition: it requires, in particular, that the trajectory does not remain in a strict subspace of $\R^n$ on $[0,T]$.
-  Define
-  \[
-    \mat{K}:=(\X\X^*)^{-1}\X\dot\X^*=\Big(\int_0^T x(t)x(t)^*\,\d t\Big)^{-1}\Big(\int_0^T x(t)\dot x(t)^*\,\d t\Big)\in\CC^{n\times n}.
-  \]
-  Then for every $\lambda\in\CC$,
-  \[
-    \operatorname{rank}(\mathcal{P}(\lambda))<n
-    \quad\Longrightarrow\quad
-    \lambda\in\sigma(\mat{K}).
-  \]
-  In particular, the set of $\lambda$ for which $\operatorname{rank}(\mathcal{P}(\lambda))<n$ is contained in $\sigma(\mat{K})$.
-\end{thm}
-\begin{proof}
-  See Appendix~\ref{app:proof:hautus-operator-finite-lambda}.
-\end{proof}
-
-
-\begin{cor}[Finite checking for the data-driven test]\label{cor:hautus-finite-checking-H}
-  Assume $\operatorname{rank}(\X)=n$ and $\mat{S}_Z(u)\succ 0$, and let $\mat{K}$ be as in Theorem~\ref{thm:hautus-operator-finite-lambda}.
-  Define the candidate set $\Lambda:=\sigma(\mat{K})$, hence $|\Lambda|\le n$.
-  If
-  \[
-    \operatorname{rank}\big(\mat{H}_\lambda(T)\big)=n\qquad\text{for all }\lambda\in\Lambda,
-  \]
-  then $\operatorname{rank}\big(\mat{H}_\lambda(T)\big)=n$ for all $\lambda\in\CC$.
-\end{cor}
-\begin{proof}
-  See Appendix~\ref{app:proof:hautus-finite-checking-H}.
-\end{proof}
-
-\begin{lem}[A quantitative lower bound for $\sigma_{\min}(\mat{H}_\lambda(T))$ via $\mat{K}$]\label{lem:hautus-operator-margin-bound}
-  Assume $\operatorname{rank}(\X)=n$, $\mat{S}_Z(u)\succ 0$, and let $\mat{K}$ be as in Theorem~\ref{thm:hautus-operator-finite-lambda}.
-  Then for every $\lambda\in\CC$,
-  \[
-    \sigma_{\min}\!\big(\mat{H}_\lambda(T)\big)
-    \ge
-    \sqrt{\sigma_{\min}\!\big(\mat{S}_Z(u)\big)}\,
-    \frac{\sigma_{\min}(\mat{K}-\overline{\lambda}\,\mat{I})}{\|(\X\X^*)^{-1}\X\|}.
-  \]
-  In particular, if $\lambda\notin\sigma(\mat{K})$, then $\mat{H}_\lambda(T)$ has full row rank.
-\end{lem}
-\begin{proof}
-  See Appendix~\ref{app:proof:hautus-operator-margin-bound}.
-\end{proof}
-
-Consequently, for rank certification it is enough to check the finitely many candidates $\Lambda=\sigma(\mat{K})$.
-
+This result justifies the use of the margin $\sigma_{\min}(\mat{H}_\lambda(T))$ as a data-driven certificate of controllability and stabilizability. Moreover, $\mat{S}_Z(T)$ plays a key role in the conditioning of the test (see Section~\ref{sec:stochastic}). Therefore, input design should seek to maximize $\sigma_{\min}(\mat{S}_Z(T))$ under suitable constraints.
 
 
 \subsection{Best conditioning of control inputs}
 \label{subsec:hautus-best-conditioning}
 
-The data-driven estimate \eqref{eq:hautus-cross-moment-P-hat} and the resulting singular-value margin are controlled---up to the model-dependent factor $\sigma_{\min}(\mat{P}_\lambda)$---by the smallest singular value of the stacked Gramian $\mat{S}_Z(u)$.
-Since $\mat{S}_Z(u)$ depends on the unknown response $x(\cdot)$, a natural model-agnostic surrogate is to ensure that the \emph{input} Gramian is well conditioned, so that the input directions are persistently excited and the inversion of $\mat{S}_Z(u)$ in \eqref{eq:hautus-cross-moment-G-from-H} is numerically stable.
-Under an $L^2$ energy budget, the best possible conditioning corresponds to spreading the energy isotropically across the $m$ input channels.
-
-\begin{rmk}
-The matrix $\mat{S}_U(u)$ is a principal submatrix of $\mat{S}_Z(u)$, hence
+The singular-value margins of the data-driven Hautus test are controlled---up to the model-dependent factor $\sigma_{\min}(\mat{P}_\lambda)$---by the smallest singular value of the stacked Gramian $\mat{S}_Z(T)$.
+Since $\mat{S}_Z(T)$ depends on the (unknown) response $x(\cdot)$, a natural model-agnostic surrogate is to ensure that the \emph{input} Gramian is well conditioned, so that the input directions are persistently excited and the inversion of $\mat{S}_Z(T)$ is numerically stable.
+Define the input Gramian
 \[
-  \sigma_{\min}(\mat{S}_Z(u))\le \sigma_{\min}(\mat{S}_U(u)).
+  \mat{S}_U(u):=\int_0^T u(t)u(t)^\top\,\d t \in \R^{m\times m}.
 \]
-Thus, even though $\sigma_{\min}(\mat{S}_Z(u))$ depends on the state-response, and therefore on $(\mat{A},\mat{B})$ and the initial condition,
-choosing inputs with well-conditioned $\mat{S}_U(u)$ is a natural baseline when seeking a large $\sigma_{\min}(\mat{S}_Z(u))$ without model knowledge.
+\begin{rmk}
+  The matrix $\mat{S}_U(u)$ is a principal submatrix of $\mat{S}_Z(T)$, hence
+  \[
+    \sigma_{\min}(\mat{S}_Z(T))\le \sigma_{\min}(\mat{S}_U(u)).
+  \]
+  Thus, even though $\sigma_{\min}(\mat{S}_Z(T))$ depends on the state response, and therefore on $(\mat{A},\mat{B})$ and the initial condition,
+choosing inputs with well-conditioned $\mat{S}_U(u)$ is a natural baseline when seeking a large $\sigma_{\min}(\mat{S}_Z(T))$ without model knowledge. This idea motivates the input designs in the next results.
 \end{rmk}
 
+
+
+Under an $L^2$ energy budget, the best possible conditioning corresponds to spreading the energy isotropically across the $m$ input channels.
+
+
 \begin{prop}[Best conditioning under $\|u\|_{L^2}\leq 1$]\label{prop:hautus-isotropic-input}
-  Define the input Gramian
-  \[
-    \mat{S}_U(u):=\int_0^T u(t)u(t)^\top\,\d t \in \R^{m\times m}.
-  \]
   If $\|u\|_{L^2(0,T)}^2\leq 1$, then
   \[
     \lambda_{\min}(\mat{S}_U(u)) \le \frac{1}{m}.
   \]
-  Moreover, there exist $u$ with $\|u\|_{L^2(0,T)}\leq 1$ such that $\mat{S}_U(u)=\frac{1}{m}\mat{I}_m$. In particular, the upper bound is tight.
+  Moreover, there exist $u$ with $\|u\|_{L^2(0,T)}\leq 1$ such that $\mat{S}_U(u)=\frac{1}{m}\mat{I}_m$. 
 \end{prop}
 \begin{proof}
   See Appendix~\ref{app:proof:hautus-isotropic-input}.
@@ -385,8 +155,8 @@ This penalizes high-frequency excitation and therefore reduces the best achievab
   \]
   and $Q\in\R^{m\times m}$ is orthogonal, then with
   \[
-  u(t)=\sqrt{\alpha}\,Q\begin{bmatrix}\psi_0(t)\\ \vdots\\ \psi_{m-1}(t)\end{bmatrix}, \quad \text{where}\quad
-  \alpha:=\Big(\sum_{k=0}^{m-1}\big(1+(\tfrac{k\pi}{T})^2\big)\Big)^{-1}
+    u(t)=\sqrt{\alpha}\,Q\begin{bmatrix}\psi_0(t)\\ \vdots\\ \psi_{m-1}(t)\end{bmatrix}, \quad \text{where}\quad
+    \alpha:=\Big(\sum_{k=0}^{m-1}\big(1+(\tfrac{k\pi}{T})^2\big)\Big)^{-1}
   \]
   one has $\|u\|_{H^1(0,T)}^2=1$ and $\mat{S}_U(u)=\alpha\,\mat{I}_m$.
 \end{prop}
@@ -395,6 +165,128 @@ This penalizes high-frequency excitation and therefore reduces the best achievab
 \end{proof}
 
 \begin{rmk}
-As $T\to\infty$ the derivative penalty vanishes and $\alpha\to 1/m$, recovering the $L^2$-budget optimum in Proposition~\ref{prop:hautus-isotropic-input}.
-For short horizons (or large $m$), the optimal $H^1$-budget design suppresses high-frequency components and yields a smaller isotropic eigenvalue $\alpha$.
+  As $T\to\infty$ the derivative penalty vanishes and $\alpha\to 1/m$, recovering the $L^2$-budget optimum in Proposition~\ref{prop:hautus-isotropic-input}.
+  For short horizons (or large $m$), the optimal $H^1$-budget design suppresses high-frequency components and yields a smaller isotropic eigenvalue $\alpha$.
 \end{rmk}
+
+
+
+
+
+
+\subsection{An operator formulation and finitely many candidate \texorpdfstring{$\lambda$}{lambda}}
+\label{subsec:hautus-operator}
+The main inconvenience of Theorem~\ref{thm:hautus-margin-necessary} is that the rank condition must hold for all $\lambda\in\CC$.
+To address this, we now develop an operator formulation that allows us to identify finitely many candidate $\lambda$ where rank failure can occur.
+%
+Let $x:[0,T]\to\R^n$ be absolutely continuous with $x,\dot x\in L^2(0,T;\R^n)$ and define operators
+\[
+  \X,\dot\X:L^2(0,T)\to\CC^n,\qquad
+  \X(\varphi):=\int_0^T x(t)\varphi(t)\,\d t,\quad
+  \dot\X(\varphi):=\int_0^T \dot x(t)\varphi(t)\,\d t.
+\]
+For $\varphi\in L^2(0,T)$ and $w\in\CC^n$,
+\[
+  \angl \X(\varphi),w\angr_{\CC^n}
+  =\Big(\int_0^T x(t)\varphi(t)\,\d t\Big)^*w
+  =\int_0^T \overline{\varphi(t)}\,x(t)^*w\,\d t
+  =\angl \varphi,\,x(\cdot)^*w\angr_{L^2(0,T)}.
+\]
+Repeating the same process for $\dot\X$ yields
+\begin{equation*}
+  (\X^*w)(t)=x(t)^*w,\qquad (\dot\X^*w)(t)=\dot x(t)^*w\qquad\text{in }L^2(0,T),
+\end{equation*}
+For $\lambda\in\CC$, define the pencil of operators
+\[
+  \mathcal{P}(\lambda):=\dot\X-\lambda \X.
+\]
+Since the codomain is finite-dimensional, $\operatorname{rank}(\mathcal{P}(\lambda)):=\dim(\operatorname{range}(\mathcal{P}(\lambda)))\le n$, and \textit{full rank} means surjectivity onto $\CC^n$.
+Therefore, for $w\in\CC^n$,
+\[
+  \mathcal{P}(\lambda)\mathcal{P}(\lambda)^*w
+  =\mathcal{P}(\lambda)\big(\dot\X^*w-\overline{\lambda}\X^*w\big)
+  =\int_0^T m_\lambda(t)\,m_\lambda(t)^*w\,\d t
+  =:\mat{G}_\lambda(u)\,w.
+\]
+Hence,
+\begin{equation}\label{eq:hautus-operator-gram-identity}
+  \mathcal{P}(\lambda)\mathcal{P}(\lambda)^* = \mat{G}_\lambda(u)\qquad\text{as operators }\CC^n\to\CC^n.
+\end{equation}
+Since $\mathcal{P}(\lambda):L^2(0,T)\to\CC^n$ has finite-dimensional codomain, it is surjective if and only if
+$\mathcal{P}(\lambda)\mathcal{P}(\lambda)^*$ is invertible on $\CC^n$.
+By \eqref{eq:hautus-operator-gram-identity}, for every $\lambda\in\CC$,
+\begin{equation}\label{eq:hautus-operator-full-rank}
+  \operatorname{rank}(\mathcal{P}(\lambda))=n
+  \quad\Leftrightarrow\quad
+  \mat{G}_\lambda(u)\ \text{is invertible}.
+\end{equation}
+When $\mat{S}_Z(T)\succ 0$, the cross-moment representation further gives
+\begin{equation}\label{eq:hautus-operator-G-from-H}
+  \mat{G}_\lambda(u)=\mat{H}_\lambda(T)\mat{S}_Z(T)^{-1}\mat{H}_\lambda(T)^*,
+\end{equation}
+so $\mat{G}_\lambda(u)$ is invertible if and only if $\mat{H}_\lambda(T)$ has full row rank.
+Thus, in the data-driven Hautus test it suffices to understand for which $\lambda$ the matrix $\mat{H}_\lambda(T)$ can lose rank.
+The next result shows that, under a mild nondegeneracy assumption, rank failure can only occur at finitely many \emph{candidate} values of $\lambda$.
+
+\begin{thm}[Finite candidate set for $\lambda\in \CC$]\label{thm:hautus-operator-finite-lambda}
+  Assume $\operatorname{rank}(\X)=n$, equivalently
+  \[
+    \X\X^* = \int_0^T x(t)x(t)^*\,\d t\in\CC^{n\times n}\quad\text{is invertible}.
+  \]
+  This is a data-richness condition: it requires, in particular, that the trajectory does not remain in a strict subspace of $\R^n$ on $[0,T]$.
+  Define
+  \[
+    \mat{K}:=(\X\X^*)^{-1}\X\dot\X^*=\Big(\int_0^T x(t)x(t)^*\,\d t\Big)^{-1}\Big(\int_0^T x(t)\dot x(t)^*\,\d t\Big)\in\CC^{n\times n}.
+  \]
+  Then for every $\lambda\in\CC$,
+  \[
+    \operatorname{rank}(\mathcal{P}(\lambda))<n
+    \quad\Longrightarrow\quad
+    \lambda\in\sigma(\mat{K}).
+  \]
+  In particular, the set of $\lambda$ for which $\operatorname{rank}(\mathcal{P}(\lambda))<n$ is contained in $\sigma(\mat{K})$.
+\end{thm}
+\begin{proof}
+  See Appendix~\ref{app:proof:hautus-operator-finite-lambda}.
+\end{proof}
+
+
+Suppose there existed $\lambda_0\in\CC$ with $\operatorname{rank}\big(\mat{H}_{\lambda_0}(T)\big)<n$.
+Since $\mat{S}_Z(T)\succ 0$, the matrix \eqref{eq:hautus-operator-G-from-H}
+is singular, hence \eqref{eq:hautus-operator-full-rank} implies $\operatorname{rank}(\mathcal{P}(\lambda_0))<n$.
+Therefore, the above theorem yields $\lambda_0\in\sigma(\mat{K})$, which implies the following result.
+
+\begin{cor}[Finite checking for the data-driven test]\label{cor:hautus-finite-checking-H}
+  Assume $\operatorname{rank}(\X)=n$ and $\mat{S}_Z(T)\succ 0$, and let $\mat{K}$ be as in Theorem~\ref{thm:hautus-operator-finite-lambda}.
+  Define the candidate set $\Lambda:=\sigma(\mat{K})$, hence $|\Lambda|\le n$.
+  If
+  \[
+    \operatorname{rank}\big(\mat{H}_\lambda(T)\big)=n\qquad\text{for all }\lambda\in\Lambda,
+  \]
+  then $\operatorname{rank}\big(\mat{H}_\lambda(T)\big)=n$ for all $\lambda\in\CC$.
+\end{cor}
+
+\begin{lem}[A quantitative lower bound for $\sigma_{\min}(\mat{H}_\lambda(T))$ via $\mat{K}$]\label{lem:hautus-operator-margin-bound}
+  Assume $\operatorname{rank}(\X)=n$, $\mat{S}_Z(T)\succ 0$, and let $\mat{K}$ be as in Theorem~\ref{thm:hautus-operator-finite-lambda}.
+  Then for every $\lambda\in\CC$,
+  \[
+    \sigma_{\min}\!\big(\mat{H}_\lambda(T)\big)
+    \ge
+    \sqrt{\sigma_{\min}\!\big(\mat{S}_Z(T)\big)}\,
+    \frac{\sigma_{\min}(\mat{K}-\overline{\lambda}\,\mat{I})}{\|(\X\X^*)^{-1}\X\|}.
+  \]
+  In particular, if $\lambda\notin\sigma(\mat{K})$, then $\mat{H}_\lambda(T)$ has full row rank.
+\end{lem}
+\begin{proof}
+  See Appendix~\ref{app:proof:hautus-operator-margin-bound}.
+\end{proof}
+
+
+
+
+
+
+
+
+
+

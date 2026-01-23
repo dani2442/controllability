@@ -27,7 +27,7 @@ More recently, Mishra et al.\ developed algebraic data-driven tests for controll
 These results collectively suggest that controllability can, in principle, be certified directly from suitably designed experiments, even when the system matrices are unknown.
 
 \noindent\textbf{Scope of this paper.}
-In this work we revisit experiment design for LTI systems from the perspective of certifying the \emph{dimension of the controllable subspace}.
+In this work we revisit experiment design for LTI systems from the perspective of certifying the property of \emph{controllability}.
 Consider an unknown continuous-time LTI system with state matrix $\mat A\in\R^{n\times n}$ and input matrix $\mat B\in\R^{n\times m}$, governed by
 \begin{equation}\label{eq:lti-intro}
   \dot x(t)=\mat A x(t)+\mat B u(t),\qquad x(0)=x_0.
@@ -37,80 +37,63 @@ The controllable subspace is characterized by the Kalman controllability matrix
   \mat{C}:=[\mat{B},\mat{A}\mat{B},\dots,\mat{A}^{n-1}\mat{B}]\in\R^{n\times nm},
 \]
 and $\operatorname{rank}(\mat{C})$ determines the dimension of the reachable set from the origin \cite{kalmanMathematicalDescriptionLinear1963a,chenLinearSystemTheory1999}.
-An equivalent characterization is given in terms of the Hautus (PBH) test. 
-Recall that for the continuous-time LTI system~\eqref{eq:lti-intro}, the classical Hautus (Popov--Belevitch--Hautus, PBH) test \cite[Theorem~3.13]{trentelmanControlTheoryLinear2001} characterizes controllability and stabilizability as follows:
-\begin{align*}
+An equivalent characterization is given in terms of the classical Hautus (Popov--Belevitch--Hautus, PBH) test \cite[Theorem~3.13]{trentelmanControlTheoryLinear2001}, which characterizes controllability and stabilizability as follows:
+\begin{equation}\label{eq:hautus-classical}
+\begin{aligned}
 (\mat{A},\mat{B}) \text{ is controllable }\quad &\Leftrightarrow \quad \operatorname{rank}[\mat{A}-\lambda \mat{I},\, \mat{B}]=n \quad \forall \lambda\in\CC,\\
 (\mat{A},\mat{B}) \text{ \ is stabilizable } \quad &\Leftrightarrow \quad \operatorname{rank}[\mat{A}-\lambda \mat{I},\, \mat{B}]=n \quad \forall \lambda\in\CC \text{ with } \Re(\lambda)\ge 0.
-\end{align*}
+\end{aligned}
+\end{equation}
 The data-driven Hautus test estimates the rank of the matrix using the following \textit{trick}:
 $$
 [\mat{A}-\lambda \mat{I},\, \mat{B}]\begin{bmatrix}x(t)\\u(t)\end{bmatrix} = \dot{x}(t) - \lambda x(t)
 $$
-Therefore, assuming access to $u(\cdot)$ and $x(\cdot)$ on a finite horizon $[0,T]$, one can estimate the rank of the Hautus matrix from data without explicitly identifying $(\mat{A},\mat{B})$. However, the quality of this estimate depends on the choice of input $u$. So, the main question we address in this paper is: \emph{how to design inputs $u$ that reliably reveal the controllability rank from data?}
+Therefore, assuming access to $u(\cdot)$ and $x(\cdot)$ on a finite horizon $[0,T]$, one can estimate the rank of the Hautus matrix from data without explicitly identifying $(\mat{A},\mat{B})$. To recover the rank property \textit{from data}, one can form the cross-moment, defined
+\[
+  \mat H_\lambda(u):=\int_0^T(\dot x(t)-\lambda x(t))z(t)^*\,\d t = [\mat{A}-\lambda \mat{I},\, \mat{B}] \underbrace{\int_0^T z(t)z(t)^* dt}_{\mat{S}_Z(T)} \in \mathbb{C}^{n\times (n+m)},
+\]
+where $z(t):=[x(t);u(t)]\in\R^{n+m}$ is the stacked state-input vector. The idea is that, if the Gramian $\mat{S}_Z(T)$ is well-conditioned, then the rank of $\mat H_\lambda(u)$ reveals the rank of the Hautus matrix. However, the quality of this estimate depends on the choice of input $u$. 
+So, the main question we address in this paper is: \emph{how to design inputs $u$ that reliably reveal the controllability rank from data?}
 \subsection{Main Contributions}
 \begin{itemize}
   \item \textbf{A continuous-time data-driven Hautus margin.}
-  Complementing terminal-state guarantees, we provide a continuous-time, data-driven analogue of the classical Hautus (PBH) test \cite{trentelmanControlTheoryLinear2001}.
-  Defining the residual cross-moment
-  \[
-    \mat H_\lambda(u):=\int_0^T(\dot x(t)-\lambda x(t))z(t)^*\,\d t \in \mathbb{C}^{n\times (n+m)},
-  \]
-  where $z(t):=[x(t);u(t)]\in\R^{n+m}$ is the stacked state-input vector, then
-  \[
+  We provide a \textit{continuous-time} and \textit{data-driven} analogue of the Hautus test \eqref{eq:hautus-classical}:
+  \begin{equation}\label{eq:hautus-controllable}
     (\mat{A},\mat{B}) \text{ is controllable}\quad\Leftrightarrow\quad
     \operatorname{rank}(\mat{H}_\lambda(u))=n\quad \forall\lambda\in\CC.
-  \]
-  We prove that it suffices to check only the finite set $\Lambda=\sigma(\mat{K})$ (so $|\Lambda|\le n$), where
+  \end{equation}
+  assuming $\mat{S}_Z(T)$ is well-conditioned. It suffices to check a finite set $\lambda \in \sigma(\mat{K})$, where
   \[
     \mat{K}:=\Big(\int_0^T x(t)x(t)^*\,\d t\Big)^{-1}\Big(\int_0^T x(t)\dot x(t)^*\,\d t\Big).
   \]
   We further develop a derivative-free formulation using Fourier transform.
-  \item \textbf{Concentration bounds under It\^o noise.} Consider the It\^o noise model
-  \[
-    \d x(t) = \big(\mat{A}x(t) + \mat{B}u(t)\big)\,\d t + \beta\,\d W(t),
-  \]
-  where $W$ is a $q$-dimensional standard Brownian motion and $\beta\in\R^{n\times q}$ is the noise intensity matrix.
-  Specifically, with probability at least $1-\delta$,
-  \[
-    \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
-    \le
-    \frac{\|\beta\|_2}{\sqrt{T\,\sigma_{\min}(\bar{\mat{S}}_Z(T))}}
-    \Big(\sqrt{q}+\sqrt{n+m}+\sqrt{2\log(1/\delta)}\Big),
-  \]
-  where $\mat{P}_\lambda:=[\mat{A}-\lambda \mat{I}, \, \mat{B}]$, $\hat{\mat{P}}_\lambda(T)$ is the data-driven estimate and $\bar{\mat{S}}_Z(T):=\frac{1}{T}\int_0^T z(t)z(t)^\top\,\d t$ is its normalized Gramian.
-  Notably, this bound is uniform over all $\lambda\in\CC$ (Proposition~\ref{prop:hautus-cross-moment-high-prob}).
+
   \item \textbf{Input design for conditioning the Hautus margin.}
-  We provide sharp, model-agnostic designs for conditioning the input, which improves the data-driven test:\\
+  We provide sharp, model-agnostic designs for conditioning the input, which improves the data-driven test \eqref{eq:hautus-controllable}:\\
   (1) Under an $L^2$ energy budget $\|u\|_{L^2}\le 1$, the best possible conditioning is achieved by any input with $m$ orthonormal time functions (Proposition~\ref{prop:hautus-isotropic-input}), yielding
   $$\int_0^T u(t)u(t)^\top\,\d t=\frac{1}{m}\mat{I}_m.$$
-  (2) Under an $H^1$ smoothness budget $\|u\|_{H^1}\le 1$, the optimal design is given by
+  (2) Under an $H^1$ smoothness budget $\|u\|_{H^1}\le 1$, the \textit{unique} optimal design is given by
   \[
     u(t) = \sqrt{\alpha}\,Q\begin{bmatrix}\psi_0(t)\\ \vdots\\ \psi_{m-1}(t)\end{bmatrix},
     \quad\text{where}\quad
     \psi_k(t):=\sqrt{\tfrac{2}{T}}\cos\!\Big(\frac{k\pi t}{T}\Big),
   \]
   with $Q\in\R^{m\times m}$ an orthogonal matrix and $\alpha$ a normalization term (Proposition~\ref{prop:hautus-isotropic-input-h1}).
+
+  \item \textbf{Concentration bounds under It\^o noise.} Consider the It\^o noise model
+  \[
+    \d x(t) = \big(\mat{A}x(t) + \mat{B}u(t)\big)\,\d t + \beta\,\d W(t),
+  \]
+  where $W$ is a $q$-dimensional standard Brownian motion and $\beta\in\R^{n\times q}$ is the noise intensity matrix.
+  In Proposition~\ref{prop:hautus-cross-moment-high-prob}, we prove that with probability at least $1-\delta$,
+  \[
+    \|\widehat{\mat{P}}_\lambda(T)-\mat{P}_\lambda\|_2
+    \le
+    \frac{\|\beta\|_2}{\sqrt{T\,\sigma_{\min}(\bar{\mat{S}}_Z(T))}}
+    \Big(\sqrt{q}+\sqrt{n+m}+\sqrt{2\log(1/\delta)}\Big) = \mathcal{O}\Big(\frac{1}{\sqrt{T}}\Big),
+  \]
+  where $\mat{P}_\lambda:=[\mat{A}-\lambda \mat{I}, \, \mat{B}]$, $\hat{\mat{P}}_\lambda(T)$ is the data-driven estimate and $\bar{\mat{S}}_Z(T):=\frac{1}{T}\int_0^T z(t)z(t)^\top\,\d t$ is its normalized Gramian.
 \end{itemize}
 Together, these results provide a principled experiment-design toolkit for learning models that preserve controllability structure and are therefore suitable for safe downstream control.
 
 
-\section{Problem Statement}\label{sec:problem}
-
-We consider the continuous-time Linear Time-Invariant (LTI) system
-\begin{equation}\label{eq:lti}
-  \dot x(t) = \mat{A} x(t) + \mat{B} u(t),\quad x(0) = x_0,
-\end{equation}
-where the state $x(t)\in\R^n$, the input $u(t)\in\R^m$, and the system matrices $\mat{A}\in \mathbb{R}^{n \times n}$ and $\mat{B} \in \mathbb{R}^{n \times m}$ are unknown.
-Given an initial condition $x(0)\in\R^n$, the state trajectory admits the closed-form solution
-\begin{equation}\label{eq:solution}
-  x(t) = e^{\mat{A}t}x(0) + \int_0^t e^{\mat{A}(t-\tau)}\mat{B}\, u(\tau) \, \d\tau.
-\end{equation}
-A fundamental property of the system is \textbf{controllability}: the ability to steer the state to any point in $\R^n$ using an appropriate input signal.
-More precisely, the reachable (controllable) subspace from the origin is the image of the Kalman controllability matrix
-\begin{equation}\label{eq:controllability-matrix}
-  \mat{C} := [\mat{B}, \; \mat{A}\mat{B}, \; \mat{A}^2\mat{B}, \; \cdots, \; \mat{A}^{n-1}\mat{B}]\in\R^{n\times nm}.
-\end{equation}
-Let $r:=\operatorname{rank}(\mat{C})$ denote the dimension of this subspace~\cite{kalmanMathematicalDescriptionLinear1963a,chenLinearSystemTheory1999}; the pair $(\mat{A},\mat{B})$ is said to be \emph{controllable} if and only if $r=n$.
-Our objective is to design input signals $u(t)$ such that the observed trajectories reveal the controllability rank~$r$ from finitely many state snapshots.
-When only output measurements $y(t)=\mat{C}_y x(t)$ are available (with a known output matrix $\mat{C}_y\in\R^{p\times n}$), the same rank analysis applies to the output-restricted controllability matrix $\mat{C}_y\mat{C}$.

@@ -1,5 +1,23 @@
-\section{Data-Driven Hautus Tests for Continuous-Time Systems}
-\label{sec:hautus}
+\section{Problem Statement: Data-Driven Controllability Certification}\label{sec:problem}
+
+We consider the continuous-time Linear Time-Invariant (LTI) system
+\begin{equation}\label{eq:lti}
+  \dot x(t) = \mat{A} x(t) + \mat{B} u(t),\quad x(0) = x_0,
+\end{equation}
+where the state $x(t)\in\R^n$, the input $u(t)\in\R^m$, and the system matrices $\mat{A}\in \mathbb{R}^{n \times n}$ and $\mat{B} \in \mathbb{R}^{n \times m}$ are unknown.
+Given an initial condition $x(0)\in\R^n$, the state trajectory admits the closed-form solution
+\begin{equation}\label{eq:solution}
+  x(t) = e^{\mat{A}t}x(0) + \int_0^t e^{\mat{A}(t-\tau)}\mat{B}\, u(\tau) \, \d\tau.
+\end{equation}
+A fundamental property of the system is \textbf{controllability}: the ability to steer the state to any point in $\R^n$ using an appropriate input signal.
+More precisely, the reachable (controllable) subspace from the origin is the image of the Kalman controllability matrix
+\begin{equation}\label{eq:controllability-matrix}
+  \mat{C} := [\mat{B}, \; \mat{A}\mat{B}, \; \mat{A}^2\mat{B}, \; \cdots, \; \mat{A}^{n-1}\mat{B}]\in\R^{n\times nm}.
+\end{equation}
+Let $r:=\operatorname{rank}(\mat{C})$ denote the dimension of this subspace~\cite{kalmanMathematicalDescriptionLinear1963a,chenLinearSystemTheory1999}; the pair $(\mat{A},\mat{B})$ is said to be \emph{controllable} if and only if $r=n$.
+Our objective is to design input signals $u(t)$ such that the observed trajectories reveal the controllability rank~$r$ from finitely many state snapshots.
+When only output measurements $y(t)=\mat{C}_y x(t)$ are available (with a known output matrix $\mat{C}_y\in\R^{p\times n}$), the same rank analysis applies to the output-restricted controllability matrix $\mat{C}_y\mat{C}$.
+
 
 A natural route to certifying controllability from data is via terminal-state information under structural assumptions, such as a fixed initial condition and structured input families.
 In this section, we develop an alternative approach based on rank conditions that are equivalent to controllability and stabilizability.

@@ -30,6 +30,7 @@ from .gramians import (
 from .hautus import (
     cross_moment_H_time,
     cross_moment_H_fft,
+    cross_moment_H_laplace,
     gramian_G_from_H,
     estimate_Hautus_matrix,
     true_Hautus_matrix,

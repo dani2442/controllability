@@ -174,6 +174,109 @@ def cross_moment_H_fft(
     return H_lam, Sz
 
 
+def cross_moment_H_laplace(
+    x: torch.Tensor,
+    u: torch.Tensor,
+    lam: Union[complex, torch.Tensor],
+    dt: float,
+    sigma: float = 0.1,
+    omega_max: Optional[float] = None,
+    n_omega: Optional[int] = None,
+    return_parts: bool = False,
+) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]:
+    r"""Compute cross-moment H_λ using Laplace transform.
+    
+    Uses the Laplace transform formulation to compute H_λ avoiding explicit
+    derivative computation. The exponential decay ensures integrability.
+    
+    ŷ_λ(s) = x(T)e^{-sT} - x(0) + (s - λ)x̂(s)
+    
+    where s = σ + iω and σ > 0.
+
+    Args:
+        x: State trajectory of shape (N, n)
+        u: Input trajectory of shape (N, m)
+        lam: Complex scalar λ
+        dt: Time step (scalar)
+        sigma: Real part of s (damping factor), must be > 0
+        omega_max: Maximum frequency for integration (default: Nyquist)
+        n_omega: Number of frequency points (default: N)
+        return_parts: If True, returns additional components
+
+    Returns:
+        H_λ: Cross-moment matrix of shape (n, n+m)
+        S_Z: Gramian from Laplace of shape (n+m, n+m)
+        
+    If return_parts=True, also returns:
+        H_boundary: Boundary term contribution
+        H_x: (s-λ)x̂(s) contribution
+    """
+    assert x.ndim == 2 and u.ndim == 2
+    assert x.shape[0] == u.shape[0]
+    assert sigma > 0, "sigma must be positive for Laplace transform"
+    
+    device = x.device
+    real_dtype = x.dtype
+    complex_dtype = torch.complex64 if real_dtype == torch.float32 else torch.complex128
+    N, n = x.shape
+    m = u.shape[1]
+    p = n + m
+    T = (N - 1) * dt
+
+    lam_c = lam if isinstance(lam, torch.Tensor) else torch.tensor(lam, device=device)
+    lam_c = lam_c.to(dtype=complex_dtype)
+
+    # z(t) = [x; u]
+    z = torch.cat([x, u], dim=1)  # (N, p)
+
+    # Time grid
+    t = torch.arange(N, device=device, dtype=real_dtype) * dt  # (N,)
+
+    # Frequency grid for imaginary part of s
+    if omega_max is None:
+        omega_max = np.pi / dt  # Nyquist frequency
+    if n_omega is None:
+        n_omega = N
+    
+    omega = torch.linspace(-omega_max, omega_max, n_omega, device=device, dtype=real_dtype)
+    d_omega = omega[1] - omega[0] if n_omega > 1 else 2 * omega_max
+
+    # s = sigma + i*omega
+    s = sigma + 1j * omega.to(complex_dtype)  # (n_omega,)
+
+    # Compute Laplace transforms via numerical integration
+    # x̂(s) = ∫_0^T x(t) e^{-st} dt ≈ Σ x(t_j) e^{-s t_j} Δt
+    # Shape: (n_omega, N) @ (N, n) -> (n_omega, n)
+    exp_neg_st = torch.exp(-s[:, None] * t[None, :].to(complex_dtype))  # (n_omega, N)
+    
+    Xhat = dt * (exp_neg_st @ x.to(complex_dtype))  # (n_omega, n)
+    Zhat = dt * (exp_neg_st @ z.to(complex_dtype))  # (n_omega, p)
+
+    # Boundary terms: x(T)e^{-sT} - x(0)
+    x0 = x[0].to(complex_dtype)  # (n,)
+    xT = x[-1].to(complex_dtype)  # (n,)
+    exp_neg_sT = torch.exp(-s * T)  # (n_omega,)
+    boundary = xT[None, :] * exp_neg_sT[:, None] - x0[None, :]  # (n_omega, n)
+
+    # ŷ_λ(s) = boundary + (s - λ)x̂(s)
+    s_minus_lam = s - lam_c  # (n_omega,)
+    Yhat = boundary + s_minus_lam[:, None] * Xhat  # (n_omega, n)
+
+    # Quadrature for cross-moment: H_λ = ∫ ŷ_λ(s) ẑ(s)^* dω/(2π)
+    # Using simple trapezoidal rule
+    scale = d_omega / (2 * np.pi)
+    
+    H_lam = (Yhat.T @ Zhat.conj()) * scale  # (n, p)
+    Sz = (Zhat.T @ Zhat.conj()) * scale  # (p, p)
+
+    if return_parts:
+        H_boundary = (boundary.T @ Zhat.conj()) * scale
+        H_x = ((s_minus_lam[:, None] * Xhat).T @ Zhat.conj()) * scale
+        return H_lam, H_boundary, H_x, Sz
+
+    return H_lam, Sz
+
+
 def gramian_G_from_H(
     H: torch.Tensor,
     Sz: torch.Tensor,
@@ -266,6 +369,7 @@ def hautus_test(
     ridge: float = 1e-8,
     method: str = "time",
     omega_max: Optional[float] = None,
+    sigma: float = 0.1,
 ) -> dict:
     r"""Perform data-driven Hautus test for a given λ.
     
@@ -278,8 +382,9 @@ def hautus_test(
         dt: Time step
         lam: Complex scalar λ to test
         ridge: Regularization parameter
-        method: "time" or "fft"
-        omega_max: Frequency cutoff for FFT method
+        method: "time", "fft", or "laplace"
+        omega_max: Frequency cutoff for FFT/Laplace methods
+        sigma: Damping factor for Laplace method (must be > 0)
 
     Returns:
         Dictionary containing:
@@ -293,6 +398,8 @@ def hautus_test(
         Sz = gramian_Sz_time(x, u, dt=dt)
     elif method == "fft":
         H, Sz = cross_moment_H_fft(x, u, lam=lam, dt=dt, omega_max=omega_max)
+    elif method == "laplace":
+        H, Sz = cross_moment_H_laplace(x, u, lam=lam, dt=dt, sigma=sigma, omega_max=omega_max)
     else:
         raise ValueError(f"Unknown method: {method}")
     
@@ -375,6 +482,7 @@ def compare_with_true(
     ridge: float = 1e-8,
     method: str = "time",
     omega_max: Optional[float] = None,
+    sigma: float = 0.1,
 ) -> dict:
     r"""Compare estimated Hautus matrix with true value.
     
@@ -389,8 +497,9 @@ def compare_with_true(
         dt: Time step
         lam: Complex scalar λ
         ridge: Regularization parameter
-        method: "time" or "fft"
-        omega_max: Frequency cutoff for FFT method
+        method: "time", "fft", or "laplace"
+        omega_max: Frequency cutoff for FFT/Laplace methods
+        sigma: Damping factor for Laplace method (must be > 0)
 
     Returns:
         Dictionary containing:
@@ -401,7 +510,7 @@ def compare_with_true(
             - sigma_min_hat: σ_min(P̂)
             - sigma_min_error: |σ_min(P̂) - σ_min(P)|
     """
-    result = hautus_test(x, u, dt, lam, ridge=ridge, method=method, omega_max=omega_max)
+    result = hautus_test(x, u, dt, lam, ridge=ridge, method=method, omega_max=omega_max, sigma=sigma)
     P_hat = result["P_hat"]
     
     P_true = true_Hautus_matrix(A, B, lam)

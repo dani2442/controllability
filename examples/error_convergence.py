@@ -108,8 +108,10 @@ def main():
     records = []  # For DataFrame
     mean_errors_time = []
     mean_errors_fft = []
+    mean_errors_laplace = []
     std_errors_time = []
     std_errors_fft = []
+    std_errors_laplace = []
     theoretical_bounds = []
     
     for T in T_values:
@@ -124,6 +126,7 @@ def main():
         
         errors_time = []
         errors_fft = []
+        errors_laplace = []
         sigma_min_Sz_list = []
         
         # Process each batch element
@@ -133,15 +136,18 @@ def main():
             # Compute errors
             result_time = compare_with_true(A, B, x_b, u_T, dt, lam, ridge=1e-10, method="time")
             result_fft = compare_with_true(A, B, x_b, u_T, dt, lam, ridge=1e-10, method="fft", omega_max=100)
+            result_laplace = compare_with_true(A, B, x_b, u_T, dt, lam, ridge=1e-10, method="laplace", sigma=0.1, omega_max=100)
             
             err_time = result_time["error_norm"]
             err_fft = result_fft["error_norm"]
+            err_laplace = result_laplace["error_norm"]
             
             errors_time.append(err_time)
             errors_fft.append(err_fft)
+            errors_laplace.append(err_laplace)
             
             # Record for DataFrame
-            records.append({"T": T, "batch": b, "error_time": err_time, "error_fft": err_fft})
+            records.append({"T": T, "batch": b, "error_time": err_time, "error_fft": err_fft, "error_laplace": err_laplace})
             
             # Compute normalized S_Z for theoretical bound
             Sz = gramian_Sz_time(x_b, u_T, dt)
@@ -149,17 +155,20 @@ def main():
         
         mean_errors_time.append(np.mean(errors_time))
         mean_errors_fft.append(np.mean(errors_fft))
+        mean_errors_laplace.append(np.mean(errors_laplace))
         std_errors_time.append(np.std(errors_time))
         std_errors_fft.append(np.std(errors_fft))
+        std_errors_laplace.append(np.std(errors_laplace))
         
         # Compute theoretical bound (using average sigma_min)
         avg_sigma_min = np.mean(sigma_min_Sz_list)
         bound = compute_theoretical_bound(T, beta_norm, avg_sigma_min, q, n, m)
         theoretical_bounds.append(bound)
         
-        print(f"  Time: {mean_errors_time[-1]:.4f} ± {std_errors_time[-1]:.4f}")
-        print(f"  FFT:  {mean_errors_fft[-1]:.4f} ± {std_errors_fft[-1]:.4f}")
-        print(f"  Bound: {bound:.4f}")
+        print(f"  Time:    {mean_errors_time[-1]:.4f} ± {std_errors_time[-1]:.4f}")
+        print(f"  FFT:     {mean_errors_fft[-1]:.4f} ± {std_errors_fft[-1]:.4f}")
+        print(f"  Laplace: {mean_errors_laplace[-1]:.4f} ± {std_errors_laplace[-1]:.4f}")
+        print(f"  Bound:   {bound:.4f}")
     
     # Create DataFrame for seaborn
     df = pd.DataFrame(records)

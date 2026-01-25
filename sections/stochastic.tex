@@ -98,36 +98,44 @@ The above result provides statistical guarantees for the Hautus test. In particu
 \end{align*}
 \end{rmk}
 
-\subsection{A Fourier-domain approximation without derivatives.}
-The cross-moment in \eqref{eq:hautus-cross-moment-H} can also be approximated in the frequency domain without forming $\dot x$.
-For each $\omega\in\R$, define the Fourier transform of the residual increment
+\subsection{A Laplace-domain approximation without derivatives.}
+The cross-moment in \eqref{eq:hautus-cross-moment-H} can also be approximated in the Laplace domain without forming $\dot x$.
+For $s\in\CC$ with $\Re(s)>0$, define the (truncated) Laplace transform of the residual increment
 \begin{equation*}
-  \widehat m_\lambda(\ii\omega)
+  \widehat m_\lambda(s)
   :=
-  \int_0^T e^{-\ii\omega t}\,\d m_\lambda(t)
+  \int_0^T e^{-st}\,\d m_\lambda(t)
   =
-  \int_0^T e^{-\ii\omega t}\,\d x(t)-\lambda\widehat x(\ii\omega),
+  \int_0^T e^{-st}\,\d x(t)-\lambda\widehat x(s),
   \qquad
-  \widehat x(\ii\omega):=\int_0^T x(t)e^{-\ii\omega t}\,\d t.
+  \widehat x(s):=\int_0^T x(t)e^{-st}\,\d t.
 \end{equation*}
-Since $t\mapsto e^{-\ii\omega t}$ is of bounded variation, It\^o integration by parts yields
+Since $t\mapsto e^{-st}$ is of bounded variation, It\^o integration by parts yields
 \[
-  \int_0^T e^{-\ii\omega t}\,\d x(t)
+  \int_0^T e^{-st}\,\d x(t)
   =
-  x(T)e^{-\ii\omega T}-x(0)+\ii\omega\int_0^T x(t)e^{-\ii\omega t}\,\d t,
+  x(T)e^{-sT}-x(0)+s\int_0^T x(t)e^{-st}\,\d t,
 \]
 hence
-\begin{equation}\label{eq:hautus-fourier-y}
-  \widehat m_\lambda(\ii\omega)
+\begin{equation}\label{eq:hautus-laplace-y}
+  \widehat m_\lambda(s)
   =
-  x(T)e^{-\ii\omega T}-x(0)+(\ii\omega-\lambda)\widehat x(\ii\omega).
+  x(T)e^{-sT}-x(0)+(s-\lambda)\widehat x(s).
 \end{equation}
-Thus, $\widehat m_\lambda(\ii\omega)$ can be computed from an FFT of $x$ plus the boundary terms $x(0),x(T)$.
-Define also $\widehat z(\ii\omega):=\int_0^T z(t)e^{-\ii\omega t}\,\d t$.
-If $x$ is absolutely continuous so that $\d m_\lambda(t)=(\dot x(t)-\lambda x(t))\,\d t$, then Parseval gives the deterministic identities
-\[
-  \mat{H}_\lambda(T)=\int_{\R}\widehat m_\lambda(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi},
+The advantage of the Laplace formulation is that the exponential decay $e^{-\Re(s)t}$ ensures integrability for $\Re(s)>0$, avoiding the windowing issues of the Fourier transform.
+Define also $\widehat z(s):=\int_0^T z(t)e^{-st}\,\d t$.
+For a discrete grid of Laplace frequencies $\{s_k\}_{k=1}^K$ with $\Re(s_k)>0$, the cross-moment and Gramian can be approximated by numerical quadrature:
+\begin{equation}\label{eq:hautus-laplace-quadrature}
+  \widetilde{\mat{H}}_\lambda^{\mathrm{Lap}}:=\sum_{k=1}^K w_k\,\widehat m_\lambda(s_k)\widehat z(s_k)^*,
   \qquad
-  \mat{S}_Z(T)=\int_{\R}\widehat z(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi}.
+  \widetilde{\mat{S}}_Z^{\mathrm{Lap}}:=\sum_{k=1}^K w_k\,\widehat z(s_k)\widehat z(s_k)^*,
+\end{equation}
+where $\{w_k\}$ are appropriate quadrature weights.
+The Laplace transform $\widehat x(s)$ is computed by discretizing the integral $\int_0^T x(t)e^{-st}\,\d t\approx\sum_{j=0}^{N-1}x(t_j)e^{-st_j}\Delta t$.
+If $x$ is absolutely continuous, Parseval's theorem on the imaginary axis gives
+\[
+  \mat{H}_\lambda(T)=\int_{\R}\widehat m_\lambda(\sigma+\ii\omega)\widehat z(\sigma+\ii\omega)^*\,\frac{\d\omega}{2\pi},
+  \qquad
+  \mat{S}_Z(T)=\int_{\R}\widehat z(\sigma+\ii\omega)\widehat z(\sigma+\ii\omega)^*\,\frac{\d\omega}{2\pi},
 \]
-In the It\^o setting, the unwindowed energy $\int_{\R}\|\widehat m_\lambda(\ii\omega)\|_2^2\,\d\omega$ is not finite, so frequency-domain computations should be interpreted with an explicit cutoff/windowing when needed.
+for any fixed $\sigma>0$, relating the Laplace-domain computation to the time-domain cross-moments.

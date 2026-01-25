@@ -139,3 +139,36 @@ If $x$ is absolutely continuous, Parseval's theorem on the imaginary axis gives
   \mat{S}_Z(T)=\int_{\R}\widehat z(\sigma+\ii\omega)\widehat z(\sigma+\ii\omega)^*\,\frac{\d\omega}{2\pi},
 \]
 for any fixed $\sigma>0$, relating the Laplace-domain computation to the time-domain cross-moments.
+\subsection{A Fourier-domain approximation without derivatives.}
+The cross-moment in \eqref{eq:hautus-cross-moment-H} can also be approximated in the frequency domain without forming $\dot x$.
+For each $\omega\in\R$, define the Fourier transform of the residual increment
+\begin{equation*}
+  \widehat m_\lambda(\ii\omega)
+  :=
+  \int_0^T e^{-\ii\omega t}\,\d m_\lambda(t)
+  =
+  \int_0^T e^{-\ii\omega t}\,\d x(t)-\lambda\widehat x(\ii\omega),
+  \qquad
+  \widehat x(\ii\omega):=\int_0^T x(t)e^{-\ii\omega t}\,\d t.
+\end{equation*}
+Since $t\mapsto e^{-\ii\omega t}$ is of bounded variation, It\^o integration by parts yields
+\[
+  \int_0^T e^{-\ii\omega t}\,\d x(t)
+  =
+  x(T)e^{-\ii\omega T}-x(0)+\ii\omega\int_0^T x(t)e^{-\ii\omega t}\,\d t,
+\]
+hence
+\begin{equation}\label{eq:hautus-fourier-y}
+  \widehat m_\lambda(\ii\omega)
+  =
+  x(T)e^{-\ii\omega T}-x(0)+(\ii\omega-\lambda)\widehat x(\ii\omega).
+\end{equation}
+Thus, $\widehat m_\lambda(\ii\omega)$ can be computed from an FFT of $x$ plus the boundary terms $x(0),x(T)$.
+Define also $\widehat z(\ii\omega):=\int_0^T z(t)e^{-\ii\omega t}\,\d t$.
+If $x$ is absolutely continuous so that $\d m_\lambda(t)=(\dot x(t)-\lambda x(t))\,\d t$, then Parseval gives the deterministic identities
+\[
+  \mat{H}_\lambda(T)=\int_{\R}\widehat m_\lambda(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi},
+  \qquad
+  \mat{S}_Z(T)=\int_{\R}\widehat z(\ii\omega)\widehat z(\ii\omega)^*\,\frac{\d\omega}{2\pi}.
+\]
+In the It\^o setting, the unwindowed energy $\int_{\R}\|\widehat m_\lambda(\ii\omega)\|_2^2\,\d\omega$ is not finite, so frequency-domain computations should be interpreted with an explicit cutoff/windowing when needed.

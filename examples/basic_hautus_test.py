@@ -167,7 +167,7 @@ def main():
     ax1.legend(title="λ type", loc="lower right")
     
     plt.tight_layout()
-    p1 = save_fig('hautus_error_violinplot.pdf', fig=fig_violin, dpi=150)
+    p1 = save_fig('paper/images/hautus_error_violinplot.pdf', fig=fig_violin, dpi=150)
     print(f"\nViolinplot saved to '{p1}'")
     
     # =========================================================================
@@ -186,7 +186,7 @@ def main():
         result_time["P_hat"],
         titles=("$P_\\lambda$ (true)", "$\\hat{P}_\\lambda$", "|$P_\\lambda-\\hat{P}_\\lambda$|"),
     )
-    save_fig('hautus_matrix_comparison.pdf', fig=fig2, dpi=150)
+    save_fig('paper/images/hautus_matrix_comparison.pdf', fig=fig2, dpi=150)
     plt.suptitle(f"Time-domain method, λ = {lam}")
     
     # Compare singular values

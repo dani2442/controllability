@@ -158,7 +158,7 @@ def main():
     ax2.set_aspect('equal')
     
     plt.tight_layout()
-    p = save_fig('finite_candidate_check.png', dpi=150)
+    p = save_fig('paper/images/finite_candidate_check.pdf', dpi=150)
     print(f"\nPlot saved to '{p}'")
     plt.show()
 

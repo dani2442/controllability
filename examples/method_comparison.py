@@ -221,7 +221,7 @@ def main():
     plt.colorbar(im, ax=ax)
     
     plt.tight_layout()
-    p = save_fig('method_comparison.png', dpi=150)
+    p = save_fig('paper/images/method_comparison.png', dpi=150)
     print(f"\nPlot saved to '{p}'")
     plt.show()
 

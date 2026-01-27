@@ -211,7 +211,7 @@ def main():
     ax.grid(True, alpha=0.3, which='both')
     
     plt.tight_layout()
-    p2 = save_fig('error_convergence.pdf', dpi=150)
+    p2 = save_fig('paper/images/error_convergence.pdf', dpi=150)
     print(f"Classic plot saved to '{p2}'")
     plt.show()
     

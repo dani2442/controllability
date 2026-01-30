@@ -1,3 +1,6 @@
 [submodule "paper"]
 	path = paper
 	url = https://git@git.overleaf.com/6934053f251c5bb3c8838300
+[submodule "paper_old"]
+	path = paper_old
+	url = https://git@git.overleaf.com/697bdbdec82a1dc696926aee

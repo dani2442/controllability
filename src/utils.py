@@ -1,7 +1,7 @@
 """Utility functions for controllability analysis."""
 
 import torch
-from typing import Union
+from typing import Tuple
 
 
 def complex_dtype_from_real(real_dtype: torch.dtype) -> torch.dtype:
@@ -14,56 +14,178 @@ def to_complex(x: torch.Tensor, complex_dtype: torch.dtype) -> torch.Tensor:
     return x if torch.is_complex(x) else x.to(complex_dtype)
 
 
-def stack_z(x: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
-    """Stack state and input into augmented state z = [x; u].
+def generate_stable_system(
+    n: int,
+    m: int,
+    p: int,
+    device: torch.device = None,
+    dtype: torch.dtype = torch.float64,
+    stability_margin: float = 0.1,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Generate a random stable LTI system (A, B, C, D).
     
-    Args:
-        x: State tensor of shape (N, n) or (batch, n)
-        u: Input tensor of shape (N, m) or (batch, m)
-        
-    Returns:
-        Stacked tensor of shape (N, n+m) or (batch, n+m)
-    """
-    return torch.cat([x, u], dim=-1)
-
-
-def ensure_dt_vector(
-    dt: Union[float, int, torch.Tensor],
-    N: int,
-    device: torch.device,
-    dtype: torch.dtype = torch.float32,
-) -> torch.Tensor:
-    """Ensure dt is a vector of length N-1.
+    Creates matrices such that all eigenvalues of A have negative real parts.
     
-    Args:
-        dt: Scalar float/int or tensor of shape (N-1,)
-        N: Number of time samples
-        device: Target device
-        dtype: Target dtype
-        
-    Returns:
-        Tensor of shape (N-1,)
-    """
-    if isinstance(dt, (float, int)):
-        return torch.full((N - 1,), float(dt), device=device, dtype=dtype)
-    else:
-        dt_vec = dt.to(device=device, dtype=dtype)
-        assert dt_vec.shape == (N - 1,), f"dt must have shape (N-1,) = {(N-1,)}, got {dt_vec.shape}"
-        return dt_vec
-
-
-def make_stable_A(n: int, device: torch.device, margin: float = 0.1) -> torch.Tensor:
-    """Create a random stable matrix A.
+    System:
+        dx = (Ax + Bu)dt + process_noise
+        y  = Cx + Du + measurement_noise
     
     Args:
         n: State dimension
+        m: Input dimension
+        p: Output dimension
         device: Target device
-        margin: Stability margin (shift eigenvalues by this amount)
+        dtype: Data type
+        stability_margin: Minimum distance of eigenvalues from imaginary axis
         
     Returns:
-        Stable matrix A of shape (n, n)
+        A: System matrix (n, n) with all eigenvalues having Re(λ) < -stability_margin
+        B: Input matrix (n, m)
+        C: Output matrix (p, n)
+        D: Feedthrough matrix (p, m)
     """
-    A = torch.randn(n, n, device=device)
-    # Shift eigenvalues to ensure stability
-    A = A - (torch.linalg.eigvals(A).real.max() + margin) * torch.eye(n, device=device, dtype=A.dtype)
-    return A
+    if device is None:
+        device = torch.device("cpu")
+    
+    # Generate random A and shift eigenvalues to ensure stability
+    A = torch.randn(n, n, device=device, dtype=dtype)
+    eigvals = torch.linalg.eigvals(A)
+    max_real = eigvals.real.max().item()
+    # Shift so that max real part is at -stability_margin
+    A = A - (max_real + stability_margin) * torch.eye(n, device=device, dtype=dtype)
+    
+    # Random input, output, and feedthrough matrices
+    B = torch.randn(n, m, device=device, dtype=dtype)
+    C = torch.randn(p, n, device=device, dtype=dtype)
+    D = torch.randn(p, m, device=device, dtype=dtype) * 0.1  # Small feedthrough
+    
+    return A, B, C, D
+
+
+def compute_toeplitz_matrix(
+    C: torch.Tensor,
+    A: torch.Tensor, 
+    B: torch.Tensor,
+    D: torch.Tensor,
+    K: int,
+) -> torch.Tensor:
+    """Compute the Toeplitz matrix T_K for the system.
+    
+    T_K has structure:
+        [D,          0,          ..., 0      ]
+        [CB,         D,          ..., 0      ]
+        [CAB,        CB,         ..., 0      ]
+        [...]
+        [CA^{K-2}B,  CA^{K-3}B,  ..., D      ]
+    
+    Args:
+        C: Output matrix (p, n)
+        A: System matrix (n, n)
+        B: Input matrix (n, m)
+        D: Feedthrough matrix (p, m)
+        K: Number of output derivative blocks
+        
+    Returns:
+        T_K: Toeplitz matrix of shape (Kp, Km)
+    """
+    p, n = C.shape
+    m = B.shape[1]
+    
+    device = C.device
+    dtype = C.dtype
+    
+    T = torch.zeros(K * p, K * m, device=device, dtype=dtype)
+    
+    # Fill the Toeplitz structure
+    # Markov parameters: D, CB, CAB, CA^2B, ...
+    markov = [D]  # (p, m)
+    Ak = torch.eye(n, device=device, dtype=dtype)
+    for k in range(K - 1):
+        markov.append(C @ Ak @ B)  # CA^k B
+        Ak = Ak @ A
+    
+    # Place Markov parameters in Toeplitz structure
+    for row in range(K):
+        for col in range(row + 1):
+            T[row*p:(row+1)*p, col*m:(col+1)*m] = markov[row - col]
+    
+    return T
+
+
+def compute_observability_matrix(C: torch.Tensor, A: torch.Tensor, K: int) -> torch.Tensor:
+    """Compute the observability matrix O_K.
+    
+    O_K = [C; CA; CA^2; ...; CA^{K-1}]
+    
+    Args:
+        C: Output matrix (p, n)
+        A: System matrix (n, n)
+        K: Number of blocks
+        
+    Returns:
+        O_K: Observability matrix of shape (Kp, n)
+    """
+    p, n = C.shape
+    device = C.device
+    dtype = C.dtype
+    
+    O = torch.zeros(K * p, n, device=device, dtype=dtype)
+    Ak = torch.eye(n, device=device, dtype=dtype)
+    
+    for k in range(K):
+        O[k*p:(k+1)*p, :] = C @ Ak
+        Ak = Ak @ A
+    
+    return O
+
+
+def compute_lift_matrix(
+    C: torch.Tensor,
+    A: torch.Tensor,
+    B: torch.Tensor,
+    D: torch.Tensor,
+    L: int,
+    K: int,
+) -> torch.Tensor:
+    """Compute the lift matrix M_{L,K}.
+    
+    M_{L,K} = [I_{Lm},           0       ]
+              [T_{K-1} S_{K,L},  O_{K-1} ]
+    
+    where S_{K,L} = [I_{Km}, 0] is the selector projecting onto first K blocks.
+    
+    Args:
+        C: Output matrix (p, n)
+        A: System matrix (n, n)
+        B: Input matrix (n, m)
+        D: Feedthrough matrix (p, m)
+        L: Number of input derivative blocks
+        K: Number of output derivative blocks
+        
+    Returns:
+        M_{L,K}: Lift matrix of shape (Lm + Kp, Lm + n)
+    """
+    p, n = C.shape
+    m = B.shape[1]
+    device = C.device
+    dtype = C.dtype
+    
+    # Dimensions
+    rows = L * m + K * p
+    cols = L * m + n
+    
+    M = torch.zeros(rows, cols, device=device, dtype=dtype)
+    
+    # Top-left: I_{Lm}
+    M[:L*m, :L*m] = torch.eye(L * m, device=device, dtype=dtype)
+    
+    # Bottom-left: T_{K-1} @ S_{K,L} (Toeplitz times selector)
+    # S_{K,L} selects first K*m columns from L*m columns
+    T_K = compute_toeplitz_matrix(C, A, B, D, K)  # (Kp, Km)
+    M[L*m:, :K*m] = T_K
+    
+    # Bottom-right: O_{K-1} (observability matrix)
+    O_K = compute_observability_matrix(C, A, K)  # (Kp, n)
+    M[L*m:, L*m:] = O_K
+    
+    return M

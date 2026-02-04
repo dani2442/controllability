@@ -1,160 +1,307 @@
-"""Gramian computation functions for controllability analysis.
+"""Gramian computation for behavioral controllability analysis.
 
-This module implements time-domain and frequency-domain Gramian computations
-as described in the data-driven Hautus tests for continuous-time systems.
+Implements the derivative-lifted Gramians G_{L,K}(λ) and K_{L,K}(λ)
+from the continuous-time data-driven Hautus test.
+
+Main functions:
+    - compute_derivative_lift: Λ_L(u_λ, y_λ)
+    - compute_G_LK: G_{L,K}(λ) Gramian
+    - compute_K_LK: K_{L,K}(λ) matrix and eigenvalues
+    - check_controllability: Test via rank of G_{L,K}(λ)
 """
 
 import torch
-from typing import Union, Tuple
+from typing import Tuple, Union, Optional
 
-from .utils import complex_dtype_from_real, to_complex, stack_z, ensure_dt_vector
-
-
-def gramian_Sz_time(
-    x: torch.Tensor,
-    u: torch.Tensor,
-    dt: Union[float, torch.Tensor],
-) -> torch.Tensor:
-    r"""Compute the stacked signal Gramian S_Z in time domain.
-    
-    S_Z = ∫ z z^T dt  ≈  Σ_{k=0}^{N-2} z_k z_k^T Δt_k
-    
-    where z_k = [x_k; u_k] (left-point rule).
-
-    Args:
-        x: State trajectory of shape (N, n)
-        u: Input trajectory of shape (N, m)
-        dt: Scalar float or tensor of shape (N-1,) of time steps
-
-    Returns:
-        S_Z: Gramian matrix of shape (n+m, n+m)
-    """
-    assert x.ndim == 2 and u.ndim == 2, "Expected x:(N,n), u:(N,m)"
-    assert x.shape[0] == u.shape[0], "x and u must have the same length N"
-
-    N = x.shape[0]
-    assert N >= 2, "Need at least 2 samples"
-
-    z = stack_z(x[:-1], u[:-1])  # (N-1, p)
-    dt_vec = ensure_dt_vector(dt, N, z.device, z.dtype)
-
-    # Sz = Σ dt_k z_k z_k^T
-    Sz = z.T @ (z * dt_vec[:, None])  # (p, p)
-    return Sz
+from .utils import complex_dtype_from_real, to_complex
 
 
-def integral_xxH_time(
-    x: torch.Tensor,
-    dt: Union[float, int, torch.Tensor],
-) -> torch.Tensor:
-    r"""Compute ∫_0^T x(t) x(t)^* dt using left-point rule.
-    
-    This is the state-only Gramian S_X.
-
-    Args:
-        x: State trajectory of shape (N, n), real or complex
-        dt: Scalar float/int or tensor of shape (N-1,)
-
-    Returns:
-        S_X: Gramian matrix of shape (n, n)
-    """
-    assert x.ndim == 2, "Expected x:(N,n)"
-    N, n = x.shape
-    assert N >= 2, "Need at least 2 samples"
-
-    x0 = x[:-1]  # (N-1, n) left-point samples
-    dt_vec = ensure_dt_vector(dt, N, x.device, torch.float32)
-
-    # Sx = Σ dt_k x_k x_k^*
-    Sx = x0.conj().T @ (x0 * dt_vec[:, None].to(x0.dtype))
-    return Sx
-
-
-def integral_xdot_xH_time(
-    x: torch.Tensor,
-    dt: Union[float, int, torch.Tensor],
-    use_dx: bool = True,
-) -> torch.Tensor:
-    r"""Compute ∫_0^T ẋ(t) x(t)^* dt using left-point rule.
-    
-    Two equivalent discretizations:
-      - use_dx=True (recommended): ẋ_k Δt_k ≈ Δx_k => Σ Δx_k x_k^*
-      - use_dx=False: ẋ_k ≈ Δx_k/Δt_k => Σ (Δx_k/Δt_k) x_k^* Δt_k
-
-    Args:
-        x: State trajectory of shape (N, n), real or complex
-        dt: Scalar float/int or tensor of shape (N-1,)
-        use_dx: If True, avoids division by dt (more stable)
-
-    Returns:
-        M: Cross-moment matrix of shape (n, n)
-    """
-    assert x.ndim == 2, "Expected x:(N,n)"
-    N, n = x.shape
-    assert N >= 2, "Need at least 2 samples"
-
-    x0 = x[:-1]          # (N-1, n) left point
-    dx = x[1:] - x[:-1]  # (N-1, n)
-    dt_vec = ensure_dt_vector(dt, N, x.device, torch.float32)
-
-    if use_dx:
-        # M = Σ Δx_k x_k^*
-        M = dx.T @ x0.conj()
-    else:
-        # ẋ_k ≈ Δx_k / Δt_k
-        xdot = dx / dt_vec[:, None].to(dx.dtype)
-        # M = Σ ẋ_k x_k^* Δt_k
-        M = xdot.T @ (x0.conj() * dt_vec[:, None].to(x0.dtype))
-
-    return M
-
-
-def compute_candidate_eigenvalues(
-    x: torch.Tensor,
-    dt: Union[float, int, torch.Tensor],
-) -> torch.Tensor:
-    r"""Compute the candidate eigenvalues λ from Theorem 4 (finite candidate set).
-    
-    The matrix K = (∫ x x^* dt)^{-1} (∫ x \dot x^* dt) has the property that
-    rank failure of the Hautus pencil can only occur at λ ∈ σ(K).
-
-    Args:
-        x: State trajectory of shape (N, n)
-        dt: Scalar float/int or tensor of shape (N-1,)
-
-    Returns:
-        eigenvalues: Complex tensor of shape (n,) containing σ(K)
-    """
-    Sx = integral_xxH_time(x, dt)
-    Mx = integral_xdot_xH_time(x, dt)
-    
-    # K = (∫ x x^* dt)^{-1} (∫ x \dot x^* dt), using Mx^T = ∫ x \dot x^* dt
-    K = torch.linalg.solve(Sx, Mx.T)  # More stable than inv(Sx) @ (Mx.T)
-    return torch.linalg.eigvals(K)
-
-
-def gramian_Sx_from_fft(
-    x: torch.Tensor,
+def compute_filtered_signal(
+    signal: torch.Tensor,
+    lam: complex,
     dt: float,
 ) -> torch.Tensor:
-    r"""Compute state Gramian S_X from FFT (Parseval).
+    """Compute λ-filtered signal: f_λ = df/dt - λf ≈ Δf/Δt - λf.
     
-    S_X = ∫ x(t) x(t)^* dt = ∫ X̂(iω) X̂(iω)^* dω/(2π)
-
+    Uses finite differences for derivative approximation.
+    
     Args:
-        x: State trajectory of shape (N, n)
+        signal: Input signal (N, d)
+        lam: Complex filtering parameter λ
         dt: Time step
-
+        
     Returns:
-        S_X: Gramian matrix of shape (n, n)
+        f_λ: Filtered signal (N-1, d)
     """
-    N, n = x.shape
-    complex_dtype = complex_dtype_from_real(x.dtype)
+    device = signal.device
+    real_dtype = signal.dtype
+    complex_dtype = complex_dtype_from_real(real_dtype)
     
-    # FFT with dt scaling
-    Xhat = dt * torch.fft.fft(x.to(complex_dtype), dim=0)  # (N, n)
+    lam_c = torch.tensor(lam, device=device, dtype=complex_dtype)
+    signal_c = to_complex(signal, complex_dtype)
     
-    # Parseval: Δω/(2π) = 1/(N dt)
-    scale = 1.0 / (N * dt)
-    Sx = (Xhat.conj().T @ Xhat) * scale
-    return Sx
+    # Finite difference derivative: df/dt ≈ (f[k+1] - f[k]) / dt
+    df = (signal_c[1:] - signal_c[:-1]) / dt  # (N-1, d)
+    f0 = signal_c[:-1]  # (N-1, d)
+    
+    return df - lam_c * f0
+
+
+def compute_derivative_lift(
+    signal: torch.Tensor,
+    L: int,
+    dt: float,
+) -> torch.Tensor:
+    """Compute derivative lift Λ_L(f) = [f; df/dt; d²f/dt²; ...; d^{L-1}f/dt^{L-1}].
+    
+    Uses finite differences for derivative approximation.
+    
+    Args:
+        signal: Input signal (N, d)
+        L: Number of derivative levels (including 0th order)
+        dt: Time step
+        
+    Returns:
+        Lambda_L: Lifted signal (N-L+1, L*d)
+    """
+    device = signal.device
+    dtype = signal.dtype
+    N, d = signal.shape
+    
+    # Compute all derivatives
+    derivatives = [signal]
+    current = signal
+    for _ in range(L - 1):
+        # Finite difference derivative
+        deriv = (current[1:] - current[:-1]) / dt
+        derivatives.append(deriv)
+        current = deriv
+    
+    # Truncate to common length
+    min_len = N - L + 1
+    truncated = [der[:min_len] for der in derivatives]
+    
+    # Stack: [f, df, d²f, ...]
+    return torch.cat(truncated, dim=-1)  # (N-L+1, L*d)
+
+
+def compute_filtered_derivative_lift(
+    signal: torch.Tensor,
+    L: int,
+    lam: complex,
+    dt: float,
+) -> torch.Tensor:
+    """Compute derivative lift of λ-filtered signal: Λ_L(f_λ).
+    
+    First filters: f_λ = df/dt - λf
+    Then lifts: Λ_L(f_λ) = [f_λ; df_λ/dt; ...; d^{L-1}f_λ/dt^{L-1}]
+    
+    Args:
+        signal: Input signal (N, d)
+        L: Number of derivative levels
+        lam: Complex filtering parameter λ
+        dt: Time step
+        
+    Returns:
+        Lambda_L_filtered: Lifted filtered signal (N-L, L*d)
+    """
+    # First apply λ-filter
+    f_lam = compute_filtered_signal(signal, lam, dt)  # (N-1, d)
+    
+    # Then apply derivative lift
+    return compute_derivative_lift(f_lam, L, dt)  # (N-L, L*d)
+
+
+def compute_G_LK(
+    u: torch.Tensor,
+    y: torch.Tensor,
+    L: int,
+    K: int,
+    lam: complex,
+    dt: float,
+) -> torch.Tensor:
+    """Compute the derivative-lifted Gramian G_{L,K}(λ).
+    
+    G_{L,K}(λ) = ∫ Λ_{L,K}(u_λ, y_λ)(t) Λ_{L,K}(u_λ, y_λ)(t)^* dt
+    
+    where u_λ = du/dt - λu, y_λ = dy/dt - λy, and
+    Λ_{L,K}(u_λ, y_λ) = [Λ_L(u_λ); Λ_K(y_λ)]
+    
+    Args:
+        u: Input trajectory (N, m)
+        y: Output trajectory (N, p)
+        L: Number of input derivative levels
+        K: Number of output derivative levels
+        lam: Complex parameter λ
+        dt: Time step
+        
+    Returns:
+        G_LK: Gramian matrix (Lm + Kp, Lm + Kp)
+    """
+    device = u.device
+    complex_dtype = complex_dtype_from_real(u.dtype)
+    
+    m = u.shape[1]
+    p = y.shape[1]
+    
+    # Compute filtered derivative lifts
+    Lambda_L_u = compute_filtered_derivative_lift(u, L, lam, dt)  # (N', Lm)
+    Lambda_K_y = compute_filtered_derivative_lift(y, K, lam, dt)  # (N'', Kp)
+    
+    # Align lengths (take minimum)
+    N_common = min(Lambda_L_u.shape[0], Lambda_K_y.shape[0])
+    Lambda_L_u = Lambda_L_u[:N_common]
+    Lambda_K_y = Lambda_K_y[:N_common]
+    
+    # Stack: Λ_{L,K}(u_λ, y_λ) = [Λ_L(u_λ); Λ_K(y_λ)]
+    Lambda_LK = torch.cat([Lambda_L_u, Lambda_K_y], dim=-1)  # (N', Lm + Kp)
+    Lambda_LK = to_complex(Lambda_LK, complex_dtype)
+    
+    # Gramian: G = ∫ Λ Λ^* dt ≈ Σ Λ_k Λ_k^* Δt
+    G = Lambda_LK.conj().T @ Lambda_LK * dt  # (Lm + Kp, Lm + Kp)
+    
+    return G
+
+
+def compute_K_LK(
+    u: torch.Tensor,
+    y: torch.Tensor,
+    L: int,
+    K: int,
+    lam: complex,
+    dt: float,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Compute K_{L,K}(λ) matrix and its eigenvalues.
+    
+    K_{L,K}(λ) is related to the cross-moment matrix that determines
+    the finite candidate set for controllability checking.
+    
+    K = (∫ Λ Λ^* dt)^{-1} (∫ Λ dΛ^* dt)
+    
+    The eigenvalues of K form the candidate set for controllability testing.
+    
+    Args:
+        u: Input trajectory (N, m)
+        y: Output trajectory (N, p)
+        L: Number of input derivative levels
+        K: Number of output derivative levels
+        lam: Complex parameter λ
+        dt: Time step
+        
+    Returns:
+        K_matrix: The K_{L,K}(λ) matrix
+        eigenvalues: Complex eigenvalues of K
+    """
+    device = u.device
+    complex_dtype = complex_dtype_from_real(u.dtype)
+    
+    # Compute derivative lifts (unfiltered, for cross-moment)
+    max_deriv = max(L, K)
+    Lambda_L_u = compute_derivative_lift(u, L, dt)  # (N', Lm)
+    Lambda_K_y = compute_derivative_lift(y, K, dt)  # (N'', Kp)
+    
+    # Align lengths
+    N_common = min(Lambda_L_u.shape[0], Lambda_K_y.shape[0]) - 1
+    Lambda_L_u = Lambda_L_u[:N_common]
+    Lambda_K_y = Lambda_K_y[:N_common]
+    
+    # Stack
+    Lambda = torch.cat([Lambda_L_u, Lambda_K_y], dim=-1)  # (N', d)
+    Lambda = to_complex(Lambda, complex_dtype)
+    
+    # Derivative of Lambda
+    dLambda = (Lambda[1:] - Lambda[:-1])  # (N'-1, d), no /dt since it cancels
+    Lambda0 = Lambda[:-1]  # (N'-1, d)
+    
+    # Gramians
+    G = Lambda0.conj().T @ Lambda0 * dt  # ∫ Λ Λ^* dt
+    M = dLambda.T @ Lambda0.conj()  # ∫ dΛ Λ^* (using Δ instead of dt)
+    
+    # K = G^{-1} M^T
+    K_matrix = torch.linalg.solve(G, M.T)
+    
+    # Eigenvalues
+    eigenvalues = torch.linalg.eigvals(K_matrix)
+    
+    return K_matrix, eigenvalues
+
+
+def check_controllability(
+    u: torch.Tensor,
+    y: torch.Tensor,
+    L: int,
+    K: int,
+    n: int,
+    m: int,
+    dt: float,
+    candidate_lambdas: Optional[torch.Tensor] = None,
+    threshold: float = 1e-6,
+) -> dict:
+    """Check controllability via rank of G_{L,K}(λ).
+    
+    Behavior is controllable iff rank(G_{L,K}(λ)) = Lm + n for all λ ∈ C.
+    
+    Uses thresholded rank: count eigenvalues > threshold.
+    
+    Args:
+        u: Input trajectory (N, m)
+        y: Output trajectory (N, p)
+        L: Number of input derivative levels
+        K: Number of output derivative levels
+        n: State dimension
+        m: Input dimension
+        dt: Time step
+        candidate_lambdas: Candidate λ values to check (if None, computed from data)
+        threshold: Eigenvalue threshold for rank computation
+        
+    Returns:
+        Dictionary with:
+            - is_controllable: Boolean
+            - expected_rank: Lm + n
+            - ranks: Ranks at each candidate λ
+            - min_eigenvalues: Smallest eigenvalue at each λ
+            - candidate_lambdas: The λ values tested
+    """
+    device = u.device
+    
+    expected_rank = L * m + n
+    
+    # Get candidate eigenvalues if not provided
+    if candidate_lambdas is None:
+        _, candidate_lambdas = compute_K_LK(u, y, L, K, 0.0, dt)
+    
+    ranks = []
+    min_eigs = []
+    
+    for lam in candidate_lambdas:
+        lam_val = lam.item() if torch.is_tensor(lam) else lam
+        
+        G = compute_G_LK(u, y, L, K, lam_val, dt)
+        
+        # Eigenvalues of Hermitian matrix
+        eigvals = torch.linalg.eigvalsh(G).real
+        eigvals_sorted = torch.sort(eigvals, descending=True).values
+        
+        # Thresholded rank
+        rank = (eigvals > threshold).sum().item()
+        ranks.append(rank)
+        
+        # Track the (Lm+n)-th eigenvalue (controllability margin)
+        if len(eigvals_sorted) >= expected_rank:
+            min_eigs.append(eigvals_sorted[expected_rank - 1].item())
+        else:
+            min_eigs.append(0.0)
+    
+    ranks = torch.tensor(ranks)
+    min_eigs = torch.tensor(min_eigs)
+    
+    # Controllable if all ranks equal expected
+    is_controllable = (ranks >= expected_rank).all().item()
+    
+    return {
+        "is_controllable": is_controllable,
+        "expected_rank": expected_rank,
+        "ranks": ranks,
+        "min_eigenvalues": min_eigs,
+        "candidate_lambdas": candidate_lambdas,
+    }

@@ -1,96 +1,65 @@
-"""Control package for data-driven controllability analysis.
+"""Data-driven controllability analysis for continuous-time systems.
 
-This package implements data-driven Hautus tests for continuous-time systems,
-including both time-domain and frequency-domain formulations.
+This package implements the data-driven Hautus tests for LTI systems
+with input-output measurements:
 
-Main modules:
-    - sde: SDE simulation for controlled linear systems
-    - gramians: Gramian computation functions
-    - hautus: Hautus test computations
-    - visualization: Plotting utilities
-    - utils: Utility functions
+    dx = (Ax + Bu)dt + β dW(t)    (state equation with process noise)
+    y  = Cx + Du + δv(t)           (output equation with measurement noise)
+
+Main components:
+    - sde: SDE simulation with torchsde
+    - gramians: G_{L,K}(λ) and K_{L,K}(λ) computation
+    - utils: System generation and matrix utilities
+    - visualization: Plotting functions
 """
 
 from .utils import (
-    complex_dtype_from_real,
-    to_complex,
-    stack_z,
-    ensure_dt_vector,
-    make_stable_A,
-)
-
-from .gramians import (
-    gramian_Sz_time,
-    integral_xxH_time,
-    integral_xdot_xH_time,
-    compute_candidate_eigenvalues,
-    gramian_Sx_from_fft,
-)
-
-from .hautus import (
-    cross_moment_H_time,
-    cross_moment_H_fft,
-    cross_moment_H_laplace,
-    gramian_G_from_H,
-    estimate_Hautus_matrix,
-    true_Hautus_matrix,
-    hautus_test,
-    check_controllability,
-    compare_with_true,
+    generate_stable_system,
+    compute_lift_matrix,
+    compute_observability_matrix,
+    compute_toeplitz_matrix,
 )
 
 from .sde import (
-    ControlledLinearSDE,
-    simulate_sde,
-    sdeint_safe,
-    create_time_grid,
+    LinearSDE,
+    simulate,
+)
+
+from .gramians import (
+    compute_G_LK,
+    compute_K_LK,
+    compute_filtered_signal,
+    compute_derivative_lift,
+    compute_filtered_derivative_lift,
+    check_controllability,
 )
 
 from .visualization import (
-    plot_trajectory_2d,
-    plot_trajectory_3d,
-    plot_time_series,
-    plot_error_vs_T,
-    plot_matrix_comparison,
-    plot_singular_values,
-    plot_error_bound_comparison,
+    plot_trajectories,
+    plot_eigenvalues,
+    plot_gramian_eigenvalues,
     plot_controllability_margin,
 )
 
 __all__ = [
     # Utils
-    "complex_dtype_from_real",
-    "to_complex",
-    "stack_z",
-    "ensure_dt_vector",
-    "make_stable_A",
-    # Gramians
-    "gramian_Sz_time",
-    "integral_xxH_time",
-    "integral_xdot_xH_time",
-    "compute_candidate_eigenvalues",
-    "gramian_Sx_from_fft",
-    # Hautus
-    "cross_moment_H_time",
-    "cross_moment_H_fft",
-    "gramian_G_from_H",
-    "estimate_Hautus_matrix",
-    "true_Hautus_matrix",
-    "hautus_test",
-    "check_controllability",
-    "compare_with_true",
+    "generate_stable_system",
+    "compute_lift_matrix",
+    "compute_observability_matrix",
+    "compute_toeplitz_matrix",
     # SDE
-    "ControlledLinearSDE",
-    "simulate_sde",
-    "sdeint_safe",
-    "create_time_grid",
+    "LinearSDE",
+    "simulate",
+    # Gramians
+    "compute_G_LK",
+    "compute_K_LK",
+    "compute_filtered_signal",
+    "compute_derivative_lift",
+    "compute_filtered_derivative_lift",
+    "check_controllability",
     # Visualization
-    "plot_trajectory_2d",
-    "plot_trajectory_3d",
-    "plot_time_series",
-    "plot_error_vs_T",
-    "plot_matrix_comparison",
-    "plot_singular_values",
-    "plot_error_bound_comparison",
+    "plot_trajectories",
+    "plot_eigenvalues",
+    "plot_gramian_eigenvalues",
     "plot_controllability_margin",
 ]

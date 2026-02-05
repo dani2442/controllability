@@ -1,7 +1,8 @@
 """Utility functions for controllability analysis."""
 
 import torch
-from typing import Tuple
+import torch.nn.functional as F
+from typing import Tuple, Optional
 
 
 def complex_dtype_from_real(real_dtype: torch.dtype) -> torch.dtype:
@@ -139,6 +140,39 @@ def compute_observability_matrix(C: torch.Tensor, A: torch.Tensor, K: int) -> to
     return O
 
 
+def compute_observability_index(C: torch.Tensor, A: torch.Tensor) -> int:
+    """Compute the observability index ell(B).
+
+    ell(B) := min{k in N : rank O_k = rank O_{k-1}}, where
+    O_k = [C; CA; ...; CA^{k-1}].
+
+    Args:
+        C: Output matrix (p, n)
+        A: System matrix (n, n)
+
+    Returns:
+        ell: The smallest k where the observability rank saturates
+    """
+    n = A.shape[0]
+    device = A.device
+    dtype = A.dtype
+
+    Ak = torch.eye(n, device=device, dtype=dtype)
+    blocks = []
+    rank_prev = 0
+
+    for k in range(1, n + 2):
+        blocks.append(C @ Ak)
+        O_k = torch.cat(blocks, dim=0)
+        rank_k = torch.linalg.matrix_rank(O_k, tol=1e-3).item()
+        if rank_k == rank_prev:
+            return k
+        rank_prev = rank_k
+        Ak = Ak @ A
+
+    return n + 1
+
+
 def compute_lift_matrix(
     C: torch.Tensor,
     A: torch.Tensor,
@@ -189,3 +223,74 @@ def compute_lift_matrix(
     M[L*m:, L*m:] = O_K
     
     return M
+
+
+def smooth_signal(
+    signal: torch.Tensor,
+    window_size: int = 9,
+    sigma: Optional[float] = None,
+    mode: str = "gaussian",
+    padding: str = "reflect",
+) -> torch.Tensor:
+    """Smooth a 1D time-series signal using a windowed convolution.
+
+    Args:
+        signal: Input signal (N,) or (N, d).
+        window_size: Size of the smoothing window (odd integer).
+        sigma: Gaussian std dev. If None and mode="gaussian", uses window_size / 6.
+        mode: "gaussian" or "moving_average".
+        padding: Padding mode for convolution ("reflect", "replicate", "constant").
+
+    Returns:
+        Smoothed signal with the same shape as input.
+    """
+    if window_size < 1:
+        raise ValueError("window_size must be >= 1.")
+    if window_size % 2 == 0:
+        raise ValueError("window_size must be odd for symmetric smoothing.")
+
+    squeeze_output = False
+    if signal.ndim == 1:
+        signal_2d = signal[:, None]
+        squeeze_output = True
+    elif signal.ndim == 2:
+        signal_2d = signal
+    else:
+        raise ValueError("signal must have shape (N,) or (N, d).")
+
+    if window_size == 1:
+        return signal.clone()
+
+    n_samples = signal_2d.shape[0]
+    pad = window_size // 2
+    pad_mode = padding
+    if pad_mode == "reflect" and n_samples <= pad:
+        pad_mode = "replicate"
+
+    device = signal.device
+    dtype = signal.dtype
+
+    if mode == "gaussian":
+        if sigma is None:
+            sigma = window_size / 6.0
+        x = torch.arange(window_size, device=device, dtype=dtype) - (window_size - 1) / 2.0
+        kernel = torch.exp(-0.5 * (x / sigma) ** 2)
+    elif mode == "moving_average":
+        kernel = torch.ones(window_size, device=device, dtype=dtype)
+    else:
+        raise ValueError("mode must be 'gaussian' or 'moving_average'.")
+
+    kernel = kernel / kernel.sum()
+    kernel = kernel.view(1, 1, -1)
+
+    # Convolve each channel independently
+    signal_t = signal_2d.T.unsqueeze(0)  # (1, d, N)
+    kernel_t = kernel.repeat(signal_t.shape[1], 1, 1)  # (d, 1, window_size)
+
+    signal_pad = F.pad(signal_t, (pad, pad), mode=pad_mode)
+    smoothed = F.conv1d(signal_pad, kernel_t, groups=signal_t.shape[1])
+    smoothed = smoothed.squeeze(0).T  # (N, d)
+
+    if squeeze_output:
+        return smoothed.squeeze(1)
+    return smoothed

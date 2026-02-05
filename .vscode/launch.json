@@ -17,10 +17,10 @@
             
         },
         {
-            "name": "Python Debugger: SDE train",
+            "name": "Python Debugger: main.py",
             "type": "debugpy",
             "request": "launch",
-            "program": "examples/train_sde.py",
+            "program": "examples/main.py",
             "env" : {"PYTHONPATH": "${workspaceFolder}"},
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",

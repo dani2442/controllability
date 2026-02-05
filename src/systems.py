@@ -47,9 +47,6 @@ def random_stable_system(
         C: Output matrix (p, n)
         D: Feedthrough matrix (p, m)
     """
-    import sys
-    import os
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from src import generate_stable_system
     
     if seed is not None:
@@ -65,7 +62,7 @@ def two_spring_system(
     k2: float = 1.0,
     b1: float = 0.1,
     b2: float = 0.1,
-    device: Optional[torch.device] = None,
+    device: torch.device = torch.device("cpu"),
     dtype: torch.dtype = torch.float64,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Two independent spring-mass-damper systems.
@@ -99,8 +96,6 @@ def two_spring_system(
     Returns:
         A, B, C, D: State-space matrices
     """
-    if device is None:
-        device = torch.device("cpu")
     
     # State dimension n=4, input dimension m=1, output dimension p=2
     A = torch.tensor([
@@ -136,7 +131,7 @@ def coupled_spring_system(
     k2: float = 1.0,
     b1: float = 0.1,
     b2: float = 0.1,
-    device: Optional[torch.device] = None,
+    device: torch.device = torch.device("cpu"),
     dtype: torch.dtype = torch.float64,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Coupled (concatenated) spring-mass-damper system.
@@ -177,8 +172,6 @@ def coupled_spring_system(
     Returns:
         A, B, C, D: State-space matrices
     """
-    if device is None:
-        device = torch.device("cpu")
     
     # State dimension n=4, input dimension m=1, output dimension p=2
     A = torch.tensor([
@@ -261,7 +254,7 @@ def inverted_pendulum(
     l: float = 1.0,
     b: float = 0.1,
     g: float = 9.81,
-    device: Optional[torch.device] = None,
+    device: torch.device = torch.device("cpu"),
     dtype: torch.dtype = torch.float64,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """Linearized inverted pendulum on a cart.
@@ -280,14 +273,12 @@ def inverted_pendulum(
         l: Pendulum length (default: 1.0)
         b: Cart damping coefficient (default: 0.1)
         g: Gravitational acceleration (default: 9.81)
-        device: Target device
-        dtype: Data type
+        device: torch.device = torch.device("cpu"),
+        dtype: torch.dtype = torch.float64,
         
     Returns:
         A, B, C, D: State-space matrices (linearized around θ=0)
     """
-    if device is None:
-        device = torch.device("cpu")
     
     # Denominator terms
     denom = M + m

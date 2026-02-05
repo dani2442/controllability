@@ -17,7 +17,9 @@ from .utils import (
     generate_stable_system,
     compute_lift_matrix,
     compute_observability_matrix,
+    compute_observability_index,
     compute_toeplitz_matrix,
+    smooth_signal,
 )
 
 from .sde import (
@@ -46,7 +48,9 @@ __all__ = [
     "generate_stable_system",
     "compute_lift_matrix",
     "compute_observability_matrix",
+    "compute_observability_index",
     "compute_toeplitz_matrix",
+    "smooth_signal",
     # SDE
     "LinearSDE",
     "simulate",

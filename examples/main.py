@@ -37,8 +37,10 @@ from src import (
     plot_eigenvalues,
     plot_gramian_eigenvalues,
     plot_controllability_margin,
+    compute_observability_index,
+    smooth_signal,
 )
-from systems import get_system, print_system_info, SYSTEMS
+from src.systems import get_system, print_system_info, SYSTEMS
 
 
 def parse_args():
@@ -49,7 +51,7 @@ def parse_args():
     parser.add_argument(
         "--system", 
         type=str, 
-        default="two_spring",
+        default="coupled_spring",
         choices=list(SYSTEMS.keys()),
         help=f"System to analyze. Available: {list(SYSTEMS.keys())}"
     )
@@ -67,17 +69,23 @@ def main(system_name: str = "random"):
     print(f"Using device: {device}")
     print(f"Selected system: {system_name}")
     
-    # Derivative lift parameters
-    L = 3   # Input derivative levels
-    K = 3   # Output derivative levels
+    # Derivative lift parameters (initial values; may be adjusted after computing ell(B))
+    L = 2   # Input derivative levels
+    K = 2   # Output derivative levels
     
     # Simulation parameters
-    T = 10.0       # Final time
+    T = 20.0       # Final time
     dt = 0.01      # Time step
     
     # Noise intensities
-    beta_scale = 0.1   # Process noise intensity
-    delta_scale = 0.05 # Measurement noise intensity
+    beta_scale = 0.0 #0.1   # Process noise intensity
+    delta_scale = 0.0 #0.05 # Measurement noise intensity
+
+    # Smoothing parameters (applied to y before derivative computations)
+    smooth_y = False
+    smoothing_window = 11
+    smoothing_sigma = 2.0
+    smoothing_mode = "gaussian"
     
     # =========================================================================
     # Generate system from examples
@@ -117,6 +125,21 @@ def main(system_name: str = "random"):
     print(f"\nControllability matrix rank: {rank_C} (should be {n} for controllable)")
     is_controllable_AB = (rank_C == n)
     print(f"(A, B) is controllable: {is_controllable_AB}")
+
+    # =========================================================================
+    # Compute ell(B) from observability ranks and validate L, K
+    # =========================================================================
+    # ell(B) := min{k in N : rank O_k = rank O_{k-1}}
+    ell = compute_observability_index(C, A)
+    print(f"\nComputed ell(B): {ell}")
+
+    # Enforce: L >= ell+1 and ell+1 <= K <= L
+    # min_L = ell + 1
+    # if L < min_L or K < min_L or K > L:
+    #     raise ValueError(
+    #         f"Invalid L, K for ell(B)={ell}: require L >= {min_L} and {min_L} <= K <= L "
+    #         f"(got L={L}, K={K})."
+    #     )
     
     # Check observability of (A, C)
     O_mat = torch.cat([C @ torch.linalg.matrix_power(A, k) for k in range(n)], dim=0)
@@ -134,6 +157,19 @@ def main(system_name: str = "random"):
     
     sde = LinearSDE(A, B, C, D, Beta, Delta)
     ts, x, u, y = simulate(sde, T, dt)
+
+    y_raw = y
+    if smooth_y:
+        y = smooth_signal(
+            y,
+            window_size=smoothing_window,
+            sigma=smoothing_sigma,
+            mode=smoothing_mode,
+        )
+        print(
+            f"Applied {smoothing_mode} smoothing to y "
+            f"(window={smoothing_window}, sigma={smoothing_sigma})."
+        )
     
     print(f"\nSimulation complete:")
     print(f"  Time horizon: T = {T}")
@@ -279,7 +315,7 @@ def main(system_name: str = "random"):
     
     return {
         "A": A, "B": B, "C": C, "D": D,
-        "ts": ts, "x": x, "u": u, "y": y,
+        "ts": ts, "x": x, "u": u, "y": y, "y_raw": y_raw,
         "K_matrix": K_matrix,
         "candidate_lambdas": candidate_lambdas,
         "controllability_result": result,

@@ -8,10 +8,12 @@ Main functions:
     - compute_G_LK: G_{L,K}(λ) Gramian
     - compute_K_LK: K_{L,K}(λ) matrix and eigenvalues
     - check_controllability: Test via rank of G_{L,K}(λ)
+    - compute_persistent_excitation_gramian: Γ_L(u) Gramian
+    - check_persistent_excitation: Persistent excitation test
 """
 
 import torch
-from typing import Tuple, Union, Optional
+from typing import Tuple, Optional
 
 from .utils import complex_dtype_from_real, to_complex
 
@@ -83,6 +85,85 @@ def compute_derivative_lift(
     
     # Stack: [f, df, d²f, ...]
     return torch.cat(truncated, dim=-1)  # (N-L+1, L*d)
+
+
+def compute_persistent_excitation_gramian(
+    u: torch.Tensor,
+    order: int,
+    dt: float,
+) -> torch.Tensor:
+    """Compute the persistent excitation Gramian Γ_order(u).
+
+    Definition:
+        Γ_L(u) = ∫_0^T Λ_L(u)(t) Λ_L(u)(t)^T dt
+
+    with the derivative lift:
+        Λ_L(u) = [u; du/dt; ...; d^{L-1}u/dt^{L-1}]
+
+    This implementation uses finite differences for derivatives and a Riemann sum
+    for the integral:
+        Γ ≈ Σ_k Λ_k Λ_k^T Δt
+
+    Args:
+        u: Input trajectory (N, m)
+        order: Excitation order L (number of derivative levels, including 0th)
+        dt: Time step
+
+    Returns:
+        Gamma: Gramian matrix (order*m, order*m)
+    """
+    if order <= 0:
+        raise ValueError(f"order must be positive (got {order}).")
+    if u.ndim != 2:
+        raise ValueError(f"u must have shape (N, m) (got {tuple(u.shape)}).")
+    if u.shape[0] < order:
+        raise ValueError(
+            f"Need at least order samples to build Λ_order(u): "
+            f"N={u.shape[0]} < order={order}."
+        )
+
+    Lambda = compute_derivative_lift(u, order, dt)  # (N-order+1, order*m)
+    Gamma = Lambda.T @ Lambda * dt
+    return 0.5 * (Gamma + Gamma.T)
+
+
+def check_persistent_excitation(
+    u: torch.Tensor,
+    order: int,
+    dt: float,
+    threshold: float = 1e-8,
+) -> dict:
+    """Check whether u is persistently exciting of a given order.
+
+    Uses a thresholded positive-definiteness test on Γ_order(u).
+
+    Args:
+        u: Input trajectory (N, m)
+        order: Excitation order L
+        dt: Time step
+        threshold: Eigenvalue threshold for numerical positivity
+
+    Returns:
+        Dictionary with:
+            - is_persistently_exciting: Boolean
+            - gramian: Γ_order(u)
+            - eigenvalues: Eigenvalues of Γ_order(u) (ascending)
+            - min_eigenvalue: Smallest eigenvalue
+            - rank: Thresholded rank
+            - full_dimension: order*m
+    """
+    Gamma = compute_persistent_excitation_gramian(u, order, dt)
+    eigvals = torch.linalg.eigvalsh(Gamma).real
+    rank = (eigvals > threshold).sum().item()
+    full_dimension = order * u.shape[1]
+    return {
+        "is_persistently_exciting": bool((eigvals.min() > threshold).item()),
+        "gramian": Gamma,
+        "eigenvalues": eigvals,
+        "min_eigenvalue": eigvals.min().item(),
+        "rank": rank,
+        "full_dimension": full_dimension,
+    }
 
 
 def compute_filtered_derivative_lift(
@@ -170,13 +251,24 @@ def compute_K_LK(
     K: int,
     lam: complex,
     dt: float,
+    *,
+    expected_rank: Optional[int] = None,
+    basis_method: str = "svd",
+    rank_tol: Optional[float] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Compute K_{L,K}(λ) matrix and its eigenvalues.
     
     K_{L,K}(λ) is related to the cross-moment matrix that determines
     the finite candidate set for controllability checking.
     
-    K = (∫ Λ Λ^* dt)^{-1} (∫ Λ dΛ^* dt)
+    Following Theorem 4 (finite candidate set), define:
+        Ξ(t) := Λ_{L,K}(u,y)(t) ∈ R^{Lm+Kp}
+        S := Γ(Ξ) ≈ (√dt Ξ^T) ∈ R^{(Lm+Kp)×q}
+    Let U have orthonormal columns spanning im S (rank r = Lm+n). Then with
+        ξ(t) := U^* Ξ(t) ∈ C^r,
+    we compute the reduced matrix
+        K = (∫ ξ ξ^* dt)^{-1} ∫ ξ \\dot{ξ}^* dt,
+    using finite differences and a Riemann sum.
     
     The eigenvalues of K form the candidate set for controllability testing.
     
@@ -185,44 +277,138 @@ def compute_K_LK(
         y: Output trajectory (N, p)
         L: Number of input derivative levels
         K: Number of output derivative levels
-        lam: Complex parameter λ
+        lam: Complex parameter λ (unused; included for API compatibility)
         dt: Time step
+        expected_rank: If provided, use this rank r for the subspace basis U.
+        basis_method: How to compute U. One of {"svd", "qr"}.
+        rank_tol: Absolute tolerance on singular values for rank detection when
+            expected_rank is None.
         
     Returns:
         K_matrix: The K_{L,K}(λ) matrix
         eigenvalues: Complex eigenvalues of K
     """
-    device = u.device
     complex_dtype = complex_dtype_from_real(u.dtype)
-    
-    # Compute derivative lifts (unfiltered, for cross-moment)
-    max_deriv = max(L, K)
-    Lambda_L_u = compute_derivative_lift(u, L, dt)  # (N', Lm)
-    Lambda_K_y = compute_derivative_lift(y, K, dt)  # (N'', Kp)
-    
-    # Align lengths
-    N_common = min(Lambda_L_u.shape[0], Lambda_K_y.shape[0]) - 1
-    Lambda_L_u = Lambda_L_u[:N_common]
-    Lambda_K_y = Lambda_K_y[:N_common]
-    
-    # Stack
-    Lambda = torch.cat([Lambda_L_u, Lambda_K_y], dim=-1)  # (N', d)
-    Lambda = to_complex(Lambda, complex_dtype)
-    
-    # Derivative of Lambda
-    dLambda = (Lambda[1:] - Lambda[:-1])  # (N'-1, d), no /dt since it cancels
-    Lambda0 = Lambda[:-1]  # (N'-1, d)
-    
-    # Gramians
-    G = Lambda0.conj().T @ Lambda0 * dt  # ∫ Λ Λ^* dt
-    M = dLambda.T @ Lambda0.conj()  # ∫ dΛ Λ^* (using Δ instead of dt)
-    
-    # K = G^{-1} M^T
-    K_matrix = torch.linalg.solve(G, M.T)
-    
-    # Eigenvalues
+
+    # Build Ξ(t) = Λ_{L,K}(u,y) from (unfiltered) derivative lifts.
+    Lambda_L_u = compute_derivative_lift(u, L, dt)  # (N_u, Lm)
+    Lambda_K_y = compute_derivative_lift(y, K, dt)  # (N_y, Kp)
+
+    N_common = min(Lambda_L_u.shape[0], Lambda_K_y.shape[0])
+    if N_common < 2:
+        raise ValueError(
+            f"Need at least 2 aligned samples to compute K (got N_common={N_common})."
+        )
+
+    Xi = torch.cat([Lambda_L_u[:N_common], Lambda_K_y[:N_common]], dim=-1)  # (q, d)
+    Xi = to_complex(Xi, complex_dtype)
+
+    # Weighted sample matrix S = √dt Ξ^T; im(S) = im(Γ(Ξ)).
+    Xi0 = Xi[:-1]  # (q-1, d)
+    sqrt_dt = torch.sqrt(
+        torch.tensor(float(dt), device=Xi0.device, dtype=Xi0.real.dtype)
+    )
+    S = (Xi0.T * sqrt_dt).to(complex_dtype)  # (d, q-1)
+
+    def _compute_subspace_basis(
+        S_factor: torch.Tensor,
+        *,
+        expected_rank: Optional[int],
+        method: str,
+        rank_tol: Optional[float],
+    ) -> torch.Tensor:
+        d, q = S_factor.shape
+        if method not in {"svd", "qr"}:
+            raise ValueError(
+                f"basis_method must be one of {{'svd','qr'}} (got {method})."
+            )
+
+        def _default_tol(smax: torch.Tensor) -> torch.Tensor:
+            eps = torch.finfo(smax.dtype).eps
+            return torch.as_tensor(max(d, q), device=smax.device, dtype=smax.dtype) * eps * smax
+
+        if expected_rank is not None:
+            if expected_rank <= 0:
+                raise ValueError(f"expected_rank must be positive (got {expected_rank}).")
+            r = int(expected_rank)
+            if r > d:
+                raise ValueError(
+                    f"expected_rank={r} exceeds ambient dimension d={d}."
+                )
+        else:
+            if method == "qr":
+                # Not rank-revealing without pivoting; use diag(R) as a heuristic.
+                _, R = torch.linalg.qr(S_factor, mode="reduced")
+                diag = torch.abs(torch.diagonal(R[: R.shape[0], : R.shape[0]]))
+                smax = (
+                    diag.max()
+                    if diag.numel()
+                    else torch.tensor(0.0, device=diag.device, dtype=diag.dtype)
+                )
+                tol = _default_tol(smax) if rank_tol is None else torch.as_tensor(
+                    rank_tol, device=diag.device, dtype=diag.dtype
+                )
+                r = int((diag > tol).sum().item())
+            else:
+                # "SVD" via Gramian eigendecomposition (avoids forming Vh of shape (d, q)).
+                gram = S_factor @ S_factor.conj().T
+                gram = 0.5 * (gram + gram.conj().T)
+                evals = torch.linalg.eigvalsh(gram).real
+                svals = torch.sqrt(torch.clamp(evals, min=0.0))
+                smax = (
+                    svals.max()
+                    if svals.numel()
+                    else torch.tensor(0.0, device=svals.device, dtype=svals.dtype)
+                )
+                tol = _default_tol(smax) if rank_tol is None else torch.as_tensor(
+                    rank_tol, device=svals.device, dtype=svals.dtype
+                )
+                r = int((svals > tol).sum().item())
+
+        if r <= 0:
+            raise ValueError(
+                "Estimated rank is 0; try increasing data length, reducing noise, "
+                "or provide expected_rank explicitly."
+            )
+
+        if method == "qr":
+            Q, _ = torch.linalg.qr(S_factor, mode="reduced")  # Q: (d, k)
+            if r > Q.shape[1]:
+                raise ValueError(
+                    f"expected_rank={r} exceeds QR basis size {Q.shape[1]} "
+                    f"(need at least q >= r; got q={q})."
+                )
+            return Q[:, :r]
+
+        gram = S_factor @ S_factor.conj().T
+        gram = 0.5 * (gram + gram.conj().T)
+        evals, evecs = torch.linalg.eigh(gram)  # ascending
+        idx = torch.argsort(evals.real, descending=True)
+        evecs = evecs[:, idx]
+        return evecs[:, :r]
+
+    U = _compute_subspace_basis(
+        S,
+        expected_rank=expected_rank,
+        method=basis_method,
+        rank_tol=rank_tol,
+    )  # (d, r)
+
+    # Reduced coordinates ξ(t) = U^* Ξ(t).
+    xi = Xi @ U  # (q, r)
+    xi0 = xi[:-1]  # (q-1, r)
+    dxi = xi[1:] - xi[:-1]  # (q-1, r), no /dt since it cancels
+
+    G = xi0.conj().T @ xi0 * dt
+    M = xi0.conj().T @ dxi
+
+    try:
+        K_matrix = torch.linalg.solve(G, M)
+    except RuntimeError:
+        # Fall back to least-squares if G is singular/ill-conditioned.
+        K_matrix = torch.linalg.lstsq(G, M).solution
+
     eigenvalues = torch.linalg.eigvals(K_matrix)
-    
     return K_matrix, eigenvalues
 
 
@@ -268,7 +454,9 @@ def check_controllability(
     
     # Get candidate eigenvalues if not provided
     if candidate_lambdas is None:
-        _, candidate_lambdas = compute_K_LK(u, y, L, K, 0.0, dt)
+        _, candidate_lambdas = compute_K_LK(
+            u, y, L, K, 0.0, dt, expected_rank=expected_rank
+        )
     
     ranks = []
     min_eigs = []

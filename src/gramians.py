@@ -8,12 +8,10 @@ Main functions:
     - compute_G_LK: G_{L,K}(λ) Gramian
     - compute_K_LK: K_{L,K}(λ) matrix and eigenvalues
     - check_controllability: Test via rank of G_{L,K}(λ)
-    - compute_persistent_excitation_gramian: Γ_L(u) Gramian
-    - check_persistent_excitation: Persistent excitation test
 """
 
 import torch
-from typing import Tuple, Optional
+from typing import Tuple, Union, Optional
 
 from .utils import complex_dtype_from_real, to_complex
 
@@ -249,26 +247,17 @@ def compute_K_LK(
     y: torch.Tensor,
     L: int,
     K: int,
+    n: int,
     lam: complex,
     dt: float,
-    *,
-    expected_rank: Optional[int] = None,
-    basis_method: str = "svd",
-    rank_tol: Optional[float] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Compute K_{L,K}(λ) matrix and its eigenvalues.
     
     K_{L,K}(λ) is related to the cross-moment matrix that determines
     the finite candidate set for controllability checking.
     
-    Following Theorem 4 (finite candidate set), define:
-        Ξ(t) := Λ_{L,K}(u,y)(t) ∈ R^{Lm+Kp}
-        S := Γ(Ξ) ≈ (√dt Ξ^T) ∈ R^{(Lm+Kp)×q}
-    Let U have orthonormal columns spanning im S (rank r = Lm+n). Then with
-        ξ(t) := U^* Ξ(t) ∈ C^r,
-    we compute the reduced matrix
-        K = (∫ ξ ξ^* dt)^{-1} ∫ ξ \\dot{ξ}^* dt,
-    using finite differences and a Riemann sum.
+    K = (∫ ξ ξ^* dt)^{-1} (∫ ξ dξ^* dt), with ξ = U^T Λ and
+    U the first r = Lm + n left singular vectors of S = Γ(Λ).
     
     The eigenvalues of K form the candidate set for controllability testing.
     
@@ -277,138 +266,61 @@ def compute_K_LK(
         y: Output trajectory (N, p)
         L: Number of input derivative levels
         K: Number of output derivative levels
-        lam: Complex parameter λ (unused; included for API compatibility)
+        n: State dimension (used for r = Lm + n)
+        lam: Complex parameter λ (unused; kept for API compatibility)
         dt: Time step
-        expected_rank: If provided, use this rank r for the subspace basis U.
-        basis_method: How to compute U. One of {"svd", "qr"}.
-        rank_tol: Absolute tolerance on singular values for rank detection when
-            expected_rank is None.
         
     Returns:
         K_matrix: The K_{L,K}(λ) matrix
         eigenvalues: Complex eigenvalues of K
     """
     complex_dtype = complex_dtype_from_real(u.dtype)
-
-    # Build Ξ(t) = Λ_{L,K}(u,y) from (unfiltered) derivative lifts.
-    Lambda_L_u = compute_derivative_lift(u, L, dt)  # (N_u, Lm)
-    Lambda_K_y = compute_derivative_lift(y, K, dt)  # (N_y, Kp)
-
+    _ = lam  # unused; kept for API compatibility
+    
+    # Compute derivative lifts (unfiltered)
+    Lambda_L_u = compute_derivative_lift(u, L, dt)  # (N', Lm)
+    Lambda_K_y = compute_derivative_lift(y, K, dt)  # (N'', Kp)
+    
+    # Align lengths
     N_common = min(Lambda_L_u.shape[0], Lambda_K_y.shape[0])
     if N_common < 2:
+        raise ValueError("Not enough samples to build K_{L,K}: need at least 2.")
+    Lambda_L_u = Lambda_L_u[:N_common]
+    Lambda_K_y = Lambda_K_y[:N_common]
+    
+    # Stack
+    Lambda = torch.cat([Lambda_L_u, Lambda_K_y], dim=-1)  # (N, d)
+    
+    # Build S = Γ(Λ) and compute U via SVD
+    S = Lambda.T  # (d, N)
+    U_hat, _, _ = torch.linalg.svd(S, full_matrices=False)
+    m = u.shape[1]
+    r = L * m + n
+    if r > U_hat.shape[1]:
         raise ValueError(
-            f"Need at least 2 aligned samples to compute K (got N_common={N_common})."
+            f"Requested r = Lm + n = {r}, but only {U_hat.shape[1]} singular vectors "
+            "are available. Provide more data or reduce r."
         )
-
-    Xi = torch.cat([Lambda_L_u[:N_common], Lambda_K_y[:N_common]], dim=-1)  # (q, d)
-    Xi = to_complex(Xi, complex_dtype)
-
-    # Weighted sample matrix S = √dt Ξ^T; im(S) = im(Γ(Ξ)).
-    Xi0 = Xi[:-1]  # (q-1, d)
-    sqrt_dt = torch.sqrt(
-        torch.tensor(float(dt), device=Xi0.device, dtype=Xi0.real.dtype)
-    )
-    S = (Xi0.T * sqrt_dt).to(complex_dtype)  # (d, q-1)
-
-    def _compute_subspace_basis(
-        S_factor: torch.Tensor,
-        *,
-        expected_rank: Optional[int],
-        method: str,
-        rank_tol: Optional[float],
-    ) -> torch.Tensor:
-        d, q = S_factor.shape
-        if method not in {"svd", "qr"}:
-            raise ValueError(
-                f"basis_method must be one of {{'svd','qr'}} (got {method})."
-            )
-
-        def _default_tol(smax: torch.Tensor) -> torch.Tensor:
-            eps = torch.finfo(smax.dtype).eps
-            return torch.as_tensor(max(d, q), device=smax.device, dtype=smax.dtype) * eps * smax
-
-        if expected_rank is not None:
-            if expected_rank <= 0:
-                raise ValueError(f"expected_rank must be positive (got {expected_rank}).")
-            r = int(expected_rank)
-            if r > d:
-                raise ValueError(
-                    f"expected_rank={r} exceeds ambient dimension d={d}."
-                )
-        else:
-            if method == "qr":
-                # Not rank-revealing without pivoting; use diag(R) as a heuristic.
-                _, R = torch.linalg.qr(S_factor, mode="reduced")
-                diag = torch.abs(torch.diagonal(R[: R.shape[0], : R.shape[0]]))
-                smax = (
-                    diag.max()
-                    if diag.numel()
-                    else torch.tensor(0.0, device=diag.device, dtype=diag.dtype)
-                )
-                tol = _default_tol(smax) if rank_tol is None else torch.as_tensor(
-                    rank_tol, device=diag.device, dtype=diag.dtype
-                )
-                r = int((diag > tol).sum().item())
-            else:
-                # "SVD" via Gramian eigendecomposition (avoids forming Vh of shape (d, q)).
-                gram = S_factor @ S_factor.conj().T
-                gram = 0.5 * (gram + gram.conj().T)
-                evals = torch.linalg.eigvalsh(gram).real
-                svals = torch.sqrt(torch.clamp(evals, min=0.0))
-                smax = (
-                    svals.max()
-                    if svals.numel()
-                    else torch.tensor(0.0, device=svals.device, dtype=svals.dtype)
-                )
-                tol = _default_tol(smax) if rank_tol is None else torch.as_tensor(
-                    rank_tol, device=svals.device, dtype=svals.dtype
-                )
-                r = int((svals > tol).sum().item())
-
-        if r <= 0:
-            raise ValueError(
-                "Estimated rank is 0; try increasing data length, reducing noise, "
-                "or provide expected_rank explicitly."
-            )
-
-        if method == "qr":
-            Q, _ = torch.linalg.qr(S_factor, mode="reduced")  # Q: (d, k)
-            if r > Q.shape[1]:
-                raise ValueError(
-                    f"expected_rank={r} exceeds QR basis size {Q.shape[1]} "
-                    f"(need at least q >= r; got q={q})."
-                )
-            return Q[:, :r]
-
-        gram = S_factor @ S_factor.conj().T
-        gram = 0.5 * (gram + gram.conj().T)
-        evals, evecs = torch.linalg.eigh(gram)  # ascending
-        idx = torch.argsort(evals.real, descending=True)
-        evecs = evecs[:, idx]
-        return evecs[:, :r]
-
-    U = _compute_subspace_basis(
-        S,
-        expected_rank=expected_rank,
-        method=basis_method,
-        rank_tol=rank_tol,
-    )  # (d, r)
-
-    # Reduced coordinates ξ(t) = U^* Ξ(t).
-    xi = Xi @ U  # (q, r)
-    xi0 = xi[:-1]  # (q-1, r)
-    dxi = xi[1:] - xi[:-1]  # (q-1, r), no /dt since it cancels
-
-    G = xi0.conj().T @ xi0 * dt
-    M = xi0.conj().T @ dxi
-
-    try:
-        K_matrix = torch.linalg.solve(G, M)
-    except RuntimeError:
-        # Fall back to least-squares if G is singular/ill-conditioned.
-        K_matrix = torch.linalg.lstsq(G, M).solution
-
+    U = U_hat[:, :r]  # (d, r)
+    
+    # Reduced signal ξ = U^T Λ
+    xi = Lambda @ U  # (N, r)
+    xi = to_complex(xi, complex_dtype)
+    
+    # Derivative of ξ
+    dxi = xi[1:] - xi[:-1]  # (N-1, r), no /dt since it cancels
+    xi0 = xi[:-1]  # (N-1, r)
+    
+    # Gramians in reduced coordinates
+    G = xi0.conj().T @ xi0 * dt  # ∫ ξ ξ^* dt
+    M = dxi.T @ xi0.conj()  # ∫ dξ ξ^* (using Δ instead of dt)
+    
+    # K = G^{-1} M^T
+    K_matrix = torch.linalg.solve(G, M.T)
+    
+    # Eigenvalues
     eigenvalues = torch.linalg.eigvals(K_matrix)
+    
     return K_matrix, eigenvalues
 
 
@@ -454,9 +366,7 @@ def check_controllability(
     
     # Get candidate eigenvalues if not provided
     if candidate_lambdas is None:
-        _, candidate_lambdas = compute_K_LK(
-            u, y, L, K, 0.0, dt, expected_rank=expected_rank
-        )
+        _, candidate_lambdas = compute_K_LK(u, y, L, K, n, 0.0, dt)
     
     ranks = []
     min_eigs = []

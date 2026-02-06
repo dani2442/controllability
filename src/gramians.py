@@ -197,6 +197,7 @@ def compute_G_LK(
     L: int,
     K: int,
     lam: complex,
+    T: float,
     dt: float,
 ) -> torch.Tensor:
     """Compute the derivative-lifted Gramian G_{L,K}(λ).
@@ -212,6 +213,7 @@ def compute_G_LK(
         L: Number of input derivative levels
         K: Number of output derivative levels
         lam: Complex parameter λ
+        T: Total time (used for normalization)
         dt: Time step
         
     Returns:
@@ -239,7 +241,7 @@ def compute_G_LK(
     # Gramian: G = ∫ Λ Λ^* dt ≈ Σ Λ_k Λ_k^* Δt
     G = Lambda_LK.conj().T @ Lambda_LK * dt  # (Lm + Kp, Lm + Kp)
     
-    return G
+    return G/T
 
 
 def compute_K_LK(
@@ -316,7 +318,7 @@ def compute_K_LK(
     M = dxi.T @ xi0.conj()  # ∫ dξ ξ^* (using Δ instead of dt)
     
     # K = G^{-1} M^T
-    K_matrix = torch.linalg.solve(G, M.T)
+    K_matrix = torch.linalg.lstsq(G, M.T).solution
     
     # Eigenvalues
     eigenvalues = torch.linalg.eigvals(K_matrix)
@@ -329,6 +331,7 @@ def compute_H_LK(
     L: int,
     K: int,
     lam: complex,
+    T: float,
     dt: float,
 ) -> torch.Tensor:
     """Compute the reduced data matrix H_{L,K}(λ) = Γ_K(y_λ).
@@ -346,6 +349,7 @@ def compute_H_LK(
         L: Number of input derivative levels (unused; included for naming consistency)
         K: Number of output derivative levels
         lam: Complex parameter λ
+        T: Total time (used for normalization)
         dt: Time step
 
     Returns:
@@ -359,7 +363,7 @@ def compute_H_LK(
 
     # H = ∫ Λ Λ^* dt ≈ Σ Λ_k Λ_k^* Δt
     H = Lambda_K_y.conj().T @ Lambda_K_y * dt  # (Kp, Kp)
-    return H
+    return H/T
 
 
 def _compute_output_lift_svd(
@@ -454,6 +458,7 @@ def check_controllability_reduced(
     y: torch.Tensor,
     L: int,
     K: int,
+    T: float,
     dt: float,
     candidate_lambdas: Optional[torch.Tensor] = None,
     threshold: float = 1e-6,
@@ -469,6 +474,7 @@ def check_controllability_reduced(
         y: Output trajectory (N, p)
         L: Number of input derivative levels (unused in H; kept for naming consistency)
         K: Number of output derivative levels
+        T: Total time (used for normalization)
         dt: Time step
         candidate_lambdas: Candidate λ values (if None, computed from data)
         threshold: Eigenvalue threshold for rank computation
@@ -508,7 +514,7 @@ def check_controllability_reduced(
     for lam in candidate_lambdas:
         lam_val = lam.item() if torch.is_tensor(lam) else lam
 
-        H = compute_H_LK(y, L, K, lam_val, dt)
+        H = compute_H_LK(y, L, K, lam_val, T, dt)
 
         # Eigenvalues of Hermitian matrix
         eigvals = torch.linalg.eigvalsh(H).real
@@ -547,6 +553,7 @@ def check_controllability(
     K: int,
     n: int,
     m: int,
+    T: float,
     dt: float,
     candidate_lambdas: Optional[torch.Tensor] = None,
     threshold: float = 1e-6,
@@ -564,6 +571,7 @@ def check_controllability(
         K: Number of output derivative levels
         n: State dimension
         m: Input dimension
+        T: Total time (used for normalization)
         dt: Time step
         candidate_lambdas: Candidate λ values to check (if None, computed from data)
         threshold: Eigenvalue threshold for rank computation
@@ -590,7 +598,7 @@ def check_controllability(
     for lam in candidate_lambdas:
         lam_val = lam.item() if torch.is_tensor(lam) else lam
         
-        G = compute_G_LK(u, y, L, K, lam_val, dt)
+        G = compute_G_LK(u, y, L, K, lam_val, T, dt)
         
         # Eigenvalues of Hermitian matrix
         eigvals = torch.linalg.eigvalsh(G).real

@@ -82,20 +82,20 @@ def main(system_name: str = "coupled_spring"):
     # We compute the tightest feasible (L, K) after loading the system.
 
     # Simulation parameters
-    T = 20.0   # Final time
-    dt = 0.01  # Time step
+    T = 100.0   # Final time
+    dt = 0.1  # Time step
 
     L = 2   # Input derivative levels (will be increased if needed)
     K = 2   # Output derivative levels (will be increased if needed)
 
     # Noise intensities
-    beta_scale = 0.0   # Process noise
-    delta_scale = 0.0  # Measurement noise
+    beta_scale = 0.1   # Process noise
+    delta_scale = 0.1  # Measurement noise
 
     # Smoothing
-    smooth_y = False
+    smooth_y = True
     smoothing_window = 11
-    smoothing_sigma = 2.0
+    smoothing_sigma = 100.0
     smoothing_mode = "gaussian"
 
     # =========================================================================
@@ -113,20 +113,15 @@ def main(system_name: str = "coupled_spring"):
     n = A.shape[0]  # State dimension
     m = B.shape[1]  # Input dimension
     p = C.shape[0]  # Output dimension
-    q = min(n, 2)
-    r = min(p, 2)
+    q = min(n, 1)
+    r = min(p, 1)
 
     # Noise matrices
     Beta = beta_scale * torch.randn(n, q, device=device, dtype=dtype)
     Delta = delta_scale * torch.randn(p, r, device=device, dtype=dtype)
 
     # System info
-    eigvals_A = torch.linalg.eigvals(A)
     print(f"\nSystem dimensions: n={n}, m={m}, p={p}")
-    print(f"Eigenvalues of A:")
-    for i, ev in enumerate(eigvals_A):
-        print(f"  λ_{i+1} = {ev.real:.4f} + {ev.imag:.4f}i")
-    print(f"Max Re(λ) = {eigvals_A.real.max():.4f}")
 
     # Classical controllability / observability checks
     C_mat = torch.cat(
@@ -234,39 +229,6 @@ def main(system_name: str = "coupled_spring"):
     expected_rank = K * p
     print(f"\nExpected rank: Kp = {expected_rank}")
 
-    test_lambdas = [0.0, 0.5j, -0.5, -0.5 + 0.5j]
-    if len(cand_red) > 0:
-        test_lambdas.extend([cand_red[0].item(), cand_red[-1].item()])
-
-    eigenvalues_list = []
-    lambda_labels = []
-    margins = []
-
-    for lam in test_lambdas:
-        H = compute_H_LK(y, L, K, lam, dt)
-
-        eigvals = torch.linalg.eigvalsh(H).real
-        eigvals_sorted = torch.sort(eigvals, descending=True).values
-        eigenvalues_list.append(eigvals_sorted)
-
-        if isinstance(lam, complex):
-            label = f"λ = {lam.real:.2f}{lam.imag:+.2f}i"
-        else:
-            label = f"λ = {lam:.2f}"
-        lambda_labels.append(label)
-
-        margin = (
-            eigvals_sorted[expected_rank - 1].item()
-            if len(eigvals_sorted) >= expected_rank
-            else 0.0
-        )
-        margins.append(margin)
-
-        # print(f"\n{label}:")
-        # print(f"  H_{{L,K}} shape: {H.shape}")
-        # print(f"  Top 5 eigenvalues: {eigvals_sorted[:5].cpu().numpy()}")
-        # print(f"  λ_{{Kp}} = {margin:.6f}")
-        # print(f"  Thresholded rank (τ=1e-6): {(eigvals > 1e-6).sum().item()}")
 
     # =========================================================================
     # Controllability check — reduced test
@@ -296,6 +258,9 @@ def main(system_name: str = "coupled_spring"):
     print("\n" + "=" * 60)
     print("CONTROLLABILITY CHECK — FULL BEHAVIORAL (for comparison)")
     print("=" * 60)
+
+    K = max(K, ell + 1)
+    L = max(L, K)
 
     _, cand_full = compute_K_LK(u, y, L, K, n, 0.0, dt)
 
@@ -344,36 +309,6 @@ def main(system_name: str = "coupled_spring"):
     fig1.savefig(os.path.join(output_dir, "reduced_trajectories.pdf"), bbox_inches="tight")
     fig1.savefig(os.path.join(output_dir, "reduced_trajectories.png"), dpi=150, bbox_inches="tight")
     print("  Saved: reduced_trajectories.pdf/png")
-
-    # 2. Eigenvalues of A
-    fig2 = plot_eigenvalues(eigvals_A, title="Eigenvalues of System Matrix $A$")
-    fig2.savefig(os.path.join(output_dir, "reduced_eigenvalues_A.pdf"), bbox_inches="tight")
-    fig2.savefig(os.path.join(output_dir, "reduced_eigenvalues_A.png"), dpi=150, bbox_inches="tight")
-    print("  Saved: reduced_eigenvalues_A.pdf/png")
-
-    # 3. Eigenvalue decay of H_{L,K}(λ)
-    fig3 = plot_gramian_eigenvalues(eigenvalues_list, lambda_labels, expected_rank)
-    fig3.suptitle(r"Eigenvalue Decay of $\mathbf{H}_{L,K}(\lambda)$ (Reduced Test)")
-    fig3.savefig(os.path.join(output_dir, "reduced_gramian_eigenvalues.pdf"), bbox_inches="tight")
-    fig3.savefig(os.path.join(output_dir, "reduced_gramian_eigenvalues.png"), dpi=150, bbox_inches="tight")
-    print("  Saved: reduced_gramian_eigenvalues.pdf/png")
-
-    # 4. Controllability margins (reduced)
-    test_lambdas_c = torch.tensor([complex(l) for l in test_lambdas])
-    margins_t = torch.tensor(margins)
-    fig4 = plot_controllability_margin(test_lambdas_c, margins_t)
-    fig4.savefig(os.path.join(output_dir, "reduced_controllability_margin.pdf"), bbox_inches="tight")
-    fig4.savefig(os.path.join(output_dir, "reduced_controllability_margin.png"), dpi=150, bbox_inches="tight")
-    print("  Saved: reduced_controllability_margin.pdf/png")
-
-    # 5. Candidate eigenvalues from K^y_{L,K}
-    fig5 = plot_eigenvalues(cand_red, title=r"Candidate Eigenvalues from $K^{y}_{L,K}$ (Reduced)")
-    fig5.savefig(os.path.join(output_dir, "reduced_candidate_eigenvalues.pdf"), bbox_inches="tight")
-    fig5.savefig(os.path.join(output_dir, "reduced_candidate_eigenvalues.png"), dpi=150, bbox_inches="tight")
-    print("  Saved: reduced_candidate_eigenvalues.pdf/png")
-
-    print(f"\nAll figures saved to: {output_dir}")
-    plt.show()
 
     print("\n" + "=" * 60)
     print("DONE")

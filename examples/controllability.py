@@ -186,7 +186,7 @@ def main(system_name: str = "random"):
     print(f"COMPUTING K_{{L,K}}(λ) with L={L}, K={K}")
     print("="*60)
     
-    K_matrix, candidate_lambdas = compute_K_LK(u, y, L, K, lam=0.0, dt=dt)
+    K_matrix, candidate_lambdas = compute_K_LK(u, y, L, K, n, lam=0.0, dt=dt)
     
     print(f"\nK_{{L,K}} matrix shape: {K_matrix.shape}")
     print(f"Number of candidate eigenvalues: {len(candidate_lambdas)}")
@@ -237,11 +237,11 @@ def main(system_name: str = "random"):
             margin = 0.0
         margins.append(margin)
         
-        print(f"\n{label}:")
-        print(f"  G_{{L,K}} shape: {G.shape}")
-        print(f"  Top 5 eigenvalues: {eigvals_sorted[:5].cpu().numpy()}")
-        print(f"  λ_{{Lm+n}} = {margin:.6f}")
-        print(f"  Thresholded rank (τ=1e-6): {(eigvals > 1e-6).sum().item()}")
+        # print(f"\n{label}:")
+        # print(f"  G_{{L,K}} shape: {G.shape}")
+        # print(f"  Top 5 eigenvalues: {eigvals_sorted[:5].cpu().numpy()}")
+        # print(f"  λ_{{Lm+n}} = {margin:.6f}")
+        # print(f"  Thresholded rank (τ=1e-6): {(eigvals > 1e-6).sum().item()}")
     
     # =========================================================================
     # Check controllability
@@ -279,30 +279,30 @@ def main(system_name: str = "random"):
     print("  Saved: trajectories.pdf/png")
     
     # 2. Eigenvalues of A
-    fig2 = plot_eigenvalues(eigvals_A, title="Eigenvalues of System Matrix $A$")
-    fig2.savefig(os.path.join(output_dir, "eigenvalues_A.pdf"), bbox_inches='tight')
-    fig2.savefig(os.path.join(output_dir, "eigenvalues_A.png"), dpi=150, bbox_inches='tight')
-    print("  Saved: eigenvalues_A.pdf/png")
+    # fig2 = plot_eigenvalues(eigvals_A, title="Eigenvalues of System Matrix $A$")
+    # fig2.savefig(os.path.join(output_dir, "eigenvalues_A.pdf"), bbox_inches='tight')
+    # fig2.savefig(os.path.join(output_dir, "eigenvalues_A.png"), dpi=150, bbox_inches='tight')
+    # print("  Saved: eigenvalues_A.pdf/png")
     
     # 3. Eigenvalue decay of G_{L,K}(λ)
-    fig3 = plot_gramian_eigenvalues(eigenvalues_list, lambda_labels, expected_rank)
-    fig3.savefig(os.path.join(output_dir, "gramian_eigenvalues.pdf"), bbox_inches='tight')
-    fig3.savefig(os.path.join(output_dir, "gramian_eigenvalues.png"), dpi=150, bbox_inches='tight')
-    print("  Saved: gramian_eigenvalues.pdf/png")
+    # fig3 = plot_gramian_eigenvalues(eigenvalues_list, lambda_labels, expected_rank)
+    # fig3.savefig(os.path.join(output_dir, "gramian_eigenvalues.pdf"), bbox_inches='tight')
+    # fig3.savefig(os.path.join(output_dir, "gramian_eigenvalues.png"), dpi=150, bbox_inches='tight')
+    # print("  Saved: gramian_eigenvalues.pdf/png")
     
     # 4. Controllability margins
-    test_lambdas_complex = torch.tensor([complex(l) for l in test_lambdas])
-    margins_tensor = torch.tensor(margins)
-    fig4 = plot_controllability_margin(test_lambdas_complex, margins_tensor)
-    fig4.savefig(os.path.join(output_dir, "controllability_margin.pdf"), bbox_inches='tight')
-    fig4.savefig(os.path.join(output_dir, "controllability_margin.png"), dpi=150, bbox_inches='tight')
-    print("  Saved: controllability_margin.pdf/png")
+    # test_lambdas_complex = torch.tensor([complex(l) for l in test_lambdas])
+    # margins_tensor = torch.tensor(margins)
+    # fig4 = plot_controllability_margin(test_lambdas_complex, margins_tensor)
+    # fig4.savefig(os.path.join(output_dir, "controllability_margin.pdf"), bbox_inches='tight')
+    # fig4.savefig(os.path.join(output_dir, "controllability_margin.png"), dpi=150, bbox_inches='tight')
+    # print("  Saved: controllability_margin.pdf/png")
     
     # 5. Candidate eigenvalues from K_{L,K}
-    fig5 = plot_eigenvalues(candidate_lambdas, title=r"Candidate Eigenvalues from $K_{L,K}$")
-    fig5.savefig(os.path.join(output_dir, "candidate_eigenvalues.pdf"), bbox_inches='tight')
-    fig5.savefig(os.path.join(output_dir, "candidate_eigenvalues.png"), dpi=150, bbox_inches='tight')
-    print("  Saved: candidate_eigenvalues.pdf/png")
+    # fig5 = plot_eigenvalues(candidate_lambdas, title=r"Candidate Eigenvalues from $K_{L,K}$")
+    # fig5.savefig(os.path.join(output_dir, "candidate_eigenvalues.pdf"), bbox_inches='tight')
+    # fig5.savefig(os.path.join(output_dir, "candidate_eigenvalues.png"), dpi=150, bbox_inches='tight')
+    # print("  Saved: candidate_eigenvalues.pdf/png")
     
     print(f"\nAll figures saved to: {output_dir}")
     

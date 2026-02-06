@@ -166,11 +166,11 @@ def compute_observability_index(C: torch.Tensor, A: torch.Tensor) -> int:
         O_k = torch.cat(blocks, dim=0)
         rank_k = torch.linalg.matrix_rank(O_k, tol=1e-3).item()
         if rank_k == rank_prev:
-            return k
+            return k-2
         rank_prev = rank_k
         Ak = Ak @ A
 
-    return n + 1
+    return n
 
 
 def compute_lift_matrix(

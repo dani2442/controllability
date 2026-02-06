@@ -324,6 +324,222 @@ def compute_K_LK(
     return K_matrix, eigenvalues
 
 
+def compute_H_LK(
+    y: torch.Tensor,
+    L: int,
+    K: int,
+    lam: complex,
+    dt: float,
+) -> torch.Tensor:
+    """Compute the reduced data matrix H_{L,K}(λ) = Γ_K(y_λ).
+
+    Uses only the output trajectory (no input required).
+
+    H_{L,K}(λ) = ∫ Λ_K(y_λ)(t) Λ_K(y_λ)(t)^* dt
+
+    where y_λ = dy/dt − λy.
+
+    Reference: Theorem thm:ct-dd-hautus-reduced.
+
+    Args:
+        y: Output trajectory (N, p)
+        L: Number of input derivative levels (unused; included for naming consistency)
+        K: Number of output derivative levels
+        lam: Complex parameter λ
+        dt: Time step
+
+    Returns:
+        H_LK: Gramian matrix (Kp, Kp)
+    """
+    complex_dtype = complex_dtype_from_real(y.dtype)
+
+    # Λ_K(y_λ): first filter, then derivative-lift
+    Lambda_K_y = compute_filtered_derivative_lift(y, K, lam, dt)  # (N', Kp)
+    Lambda_K_y = to_complex(Lambda_K_y, complex_dtype)
+
+    # H = ∫ Λ Λ^* dt ≈ Σ Λ_k Λ_k^* Δt
+    H = Lambda_K_y.conj().T @ Lambda_K_y * dt  # (Kp, Kp)
+    return H
+
+
+def _compute_output_lift_svd(
+    y: torch.Tensor,
+    K: int,
+    dt: float,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Compute SVD of the output derivative lift Υ = Λ_K(y).
+
+    Returns:
+        Upsilon: Lifted output signal (N', Kp)
+        svals: Singular values of Upsilon (descending)
+        Vh: Right singular vectors (min(N',Kp), Kp)
+    """
+    Upsilon = compute_derivative_lift(y, K, dt)  # (N', Kp)
+    if Upsilon.shape[0] < 2:
+        raise ValueError(
+            "Not enough samples to build K^y_{L,K}: need at least 2."
+        )
+    _, svals, Vh = torch.linalg.svd(Upsilon, full_matrices=False)
+    return Upsilon, svals, Vh
+
+
+def compute_K_LK_reduced(
+    y: torch.Tensor,
+    L: int,
+    K: int,
+    dt: float,
+    rank_tol: float = 1e-8,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Compute K^y_{L,K} matrix and its eigenvalues (reduced / output-only).
+
+    Implements Theorem thm:ct-dd-hautus-reduced-finite-lambda:
+
+        Υ  = Λ_K(y)                         (derivative lift of y)
+        S_y = Γ(Υ)  → SVD  → U_y (r = rank(S_y) right singular vectors)
+        υ  = U_y^T Υ                        (reduced signal)
+        K^y = (∫ υ υ^T dt)^{-1} ∫ υ υ̇^T dt
+
+    The eigenvalues σ(K^y_{L,K}) form the finite candidate set: rank
+    failure of H_{L,K}(λ) can occur only at λ ∈ σ(K^y_{L,K}).
+
+    Args:
+        y: Output trajectory (N, p)
+        L: Number of input derivative levels (unused; included for naming consistency)
+        K: Number of output derivative levels
+        dt: Time step
+        rank_tol: Relative tolerance for numerical rank of S_y
+
+    Returns:
+        K_matrix: The K^y_{L,K} matrix (r, r), r = rank(S_y)
+        eigenvalues: Complex eigenvalues of K^y_{L,K}
+    """
+    complex_dtype = complex_dtype_from_real(y.dtype)
+
+    # 1. Derivative lift of y: Υ = Λ_K(y)
+    Upsilon, svals, Vh = _compute_output_lift_svd(y, K, dt)
+    if svals.numel() == 0:
+        raise ValueError("SVD failed: no singular values returned.")
+    smax = svals.max()
+    if smax == 0:
+        raise ValueError("rank(S_y) = 0; output data is identically zero.")
+    tol = rank_tol * smax
+    r = int((svals > tol).sum().item())
+    if r < 1:
+        raise ValueError(
+            f"rank(S_y) < 1 (tol={tol:.3e}). "
+            "Increase data richness or reduce K."
+        )
+    # 2. U_y: orthonormal basis for im(S_y) in R^{Kp}
+    U_y = Vh.conj().T[:, :r]  # (Kp, r)
+
+    # 3. Reduced signal: υ = U_y^T Υ  (equivalently Υ @ U_y)
+    upsilon = Upsilon @ U_y  # (N', r)
+    upsilon = to_complex(upsilon, complex_dtype)
+
+    # 4. Build K^y = (∫ υ υ^* dt)^{-1} · ∫ υ υ̇^* dt
+    d_upsilon = upsilon[1:] - upsilon[:-1]  # Δυ (no /dt; cancels)
+    upsilon0 = upsilon[:-1]
+
+    G = upsilon0.conj().T @ upsilon0 * dt   # ∫ υ υ^* dt
+    M = d_upsilon.T @ upsilon0.conj()        # Σ Δυ_k υ_k^*
+
+    # Use lstsq for robustness when G is ill-conditioned
+    K_matrix = torch.linalg.lstsq(G, M.T).solution  # G^{-1} M^T
+    eigenvalues = torch.linalg.eigvals(K_matrix)
+
+    return K_matrix, eigenvalues
+
+
+def check_controllability_reduced(
+    y: torch.Tensor,
+    L: int,
+    K: int,
+    dt: float,
+    candidate_lambdas: Optional[torch.Tensor] = None,
+    threshold: float = 1e-6,
+    rank_tol: float = 1e-8,
+) -> dict:
+    """Check controllability via rank of H_{L,K}(λ) (reduced / output-only).
+
+    Behaviour is controllable if rank(H_{L,K}(λ)) = Kp for all λ ∈ ℂ.
+    The finite candidate set from K^y_{L,K} reduces this to finitely many λ.
+    If rank(S_y) < Kp, the finite-candidate reduction is not conclusive.
+
+    Args:
+        y: Output trajectory (N, p)
+        L: Number of input derivative levels (unused in H; kept for naming consistency)
+        K: Number of output derivative levels
+        dt: Time step
+        candidate_lambdas: Candidate λ values (if None, computed from data)
+        threshold: Eigenvalue threshold for rank computation
+        rank_tol: Relative tolerance for numerical rank of S_y
+
+    Returns:
+        Dictionary with:
+            - is_controllable: Boolean
+            - expected_rank: Kp
+            - ranks: Ranks at each candidate λ
+            - min_eigenvalues: Smallest relevant eigenvalue at each λ
+            - candidate_lambdas: The λ values tested
+            - rank_Sy: rank of S_y = Γ(Λ_K(y))
+            - full_rank_Sy: whether rank_Sy == Kp
+    """
+    p = y.shape[1]
+    expected_rank = K * p
+
+    # Rank of S_y = Γ(Λ_K(y)) for applicability of finite candidate set
+    _, svals, _ = _compute_output_lift_svd(y, K, dt)
+    if svals.numel() == 0:
+        rank_Sy = 0
+    else:
+        tol = rank_tol * svals.max()
+        rank_Sy = int((svals > tol).sum().item())
+    full_rank_Sy = (rank_Sy == expected_rank)
+
+    # Get candidate eigenvalues if not provided
+    if candidate_lambdas is None:
+        _, candidate_lambdas = compute_K_LK_reduced(
+            y, L, K, dt, rank_tol=rank_tol
+        )
+
+    ranks = []
+    min_eigs = []
+
+    for lam in candidate_lambdas:
+        lam_val = lam.item() if torch.is_tensor(lam) else lam
+
+        H = compute_H_LK(y, L, K, lam_val, dt)
+
+        # Eigenvalues of Hermitian matrix
+        eigvals = torch.linalg.eigvalsh(H).real
+        eigvals_sorted = torch.sort(eigvals, descending=True).values
+
+        # Thresholded rank
+        rank = (eigvals > threshold).sum().item()
+        ranks.append(rank)
+
+        # Track the Kp-th eigenvalue (controllability margin)
+        if len(eigvals_sorted) >= expected_rank:
+            min_eigs.append(eigvals_sorted[expected_rank - 1].item())
+        else:
+            min_eigs.append(0.0)
+
+    ranks = torch.tensor(ranks)
+    min_eigs = torch.tensor(min_eigs)
+
+    is_controllable = bool(full_rank_Sy) and (ranks >= expected_rank).all().item()
+
+    return {
+        "is_controllable": is_controllable,
+        "expected_rank": expected_rank,
+        "ranks": ranks,
+        "min_eigenvalues": min_eigs,
+        "candidate_lambdas": candidate_lambdas,
+        "rank_Sy": rank_Sy,
+        "full_rank_Sy": full_rank_Sy,
+    }
+
+
 def check_controllability(
     u: torch.Tensor,
     y: torch.Tensor,

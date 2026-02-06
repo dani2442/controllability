@@ -29,11 +29,14 @@ from .sde import (
 
 from .gramians import (
     compute_G_LK,
+    compute_H_LK,
     compute_K_LK,
+    compute_K_LK_reduced,
     compute_filtered_signal,
     compute_derivative_lift,
     compute_filtered_derivative_lift,
     check_controllability,
+    check_controllability_reduced,
 )
 
 from .visualization import (
@@ -56,11 +59,14 @@ __all__ = [
     "simulate",
     # Gramians
     "compute_G_LK",
+    "compute_H_LK",
     "compute_K_LK",
+    "compute_K_LK_reduced",
     "compute_filtered_signal",
     "compute_derivative_lift",
     "compute_filtered_derivative_lift",
     "check_controllability",
+    "check_controllability_reduced",
     # Visualization
     "plot_trajectories",
     "plot_eigenvalues",

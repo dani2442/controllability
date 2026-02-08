@@ -36,6 +36,7 @@ from src import (
     compute_G_LK,
     compute_K_LK,
     check_controllability,
+    check_persistent_excitation,
     check_controllability_reduced,
     compute_derivative_lift,
     plot_trajectories,
@@ -56,7 +57,7 @@ def parse_args():
     parser.add_argument(
         "--system",
         type=str,
-        default="coupled_spring",
+        default="two_spring",
         choices=list(SYSTEMS.keys()),
         help=f"System to analyze. Available: {list(SYSTEMS.keys())}",
     )
@@ -76,27 +77,25 @@ def main(system_name: str):
 
     # Derivative lift parameters
     # For the reduced test (Thm thm:ct-dd-hautus-reduced):
-    #   K ≥ ℓ(B)+1,  L ≥ K+1.
+    #   K ≥ ℓ(B),  L ≥ K+1.
     # For the finite candidate set (Thm thm:ct-dd-hautus-reduced-finite-lambda),
     # rank(S_y) = Kp is required for equivalence over all λ.
     # We compute the tightest feasible (L, K) after loading the system.
 
     # Simulation parameters
-    T = 1000.0   # Final time
+    T = 100.0   # Final time
     dt = 0.01  # Time step
-
-    L = 2   # Input derivative levels (will be increased if needed)
-    K = 2   # Output derivative levels (will be increased if needed)
 
     # Noise intensities
     beta_scale = 0.1   # Process noise
     delta_scale = 0.1  # Measurement noise
 
     # Smoothing
-    smooth_y = True
+    smooth_y = False
     smoothing_window = 11
     smoothing_sigma = 10.0
     smoothing_mode = "gaussian"
+    numerical_threshold = 1e-8
 
     # =========================================================================
     # Generate system
@@ -141,9 +140,9 @@ def main(system_name: str):
     ell = compute_observability_index(C, A)
     print(f"Observability index ell(B): {ell}")
 
-    # Enforce theorem requirements: K ≥ ell+1, L ≥ K+1
-    K = max(K, ell + 1)
-    L = max(L, K + 1)
+    # Tight reduced-test choice: K = ell, L = K+1.
+    K = ell
+    L = K + 1
     print(f"Using derivative lifts: L={L}, K={K}")
 
     # =========================================================================
@@ -174,6 +173,28 @@ def main(system_name: str):
     print(f"  u: {u.shape},  y: {y.shape}")
 
     # =========================================================================
+    # Check persistent excitation of u at order L+n+1 (full-test assumption)
+    # =========================================================================
+    print("\n" + "=" * 60)
+    print("INPUT PERSISTENT EXCITATION CHECK")
+    print("=" * 60)
+
+    pe_order = L + n + 1
+    pe_result = check_persistent_excitation(
+        u,
+        order=pe_order,
+        dt=dt,
+        threshold=numerical_threshold,
+    )
+    print(f"\nPE order tested: {pe_order}")
+    print(
+        f"Γ_{pe_order}(u) rank: {pe_result['rank']}/{pe_result['full_dimension']} "
+        f"(threshold={numerical_threshold:.1e})"
+    )
+    print(f"min eigenvalue(Γ_{pe_order}(u)): {pe_result['min_eigenvalue']:.6e}")
+    print(f"u is persistently exciting of order {pe_order}: {pe_result['is_persistently_exciting']}")
+
+    # =========================================================================
     # Check lifted state-input Gramian Γ_{L,1}(u,x) invertibility (assumption)
     # =========================================================================
     Lambda_L_u = compute_derivative_lift(u, L, dt)  # (N', Lm)
@@ -183,12 +204,17 @@ def main(system_name: str):
     Z = torch.cat([Lambda_L_u, x_trunc], dim=-1)  # (N', Lm+n)
     Gamma_L1 = Z.T @ Z * dt
     eigvals_G = torch.linalg.eigvalsh(Gamma_L1).real
-    rank_G = (eigvals_G > 1e-8).sum().item()
+    min_eig_G = eigvals_G.min().item()
+    rank_G = (eigvals_G > numerical_threshold).sum().item()
     invertible_G = rank_G == Gamma_L1.shape[0]
+    is_pd_G = min_eig_G > numerical_threshold
     print(
         f"\nΓ_{{L,1}}(u,x) rank: {rank_G}/{Gamma_L1.shape[0]} "
-        f"→ invertible: {invertible_G}"
+        f"(threshold={numerical_threshold:.1e})"
     )
+    print(f"min eigenvalue(Γ_{{L,1}}(u,x)): {min_eig_G:.6e}")
+    print(f"Γ_{{L,1}}(u,x) invertible: {invertible_G}")
+    print(f"Γ_{{L,1}}(u,x) positive definite: {is_pd_G}")
     if not invertible_G:
         print(
             "  WARNING: Γ_{L,1}(u,x) is not invertible; "
@@ -260,8 +286,8 @@ def main(system_name: str):
     print("CONTROLLABILITY CHECK — FULL BEHAVIORAL (for comparison)")
     print("=" * 60)
 
-    K = max(K, ell + 1)
-    L = max(L, K)
+    K = ell
+    L = K
 
     _, cand_full = compute_K_LK(u, y, L, K, n, 0.0, dt)
 
@@ -309,8 +335,7 @@ def main(system_name: str):
     # 1. System trajectories
     fig1 = plot_trajectories(ts, x, u, y)
     fig1.savefig(os.path.join(output_dir, "reduced_trajectories.pdf"), bbox_inches="tight")
-    #fig1.savefig(os.path.join(output_dir, "reduced_trajectories.png"), dpi=150, bbox_inches="tight")
-    print("  Saved: reduced_trajectories.pdf/png")
+    print("  Saved: reduced_trajectories.pdf")
     plt.show()
 
     print("\n" + "=" * 60)

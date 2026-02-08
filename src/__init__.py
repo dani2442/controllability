@@ -32,9 +32,11 @@ from .gramians import (
     compute_H_LK,
     compute_K_LK,
     compute_K_LK_reduced,
+    compute_persistent_excitation_gramian,
     compute_filtered_signal,
     compute_derivative_lift,
     compute_filtered_derivative_lift,
+    check_persistent_excitation,
     check_controllability,
     check_controllability_reduced,
 )
@@ -62,9 +64,11 @@ __all__ = [
     "compute_H_LK",
     "compute_K_LK",
     "compute_K_LK_reduced",
+    "compute_persistent_excitation_gramian",
     "compute_filtered_signal",
     "compute_derivative_lift",
     "compute_filtered_derivative_lift",
+    "check_persistent_excitation",
     "check_controllability",
     "check_controllability_reduced",
     # Visualization

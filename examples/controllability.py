@@ -69,9 +69,9 @@ def main(system_name: str = "random"):
     print(f"Using device: {device}")
     print(f"Selected system: {system_name}")
     
-    # Derivative lift parameters (initial values; may be adjusted after computing ell(B))
-    L = 2   # Input derivative levels
-    K = 2   # Output derivative levels
+    # Derivative lift parameters (set after computing ell(B))
+    L = 0
+    K = 0
     
     # Simulation parameters
     T = 20.0       # Final time
@@ -133,13 +133,11 @@ def main(system_name: str = "random"):
     ell = compute_observability_index(C, A)
     print(f"\nComputed ell(B): {ell}")
 
-    # Enforce: L >= ell+1 and ell+1 <= K <= L
-    # min_L = ell + 1
-    # if L < min_L or K < min_L or K > L:
-    #     raise ValueError(
-    #         f"Invalid L, K for ell(B)={ell}: require L >= {min_L} and {min_L} <= K <= L "
-    #         f"(got L={L}, K={K})."
-    #     )
+    # Tight full-test choice under the manuscript bounds: ell <= K <= L.
+    # We pick the minimal admissible pair.
+    K = ell
+    L = K
+    print(f"Using tight full-test derivative lifts: L={L}, K={K}")
     
     # Check observability of (A, C)
     O_mat = torch.cat([C @ torch.linalg.matrix_power(A, k) for k in range(n)], dim=0)

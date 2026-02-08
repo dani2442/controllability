@@ -143,8 +143,10 @@ def compute_observability_matrix(C: torch.Tensor, A: torch.Tensor, K: int) -> to
 def compute_observability_index(C: torch.Tensor, A: torch.Tensor) -> int:
     """Compute the observability index ell(B).
 
-    ell(B) := min{k in N : rank O_k = rank O_{k-1}}, where
-    O_k = [C; CA; ...; CA^{k-1}].
+    Uses the manuscript convention:
+
+        O_k = [C; CA; ...; CA^k],
+        ell(B) = min{k >= 1 : rank(O_k) = rank(O_{k-1})}.
 
     Args:
         C: Output matrix (p, n)
@@ -157,16 +159,18 @@ def compute_observability_index(C: torch.Tensor, A: torch.Tensor) -> int:
     device = A.device
     dtype = A.dtype
 
-    Ak = torch.eye(n, device=device, dtype=dtype)
-    blocks = []
-    rank_prev = 0
+    # Start from O_0 = C.
+    blocks = [C]
+    rank_prev = torch.linalg.matrix_rank(C).item()
+    Ak = A.clone()
 
-    for k in range(1, n + 2):
+    # Grow O_k by appending C A^k and detect the first rank saturation.
+    for k in range(1, n + 1):
         blocks.append(C @ Ak)
         O_k = torch.cat(blocks, dim=0)
-        rank_k = torch.linalg.matrix_rank(O_k, tol=1e-3).item()
+        rank_k = torch.linalg.matrix_rank(O_k).item()
         if rank_k == rank_prev:
-            return k-2
+            return k
         rank_prev = rank_k
         Ak = Ak @ A
 

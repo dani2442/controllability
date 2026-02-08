@@ -47,7 +47,7 @@ class LinearSDE(torchsde.SDEIto):
             Delta: Measurement noise intensity (p, r), defaults to zeros
             control_fn: Optional control function u(t, x) -> (batch, m)
         """
-        super().__init__(noise_type="general")
+        super().__init__(noise_type="additive")
         self.A = A
         self.B = B
         self.C = C
@@ -85,7 +85,8 @@ class LinearSDE(torchsde.SDEIto):
         # Sinusoidal inputs with varying frequencies
         freqs = torch.linspace(1.0, 3.0, self.m, device=device, dtype=dtype)
         t_val = t.item() if t.ndim == 0 else t[0].item()
-        u_val = torch.sin(5*(np.sin(1.045603939*t_val + 3*np.sin(0.1*t_val)) + np.sin(0.51235111616*t_val)) * freqs)
+        #u_val = torch.sin((np.sin(0.5*t_val) + np.cos(0.5*t_val)) * freqs)
+        u_val = torch.sin(2*(np.sin(t_val + 3*np.sin(0.1*t_val)) + np.sin(0.5*t_val)) * freqs)
         return u_val.unsqueeze(0).expand(batch_size, -1)
 
     def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
@@ -156,15 +157,19 @@ def simulate(
         x0 = x0.unsqueeze(0)
     
     # Brownian motion
-    bm = torchsde.BrownianTree(
-        t0=ts[0],
-        t1=ts[-1],
-        w0=torch.zeros(1, sde.q, device=device, dtype=dtype),
+    bm = torchsde.BrownianInterval(
+        t0=float(ts[0].item()),
+        t1=float(ts[-1].item()),
+        size=(1, sde.q),
+        dtype=dtype,
+        device=device,
         entropy=seed,
+        dt=dt,
+        levy_area_approximation="space-time",
     )
     
     # Simulate
-    x_traj = torchsde.sdeint(sde, x0, ts, method="euler", dt=dt, bm=bm)  # (N, 1, n)
+    x_traj = torchsde.sdeint(sde, x0, ts, method="srk", dt=dt, bm=bm)  # (N, 1, n)
     x_traj = x_traj.squeeze(1)  # (N, n)
     
     # Compute inputs at each time step

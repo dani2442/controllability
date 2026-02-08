@@ -57,7 +57,7 @@ def parse_args():
     parser.add_argument(
         "--system",
         type=str,
-        default="two_spring",
+        default="random",
         choices=list(SYSTEMS.keys()),
         help=f"System to analyze. Available: {list(SYSTEMS.keys())}",
     )
@@ -84,14 +84,14 @@ def main(system_name: str):
 
     # Simulation parameters
     T = 100.0   # Final time
-    dt = 0.01  # Time step
+    dt = 0.1  # Time step
 
     # Noise intensities
     beta_scale = 0.1   # Process noise
     delta_scale = 0.1  # Measurement noise
 
     # Smoothing
-    smooth_y = False
+    smooth_y = True
     smoothing_window = 11
     smoothing_sigma = 10.0
     smoothing_mode = "gaussian"

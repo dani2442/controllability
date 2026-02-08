@@ -85,7 +85,7 @@ class LinearSDE(torchsde.SDEIto):
         # Sinusoidal inputs with varying frequencies
         freqs = torch.linspace(1.0, 3.0, self.m, device=device, dtype=dtype)
         t_val = t.item() if t.ndim == 0 else t[0].item()
-        u_val = torch.sin(5*np.sin(t_val) * freqs)
+        u_val = torch.sin(5*(np.sin(t_val) + np.sin(0.51235111616*t_val)) * freqs)
         return u_val.unsqueeze(0).expand(batch_size, -1)
 
     def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:

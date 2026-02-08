@@ -202,7 +202,7 @@ def compute_G_LK(
 ) -> torch.Tensor:
     """Compute the derivative-lifted Gramian G_{L,K}(λ).
     
-    G_{L,K}(λ) = ∫ Λ_{L,K}(u_λ, y_λ)(t) Λ_{L,K}(u_λ, y_λ)(t)^* dt
+    G_{L,K}(λ) = 1/T*∫ Λ_{L,K}(u_λ, y_λ)(t) Λ_{L,K}(u_λ, y_λ)(t)^* dt
     
     where u_λ = du/dt - λu, y_λ = dy/dt - λy, and
     Λ_{L,K}(u_λ, y_λ) = [Λ_L(u_λ); Λ_K(y_λ)]

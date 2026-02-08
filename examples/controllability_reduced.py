@@ -63,7 +63,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main(system_name: str = "coupled_spring"):
+def main(system_name: str):
     # =========================================================================
     # Configuration
     # =========================================================================
@@ -82,8 +82,8 @@ def main(system_name: str = "coupled_spring"):
     # We compute the tightest feasible (L, K) after loading the system.
 
     # Simulation parameters
-    T = 100.0   # Final time
-    dt = 0.1  # Time step
+    T = 1000.0   # Final time
+    dt = 0.01  # Time step
 
     L = 2   # Input derivative levels (will be increased if needed)
     K = 2   # Output derivative levels (will be increased if needed)
@@ -95,7 +95,7 @@ def main(system_name: str = "coupled_spring"):
     # Smoothing
     smooth_y = True
     smoothing_window = 11
-    smoothing_sigma = 100.0
+    smoothing_sigma = 10.0
     smoothing_mode = "gaussian"
 
     # =========================================================================
@@ -241,6 +241,7 @@ def main(system_name: str = "coupled_spring"):
         y,
         L,
         K,
+        T,
         dt,
         candidate_lambdas=cand_red,
         threshold=1e-6,
@@ -271,6 +272,7 @@ def main(system_name: str = "coupled_spring"):
         K,
         n,
         m,
+        T,
         dt,
         candidate_lambdas=cand_full,
         threshold=1e-6,
@@ -307,8 +309,9 @@ def main(system_name: str = "coupled_spring"):
     # 1. System trajectories
     fig1 = plot_trajectories(ts, x, u, y)
     fig1.savefig(os.path.join(output_dir, "reduced_trajectories.pdf"), bbox_inches="tight")
-    fig1.savefig(os.path.join(output_dir, "reduced_trajectories.png"), dpi=150, bbox_inches="tight")
+    #fig1.savefig(os.path.join(output_dir, "reduced_trajectories.png"), dpi=150, bbox_inches="tight")
     print("  Saved: reduced_trajectories.pdf/png")
+    plt.show()
 
     print("\n" + "=" * 60)
     print("DONE")

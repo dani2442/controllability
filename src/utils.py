@@ -187,8 +187,8 @@ def compute_lift_matrix(
 ) -> torch.Tensor:
     """Compute the lift matrix M_{L,K}.
     
-    M_{L,K} = [I_{Lm},           0       ]
-              [T_{K-1} S_{K,L},  O_{K-1} ]
+    M_{L,K} = [I_{Lm},         0   ]
+              [T_K S_{K,L},    O_K ]
     
     where S_{K,L} = [I_{Km}, 0] is the selector projecting onto first K blocks.
     

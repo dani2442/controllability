@@ -22,7 +22,7 @@ from .utils import (
     smooth_signal,
 )
 
-from .sde import (
+from .sde import (  # type: ignore
     LinearSDE,
     simulate,
 )

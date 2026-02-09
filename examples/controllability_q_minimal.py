@@ -5,7 +5,7 @@ This example:
 2. Builds observable quotient coordinates from Xi = Lambda_{L,K}(u, y).
 3. Computes data-driven Pi_hat_{L,K}(lambda) = Q_hat Q_hat^*.
 4. Computes model reference Pi_mod_{L,K}(lambda) = N (M^* M)^{-1} N^*.
-5. Reports per-lambda minimum-eigenvalue comparisons and saves one figure.
+5. Reports per-lambda rank/eigenvalue/model-mismatch diagnostics and saves one figure.
 
 Usage:
     python examples/controllability_q_minimal.py
@@ -33,6 +33,7 @@ from src import (  # noqa: E402
     compute_lift_matrix,
     simulate,
     smooth_signal,
+    plot_trajectories
 )
 from src.systems import SYSTEMS, get_system  # noqa: E402
 
@@ -91,16 +92,17 @@ def compute_data_pi_lambda(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Minimal Pi_{L,K}(lambda) basis-free diagnostics")
-    parser.add_argument("--system", type=str, default="random", choices=list(SYSTEMS.keys()))
-    parser.add_argument("--T", type=float, default=5000.0, help="Final horizon")
-    parser.add_argument("--dt", type=float, default=0.1, help="Time step")
+    parser.add_argument("--system", type=str, default="two_spring", choices=list(SYSTEMS.keys()))
+    parser.add_argument("--T", type=float, default=100.0, help="Final horizon")
+    parser.add_argument("--dt", type=float, default=0.01, help="Time step")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--beta-scale", type=float, default=0.1, help="Process noise scale")
     parser.add_argument("--delta-scale", type=float, default=0.1, help="Measurement noise scale")
-    parser.add_argument("--max-candidates", type=int, default=2)
+    parser.add_argument("--max-candidates", type=int, default=10)
+    parser.add_argument("--rank-threshold", type=float, default=1e-8)
     parser.add_argument("--smooth-y", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--smoothing-window", type=int, default=11)
-    parser.add_argument("--smoothing-sigma", type=float, default=10.0)
+    parser.add_argument("--smoothing-sigma", type=float, default=5.0)
     parser.add_argument(
         "--smoothing-mode",
         type=str,
@@ -145,8 +147,9 @@ def main() -> None:
         Delta = args.delta_scale * torch.randn(p, r, device=device, dtype=dtype)
 
     sde = LinearSDE(A, B, C, D, Beta, Delta)
-    _, _, u, y = simulate(sde, args.T, args.dt, seed=args.seed)
+    ts, x, u, y = simulate(sde, args.T, args.dt, seed=args.seed)
 
+    y_old = y.clone()
     if args.smooth_y:
         y = smooth_signal(
             y,
@@ -159,13 +162,13 @@ def main() -> None:
             f"(window={args.smoothing_window}, sigma={args.smoothing_sigma})."
         )
 
-    # _, candidate_lambdas = compute_K_LK_reduced(y, L, K, args.dt)
-    # if args.max_candidates > 0:
-    #     candidate_lambdas = candidate_lambdas[: args.max_candidates]
-    # if len(candidate_lambdas) == 0:
-    #     raise RuntimeError("No candidate lambdas produced.")
-    
-    candidate_lambdas = [1j*0.5 + 0.5, 1j*0.5 - 0.5] 
+    _, candidate_lambdas = compute_K_LK_reduced(y, L, K, args.dt)
+    if args.max_candidates > 0:
+        candidate_lambdas = candidate_lambdas[: args.max_candidates]
+    if len(candidate_lambdas) == 0:
+        raise RuntimeError("No candidate lambdas produced.")
+
+    # candidate_lambdas = [0.5 + 1.0j, 0.5 - 1.0j][: args.max_candidates]
 
     coords = compute_observable_quotient_coordinates(
         u=u,
@@ -186,9 +189,10 @@ def main() -> None:
     xi = coords["xi"]
     gamma = coords["Gamma_xi"]
 
-    pi_hat_min_eigs: List[float] = []
-    pi_mod_min_eigs: List[float] = []
-    pi_min_abs_diffs: List[float] = []
+    pi_min_eigs: List[float] = []
+    pi_ranks: List[int] = []
+    pi_abs_errors: List[float] = []
+    pi_rel_errors: List[float] = []
 
     print("\nPer-lambda diagnostics:")
     for i, lam in enumerate(candidate_lambdas):
@@ -210,69 +214,57 @@ def main() -> None:
             K=K,
             lam=lam_val,
         )
-        fig, axes = plt.subplots(2, 2)
-        axes[0, 0].imshow(pi_data.real.cpu().numpy(), cmap="viridis")
-        axes[0, 1].imshow(pi_mod.real.cpu().numpy(), cmap="viridis")
-        # colorbar
-        fig.colorbar(axes[0, 0].images[0], ax=axes[0, 0])
-        fig.colorbar(axes[0, 1].images[0], ax=axes[0, 1])
 
         eigs_pi = torch.linalg.eigvalsh(pi_data).real
-        eigs_pi_mod = torch.linalg.eigvalsh(pi_mod).real
-        #log plot of eigenvalues
-        axes[1, 0].semilogy(eigs_pi, marker="o", label=f"Pi_data (lambda={lam_val:.3f})")
-        axes[1, 1].semilogy(eigs_pi_mod, marker="x", label=f"Pi_mod (lambda={lam_val:.3f})")
-        axes[1, 0].legend()
-        plt.show()
-        min_eig_pi_hat = float(eigs_pi.min().item())
-        min_eig_pi_mod = float(eigs_pi_mod.min().item())
-        min_abs_diff = abs(min_eig_pi_hat - min_eig_pi_mod)
-        min_rel_diff = min_abs_diff / max(abs(min_eig_pi_mod), 1e-16)
+        eigs_mod = torch.linalg.eigvalsh(pi_mod).real
 
-        pi_hat_min_eigs.append(min_eig_pi_hat)
-        pi_mod_min_eigs.append(min_eig_pi_mod)
-        pi_min_abs_diffs.append(min_abs_diff)
+        fig, axes = plt.subplots(2, 2, figsize=(10, 4))
+        axes[0, 0].imshow(pi_data.real.cpu().numpy(), aspect="auto")
+        axes[0, 1].imshow(pi_mod.real.cpu().numpy(), aspect="auto")
+        axes[1, 0].plot(eigs_pi.cpu().numpy(), marker="o")
+        axes[1, 1].plot(eigs_mod.cpu().numpy(), marker="o")
+        #set colorbar for the top row
+        for ax in axes[0, :]:
+            plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
+        axes[0, 0].set_title(r"$\widehat{\Pi}_{L,K}(\lambda)$")
+        axes[0, 1].set_title(r"$\Pi^{\mathrm{mod}}_{L,K}(\lambda)$")
+        axes[1, 0].set_title(r"Eigenvalues of $\widehat{\Pi}_{L,K}(\lambda)$")
+        axes[1, 1].set_title(r"Eigenvalues of $\Pi^{\mathrm{mod}}_{L,K}(\lambda)$")
+        fig.tight_layout()
+        # fig.savefig(os.path.join("figures", f"pi_lambda_{i:02d}.pdf"), bbox_inches="tight")
+        
+        rank_pi = int((eigs_pi > args.rank_threshold).sum().item())
+        min_eig_pi = float(eigs_pi.min().item())
+        abs_err = float(torch.linalg.matrix_norm(pi_data - pi_mod, ord=2).item())
+        mod_norm = float(torch.linalg.matrix_norm(pi_mod, ord=2).item())
+        rel_err = abs_err / max(mod_norm, 1e-16)
+
+        pi_min_eigs.append(min_eig_pi)
+        pi_ranks.append(rank_pi)
+        pi_abs_errors.append(abs_err)
+        pi_rel_errors.append(rel_err)
 
         print(
             f"  [{i:02d}] lambda={lam_val.real:+.4f}{lam_val.imag:+.4f}i, "
-            f"lambda_min(Pi_hat)={min_eig_pi_hat:.3e}, "
-            f"lambda_min(Pi)={min_eig_pi_mod:.3e}, "
-            f"|diff|={min_abs_diff:.3e}, rel={min_rel_diff:.3e}"
+            f"rank(Pi)={rank_pi}/{K*p}, lambda_min(Pi)={min_eig_pi:.3e}, "
+            f"||Pi_data-Pi_mod||_2={abs_err:.3e}, rel={rel_err:.3e}"
         )
 
+    
     out_dir = os.path.join(os.path.dirname(__file__), "figures")
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "q_minimal_diagnostics.pdf")
 
     idx = np.arange(len(candidate_lambdas))
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
 
-    axes[0].plot(idx, np.array(pi_hat_min_eigs), marker="o", label=r"$\lambda_{\min}(\widehat{\Pi})$")
-    axes[0].plot(idx, np.array(pi_mod_min_eigs), marker="x", label=r"$\lambda_{\min}(\Pi)$")
-    axes[0].set_title(r"Minimum-Eigenvalue Comparison")
-    axes[0].set_xlabel("Candidate index")
-    axes[0].set_ylabel("Smallest eigenvalue")
-    axes[0].grid(True, alpha=0.3)
-    axes[0].legend(loc="best")
-
-    axes[1].semilogy(
-        idx,
-        np.maximum(np.array(pi_min_abs_diffs), 1e-16),
-        marker="o",
-        color="tab:red",
-    )
-    axes[1].set_title(r"$|\lambda_{\min}(\widehat{\Pi}_{L,K}(\lambda))-\lambda_{\min}(\Pi_{L,K}(\lambda))|$")
-    axes[1].set_xlabel("Candidate index")
-    axes[1].set_ylabel("Absolute min-eigenvalue gap")
-    axes[1].grid(True, which="both", alpha=0.3)
-
-    fig.tight_layout()
-    fig.savefig(out_path, bbox_inches="tight")
-    print(f"\nSaved figure: {out_path}")
+    fig1 = plot_trajectories(ts, x, u, y_old)
+    out_pdf = os.path.join(out_dir, f"trajectories_{args.system}.pdf")
+    fig1.savefig(out_pdf, bbox_inches="tight")
+    print(f"\nSaved figure: {out_pdf}")
+    print
 
     if args.show:
         plt.show()
-    plt.close(fig)
+    plt.close(fig1)
 
 
 if __name__ == "__main__":

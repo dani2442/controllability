@@ -465,7 +465,7 @@ def compute_observable_quotient_coordinates(
 
     U = Vh.conj().T[:, :target_rank]   # (Lm+Kp, r)
     xi = Xi @ U                         # (N_common, r)
-    gamma_xi = xi.T @ xi.conj() * dt    # ∫ xi xi^* dt
+    gamma_xi = xi.T @ xi.conj() * dt   # ∫ xi xi^* dt
     gamma_xi = 0.5 * (gamma_xi + gamma_xi.conj().T)
 
     eigvals = torch.linalg.eigvalsh(gamma_xi).real
@@ -541,10 +541,10 @@ def compute_Q_LK_from_coordinates(
     xi_used = xi_c[:n_common]
     # If alignment truncated xi, use the aligned Gramian to preserve consistency.
     if n_common == xi_c.shape[0]:
-        gamma_used = gamma_c + 1e-3 * torch.eye(gamma_c.shape[0], device=gamma_c.device, dtype=gamma_c.dtype)
+        gamma_used = gamma_c
     else:
         gamma_used = xi_used.T @ xi_used.conj() * dt
-        gamma_used = 0.5 * (gamma_used + gamma_used.conj().T) + 1e-3 * torch.eye(gamma_used.shape[0], device=gamma_used.device, dtype=gamma_used.dtype)
+        gamma_used = 0.5 * (gamma_used + gamma_used.conj().T)
 
     cross = y_lam.T @ xi_used.conj() * dt  # (Kp, r): ∫ Λ_K(y_λ) ξ^* dt
 

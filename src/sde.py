@@ -86,7 +86,7 @@ class LinearSDE(torchsde.SDEIto):
         freqs = torch.linspace(1.0, 3.0, self.m, device=device, dtype=dtype)
         t_val = t.item() if t.ndim == 0 else t[0].item()
         #u_val = torch.sin((np.sin(0.5*t_val) + np.cos(0.5*t_val)) * freqs)
-        u_val = torch.sin(2*(np.sin(t_val + 3*np.sin(0.1*t_val)) + np.sin(0.5*t_val)) * freqs)
+        u_val = torch.sin(.1039*(0.122*np.cos(0.0523*t_val)+np.sin(t_val + 1.303857103*np.sin(0.1233939*t_val) + 0.5*t_val) + np.sin(0.5*t_val)) * freqs)
         return u_val.unsqueeze(0).expand(batch_size, -1)
 
     def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:

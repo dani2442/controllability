@@ -608,6 +608,143 @@ def compute_Q_LK(
     return Q, aux_out
 
 
+def compute_unbiased_Q_wishart(
+    xi: torch.Tensor,
+    eta: torch.Tensor,
+    *,
+    assume: str = "auto",
+    split: float = 0.5,
+    ridge: float = 0.0,
+) -> torch.Tensor:
+    r"""Compute an exactly-unbiased estimator of Q under Gaussian/Wishart assumptions.
+
+    This implements the split-sample estimator from Theorem
+    `thm:stochastic-unbiased-pi` (paper/sections/stochastic.tex), i.e.
+
+        Q = E[eta xi*] (E[xi xi*])^{-1},
+
+    with:
+        - xi ~ (real or proper complex) Gaussian,
+        - independent sample split between cross-moment and covariance.
+
+    Args:
+        xi: Samples of regressor, shape (N, r).
+        eta: Samples of response, shape (N, d).
+        assume: "auto" | "real" | "complex". Controls the unbiased scaling for
+            E[Sigma_hat^{-1}]. In "auto" we use xi.is_complex().
+        split: Fraction of samples used for the cross-moment block (rest is
+            used for the covariance block). Must satisfy 0 < split < 1.
+        ridge: Optional ridge added to Sigma_hat before inversion for numerical
+            stability. Note: ridge breaks exact unbiasedness; keep ridge=0 for
+            the exact theorem.
+
+    Returns:
+        Q_hat: Unbiased estimator, shape (d, r).
+    """
+    if xi.ndim != 2 or eta.ndim != 2:
+        raise ValueError(f"xi and eta must be 2D. Got xi={tuple(xi.shape)}, eta={tuple(eta.shape)}.")
+    if xi.shape[0] != eta.shape[0]:
+        raise ValueError(f"xi and eta must have same N. Got {xi.shape[0]} and {eta.shape[0]}.")
+    if not (0.0 < split < 1.0):
+        raise ValueError(f"split must be in (0,1). Got {split}.")
+
+    N, r = xi.shape
+    d = eta.shape[1]
+    nA = int(round(split * N))
+    nA = max(1, min(N - 1, nA))
+    nB = N - nA
+
+    if assume == "auto":
+        assume_case = "complex" if torch.is_complex(xi) else "real"
+    elif assume in ("real", "complex"):
+        assume_case = assume
+    else:
+        raise ValueError(f"assume must be 'auto', 'real', or 'complex'. Got {assume}.")
+
+    if assume_case == "complex":
+        if nB <= r:
+            raise ValueError(f"Need nB > r for complex Wishart correction. Got nB={nB}, r={r}.")
+        scale = (nB - r) / nB
+    else:
+        if nB <= r + 1:
+            raise ValueError(f"Need nB > r+1 for real Wishart correction. Got nB={nB}, r={r}.")
+        scale = (nB - r - 1) / nB
+
+    xi_A = xi[:nA]
+    eta_A = eta[:nA]
+    xi_B = xi[nA:]
+
+    # Cross moment: A_hat = (1/nA) sum eta_i xi_i^*
+    # Row-stacked convention: eta (N, d), xi (N, r) => eta^T xi^* = eta^T conj(xi).
+    A_hat = (eta_A.T @ xi_A.conj()) / float(nA)  # (d, r)
+
+    # Covariance: Sigma_hat = (1/nB) sum xi_i xi_i^*
+    Sigma_hat = (xi_B.T @ xi_B.conj()) / float(nB)  # (r, r)
+    Sigma_hat = 0.5 * (Sigma_hat + Sigma_hat.conj().T)
+    if ridge != 0.0:
+        Sigma_hat = Sigma_hat + ridge * torch.eye(r, device=Sigma_hat.device, dtype=Sigma_hat.dtype)
+
+    # Q_hat = A_hat * (scale * Sigma_hat^{-1}) computed via right solve.
+    rhs = A_hat.T  # (r, d)
+    try:
+        sol = torch.linalg.solve(Sigma_hat, rhs)  # (r, d) = Sigma^{-1} A^T
+    except RuntimeError:
+        sol = torch.linalg.lstsq(Sigma_hat, rhs).solution
+    Q_hat = scale * sol.T  # (d, r)
+    if Q_hat.shape != (d, r):
+        raise RuntimeError(f"Internal shape error: expected {(d, r)}, got {tuple(Q_hat.shape)}.")
+    return Q_hat
+
+
+def compute_unbiased_Pi_wishart(
+    xi: torch.Tensor,
+    eta: torch.Tensor,
+    *,
+    assume: str = "auto",
+    split: float = 0.25,
+    ridge: float = 0.0,
+) -> torch.Tensor:
+    r"""Compute an exactly-unbiased Hermitian estimator of Pi = Q Q* under replication.
+
+    Uses two independent unbiased Q estimators computed from disjoint data splits
+    and returns:
+
+        Pi_hat_unb = 0.5 * (Q1 Q2* + Q2 Q1*).
+
+    Args:
+        xi: Samples, shape (N, r).
+        eta: Samples, shape (N, d).
+        assume: "auto" | "real" | "complex". See compute_unbiased_Q_wishart.
+        split: Fraction size for each of the four blocks. Must satisfy
+            0 < split < 0.5. Remaining samples (if any) are ignored.
+        ridge: Optional ridge (breaks exact unbiasedness if nonzero).
+
+    Returns:
+        Pi_hat_unb: Hermitian unbiased estimator, shape (d, d).
+    """
+    if not (0.0 < split < 0.5):
+        raise ValueError(f"split must be in (0,0.5). Got {split}.")
+    N = xi.shape[0]
+    n_block = int(round(split * N))
+    if n_block < 1:
+        raise ValueError(f"split too small for N={N}: n_block={n_block}.")
+    n_used = 4 * n_block
+    if N < n_used:
+        raise ValueError(f"Need at least {n_used} samples for 4-way split, got N={N}.")
+
+    xi1 = xi[: 2 * n_block]
+    eta1 = eta[: 2 * n_block]
+    xi2 = xi[2 * n_block : 4 * n_block]
+    eta2 = eta[2 * n_block : 4 * n_block]
+
+    Q1 = compute_unbiased_Q_wishart(xi1, eta1, assume=assume, split=0.5, ridge=ridge)
+    Q2 = compute_unbiased_Q_wishart(xi2, eta2, assume=assume, split=0.5, ridge=ridge)
+
+    Pi_hat = 0.5 * (Q1 @ Q2.conj().T + Q2 @ Q1.conj().T)
+    Pi_hat = 0.5 * (Pi_hat + Pi_hat.conj().T)
+    return Pi_hat
+
+
 def compute_model_basis_R(
     C: torch.Tensor,
     A: torch.Tensor,

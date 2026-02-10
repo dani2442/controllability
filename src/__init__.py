@@ -24,6 +24,12 @@ from .utils import (
 
 from .sde import (  # type: ignore
     LinearSDE,
+    NonlinearSDE,
+    add_friction_cli_args,
+    build_sde,
+    friction_params_from_namespace,
+    make_friction_params,
+    load_system_with_friction,
     simulate,
 )
 
@@ -70,6 +76,12 @@ __all__ = [
     "smooth_signal",
     # SDE
     "LinearSDE",
+    "NonlinearSDE",
+    "add_friction_cli_args",
+    "build_sde",
+    "friction_params_from_namespace",
+    "make_friction_params",
+    "load_system_with_friction",
     "simulate",
     # Gramians
     "compute_G_LK",

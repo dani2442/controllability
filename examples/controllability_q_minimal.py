@@ -24,18 +24,21 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src import (  # noqa: E402
-    LinearSDE,
+    add_friction_cli_args,
+    build_sde,
     compute_K_LK_reduced,
     compute_N_LK_lambda,
     compute_observable_quotient_coordinates,
     compute_Q_LK_from_coordinates,
     compute_observability_index,
     compute_lift_matrix,
+    friction_params_from_namespace,
+    load_system_with_friction,
     simulate,
     smooth_signal,
     plot_trajectories
 )
-from src.systems import SYSTEMS, get_system  # noqa: E402
+from src.systems import SYSTEMS  # noqa: E402
 
 
 def _complex_dtype_from_real(dtype: torch.dtype) -> torch.dtype:
@@ -93,11 +96,19 @@ def compute_data_pi_lambda(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Minimal Pi_{L,K}(lambda) basis-free diagnostics")
     parser.add_argument("--system", type=str, default="two_spring", choices=list(SYSTEMS.keys()))
+    parser.add_argument(
+        "--friction-model",
+        type=str,
+        default="coulomb",
+        choices=["none", "coulomb", "stribeck"],
+        help="Friction model for spring systems",
+    )
+    add_friction_cli_args(parser)
     parser.add_argument("--T", type=float, default=100.0, help="Final horizon")
-    parser.add_argument("--dt", type=float, default=0.01, help="Time step")
+    parser.add_argument("--dt", type=float, default=0.1, help="Time step")
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--beta-scale", type=float, default=0.1, help="Process noise scale")
-    parser.add_argument("--delta-scale", type=float, default=0.1, help="Measurement noise scale")
+    parser.add_argument("--beta-scale", type=float, default=0.01, help="Process noise scale")
+    parser.add_argument("--delta-scale", type=float, default=0.01, help="Measurement noise scale")
     parser.add_argument("--max-candidates", type=int, default=10)
     parser.add_argument("--rank-threshold", type=float, default=1e-8)
     parser.add_argument("--smooth-y", action=argparse.BooleanOptionalAction, default=False)
@@ -122,10 +133,15 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dtype = torch.float64
 
-    if args.system == "random":
-        A, B, C, D = get_system(args.system, device=device, dtype=dtype, seed=args.seed)
-    else:
-        A, B, C, D = get_system(args.system, device=device, dtype=dtype)
+    friction_params = friction_params_from_namespace(args)
+    A, B, C, D, dynamics_fn = load_system_with_friction(
+        system_name=args.system,
+        device=device,
+        dtype=dtype,
+        seed=args.seed,
+        friction_model=args.friction_model,
+        friction_params=friction_params,
+    )
 
     n = A.shape[0]
     p = C.shape[0]
@@ -133,7 +149,10 @@ def main() -> None:
     K = ell
     L = K + 1
 
-    print(f"System={args.system}, n={n}, m={B.shape[1]}, p={p}, ell={ell}, L={L}, K={K}")
+    print(
+        f"System={args.system}, friction={args.friction_model}, "
+        f"n={n}, m={B.shape[1]}, p={p}, ell={ell}, L={L}, K={K}"
+    )
 
     q = min(n, 1)
     r = min(p, 1)
@@ -146,7 +165,7 @@ def main() -> None:
     else:
         Delta = args.delta_scale * torch.randn(p, r, device=device, dtype=dtype)
 
-    sde = LinearSDE(A, B, C, D, Beta, Delta)
+    sde = build_sde(A, B, C, D, Beta, Delta, dynamics_fn=dynamics_fn)
     ts, x, u, y = simulate(sde, args.T, args.dt, seed=args.seed)
 
     y_old = y.clone()
@@ -257,7 +276,7 @@ def main() -> None:
     idx = np.arange(len(candidate_lambdas))
 
     fig1 = plot_trajectories(ts, x, u, y_old)
-    out_pdf = os.path.join(out_dir, f"trajectories_{args.system}.pdf")
+    out_pdf = os.path.join(out_dir, f"trajectories_{args.system}_{args.friction_model}.pdf")
     fig1.savefig(out_pdf, bbox_inches="tight")
     print(f"\nSaved figure: {out_pdf}")
     print

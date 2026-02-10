@@ -57,7 +57,7 @@ def parse_args():
     parser.add_argument(
         "--system",
         type=str,
-        default="random",
+        default="coupled_spring",
         choices=list(SYSTEMS.keys()),
         help=f"System to analyze. Available: {list(SYSTEMS.keys())}",
     )
@@ -83,17 +83,17 @@ def main(system_name: str):
     # We compute the tightest feasible (L, K) after loading the system.
 
     # Simulation parameters
-    T = 100.0   # Final time
-    dt = 0.1  # Time step
+    T = 20.0   # Final time
+    dt = 0.01  # Time step
 
     # Noise intensities
-    beta_scale = 0.1   # Process noise
-    delta_scale = 0.1  # Measurement noise
+    beta_scale = 0.00   # Process noise
+    delta_scale = 0.00  # Measurement noise
 
     # Smoothing
-    smooth_y = True
+    smooth_y = False
     smoothing_window = 11
-    smoothing_sigma = 10.0
+    smoothing_sigma = 2.0
     smoothing_mode = "gaussian"
     numerical_threshold = 1e-8
 

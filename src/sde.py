@@ -5,10 +5,13 @@ System model:
     y(t)  = Cx + Du + δ v(t)          (measurement noise)
 """
 
+import argparse
 import torch
 import torchsde
 import numpy as np
 from typing import Callable, Optional, Tuple
+
+DynamicsFn = Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 
 
 class LinearSDE(torchsde.SDEIto):
@@ -117,6 +120,140 @@ class LinearSDE(torchsde.SDEIto):
             y = y + noise @ self.Delta.T
         
         return y
+
+
+class NonlinearSDE(LinearSDE):
+    """SDE wrapper with state-dependent drift f(x, u)."""
+
+    def __init__(
+        self,
+        A: torch.Tensor,
+        B: torch.Tensor,
+        C: torch.Tensor,
+        D: torch.Tensor,
+        Beta: torch.Tensor,
+        Delta: Optional[torch.Tensor],
+        dynamics_fn: DynamicsFn,
+        control_fn: Optional[Callable[[torch.Tensor, torch.Tensor], torch.Tensor]] = None,
+    ):
+        super().__init__(A, B, C, D, Beta, Delta, control_fn=control_fn)
+        self._dynamics_fn = dynamics_fn
+
+    def f(self, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        ut = self.u(t, x).to(x.dtype)
+        return self._dynamics_fn(x, ut)
+
+
+def build_sde(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    C: torch.Tensor,
+    D: torch.Tensor,
+    Beta: torch.Tensor,
+    Delta: Optional[torch.Tensor] = None,
+    dynamics_fn: Optional[DynamicsFn] = None,
+    control_fn: Optional[Callable[[torch.Tensor, torch.Tensor], torch.Tensor]] = None,
+) -> LinearSDE:
+    """Construct linear or nonlinear SDE depending on `dynamics_fn`."""
+    if dynamics_fn is None:
+        return LinearSDE(A, B, C, D, Beta, Delta, control_fn=control_fn)
+    return NonlinearSDE(A, B, C, D, Beta, Delta, dynamics_fn, control_fn=control_fn)
+
+
+def make_friction_params(
+    *,
+    fc1: float = 0.0,
+    fc2: float = 0.0,
+    fs1: float = 0.0,
+    fs2: float = 0.0,
+    vs1: float = 1.0,
+    vs2: float = 1.0,
+    alpha1: float = 1.0,
+    alpha2: float = 1.0,
+    b1: float = 0.0,
+    b2: float = 0.0,
+    eps: float = 1e-6,
+) -> dict[str, float]:
+    """Build friction parameter dict for systems with Coulomb/Stribeck friction."""
+    return {
+        "Fc1": fc1,
+        "Fc2": fc2,
+        "Fs1": fs1 if fs1 > 0.0 else fc1,
+        "Fs2": fs2 if fs2 > 0.0 else fc2,
+        "vs1": vs1,
+        "vs2": vs2,
+        "alpha1": alpha1,
+        "alpha2": alpha2,
+        "B1": b1,
+        "B2": b2,
+        "eps": eps,
+    }
+
+
+def add_friction_cli_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    """Attach shared friction arguments to an argparse parser."""
+    parser.add_argument("--fc1", type=float, default=0.05)
+    parser.add_argument("--fc2", type=float, default=0.05)
+    parser.add_argument("--fs1", type=float, default=0.05)
+    parser.add_argument("--fs2", type=float, default=0.05)
+    parser.add_argument("--vs1", type=float, default=1.0)
+    parser.add_argument("--vs2", type=float, default=1.0)
+    parser.add_argument("--alpha1", type=float, default=1.0)
+    parser.add_argument("--alpha2", type=float, default=1.0)
+    parser.add_argument("--bf1", type=float, default=0.0, help="Stribeck viscous term B1")
+    parser.add_argument("--bf2", type=float, default=0.0, help="Stribeck viscous term B2")
+    parser.add_argument("--friction-eps", type=float, default=1e-6)
+    return parser
+
+
+def friction_params_from_namespace(args: argparse.Namespace) -> dict[str, float]:
+    """Extract friction parameter dict from parsed CLI namespace."""
+    return make_friction_params(
+        fc1=float(args.fc1),
+        fc2=float(args.fc2),
+        fs1=float(args.fs1),
+        fs2=float(args.fs2),
+        vs1=float(args.vs1),
+        vs2=float(args.vs2),
+        alpha1=float(args.alpha1),
+        alpha2=float(args.alpha2),
+        b1=float(args.bf1),
+        b2=float(args.bf2),
+        eps=float(args.friction_eps),
+    )
+
+
+def load_system_with_friction(
+    *,
+    system_name: str,
+    device: torch.device,
+    dtype: torch.dtype,
+    seed: Optional[int] = None,
+    friction_model: str = "none",
+    friction_params: Optional[dict[str, float]] = None,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Optional[DynamicsFn]]:
+    """Load a system and optional nonlinear friction drift from src.systems."""
+    from src.systems import get_system
+
+    if friction_model == "none":
+        kwargs = {"device": device, "dtype": dtype}
+        if system_name == "random" and seed is not None:
+            kwargs["seed"] = seed
+        A, B, C, D = get_system(system_name, **kwargs)
+        return A, B, C, D, None
+
+    if system_name not in {"two_spring", "coupled_spring"}:
+        raise ValueError("Nonlinear friction is supported only for two_spring and coupled_spring.")
+
+    A, B, C, D, dynamics_fn = get_system(
+        system_name,
+        device=device,
+        dtype=dtype,
+        friction_model=friction_model,
+        friction_params=friction_params,
+        return_dynamics=True,
+    )
+    return A, B, C, D, dynamics_fn
 
 
 def simulate(

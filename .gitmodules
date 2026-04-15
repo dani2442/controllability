@@ -4,3 +4,6 @@
 [submodule "paper_nonlinear"]
 	path = paper_nonlinear
 	url = https://git@git.overleaf.com/699b6ada8a0bdc986b92039e
+[submodule "paper_wfl"]
+	path = paper_wfl
+	url = https://git@git.overleaf.com/69de1666dbd509279baa7a9a

@@ -1,115 +1,112 @@
-"""Data-driven controllability analysis for continuous-time systems.
+"""Continuous-time informativity framework.
 
-This package implements the data-driven Hautus tests for LTI systems
-with input-output measurements:
-
-    dx = (Ax + Bu)dt + β dW(t)    (state equation with process noise)
-    y  = Cx + Du + δv(t)           (output equation with measurement noise)
-
-Main components:
-    - sde: SDE simulation with torchsde
-    - gramians: G_{L,K}(λ) and K_{L,K}(λ) computation
-    - utils: System generation and matrix utilities
-    - visualization: Plotting functions
+Implements the main results of `paper_informativity/main.tex`:
+weak-derivative lifts, identification, data-driven Hautus tests,
+state-feedback stabilization (exact & noisy), LQR, and dissipativity
+(exact & noisy). See the per-module docstrings for which theorem is
+being implemented.
 """
 
-from .utils import (
-    generate_stable_system,
-    compute_lift_matrix,
-    compute_observability_matrix,
-    compute_observability_index,
-    compute_toeplitz_matrix,
-    smooth_signal,
+from .bases import (
+    BumpBasis,
+    FourierSineBasis,
+    HatBasis,
+    Quadrature,
+    TestFunctionBasis,
+    pair,
 )
-
-from .sde import (  # type: ignore
+from .controllability import (
+    HautusResult,
+    finite_candidates_io,
+    finite_candidates_state,
+    io_hautus_test,
+    state_hautus_test,
+)
+from .dissipativity import (
+    DissipativityResult,
+    dissipativity_exact,
+    dissipativity_noisy,
+)
+from .identification import (
+    IdentificationResult,
+    check_identifiability,
+    identify_state_data,
+    identify_state_output_data,
+)
+from .lifts import (
+    LiftData,
+    compute_filtered_io_lift,
+    compute_filtered_state_lift,
+    compute_io_lifts,
+    compute_state_lifts,
+)
+from .lqr import (
+    LQRResult,
+    is_detectable,
+    is_stabilizable,
+    solve_lqr_exact,
+)
+from .persistent_excitation import (
+    PersistentExcitationResult,
+    check_persistent_excitation,
+)
+from .qmi import (
+    InducedQMI,
+    ball_Pi,
+    build_induced,
+    induced_qmi_matrix,
+    is_in_Pi_qN,
+    make_exact_Pi,
+    schur_complement_22,
+)
+from .sde import (
     LinearSDE,
-    NonlinearSDE,
-    add_friction_cli_args,
-    build_sde,
-    friction_params_from_namespace,
-    make_friction_params,
-    load_system_with_friction,
+    TrajectoryData,
+    make_multisine_control,
     simulate,
 )
-
-from .gramians import (
-    compute_G_LK,
-    compute_H_LK,
-    compute_K_LK,
-    compute_K_LK_reduced,
-    compute_model_basis_R,
-    compute_Sk_lambda,
-    compute_N_LK_lambda,
-    compute_Q_LK_model,
-    compute_basis_alignment,
-    aligned_q_error,
-    compute_observable_quotient_coordinates,
-    compute_Q_LK_from_coordinates,
-    compute_Q_LK,
-    compute_unbiased_Q_wishart,
-    compute_unbiased_Pi_wishart,
-    compute_persistent_excitation_gramian,
-    compute_filtered_signal,
-    compute_derivative_lift,
-    compute_filtered_derivative_lift,
-    check_persistent_excitation,
-    check_controllability,
-    check_controllability_reduced,
-    check_controllability_observable_quotient,
+from .stabilization import (
+    StabilizationResult,
+    build_Nx_phi,
+    stabilize_exact,
+    stabilize_noisy,
 )
-
-from .visualization import (
-    plot_trajectories,
-    plot_eigenvalues,
-    plot_gramian_eigenvalues,
-    plot_controllability_margin,
+from .systems import (
+    coupled_spring,
+    damped_oscillator,
+    double_integrator,
+    random_stable,
+    unstable_inverted_pendulum,
 )
 
 __all__ = [
-    # Utils
-    "generate_stable_system",
-    "compute_lift_matrix",
-    "compute_observability_matrix",
-    "compute_observability_index",
-    "compute_toeplitz_matrix",
-    "smooth_signal",
+    # Bases
+    "TestFunctionBasis", "FourierSineBasis", "BumpBasis", "HatBasis",
+    "Quadrature", "pair",
+    # Systems
+    "double_integrator", "damped_oscillator", "coupled_spring",
+    "random_stable", "unstable_inverted_pendulum",
     # SDE
-    "LinearSDE",
-    "NonlinearSDE",
-    "add_friction_cli_args",
-    "build_sde",
-    "friction_params_from_namespace",
-    "make_friction_params",
-    "load_system_with_friction",
-    "simulate",
-    # Gramians
-    "compute_G_LK",
-    "compute_H_LK",
-    "compute_K_LK",
-    "compute_K_LK_reduced",
-    "compute_model_basis_R",
-    "compute_Sk_lambda",
-    "compute_N_LK_lambda",
-    "compute_Q_LK_model",
-    "compute_basis_alignment",
-    "aligned_q_error",
-    "compute_observable_quotient_coordinates",
-    "compute_Q_LK_from_coordinates",
-    "compute_Q_LK",
-    "compute_unbiased_Q_wishart",
-    "compute_unbiased_Pi_wishart",
-    "compute_persistent_excitation_gramian",
-    "compute_filtered_signal",
-    "compute_derivative_lift",
-    "compute_filtered_derivative_lift",
-    "check_persistent_excitation",
-    "check_controllability",
-    "check_controllability_reduced",
-    "check_controllability_observable_quotient",
-    # Visualization
-    "plot_trajectories",
-    "plot_eigenvalues",
-    "plot_gramian_eigenvalues",
-    "plot_controllability_margin",
+    "LinearSDE", "TrajectoryData", "simulate", "make_multisine_control",
+    # Lifts
+    "LiftData", "compute_state_lifts", "compute_io_lifts",
+    "compute_filtered_state_lift", "compute_filtered_io_lift",
+    # QMI
+    "InducedQMI", "schur_complement_22", "is_in_Pi_qN", "induced_qmi_matrix",
+    "make_exact_Pi", "ball_Pi", "build_induced",
+    # PE
+    "PersistentExcitationResult", "check_persistent_excitation",
+    # Identification
+    "IdentificationResult", "check_identifiability", "identify_state_data",
+    "identify_state_output_data",
+    # Controllability
+    "HautusResult", "finite_candidates_state", "finite_candidates_io",
+    "state_hautus_test", "io_hautus_test",
+    # Stabilization
+    "StabilizationResult", "stabilize_exact", "stabilize_noisy",
+    "build_Nx_phi",
+    # LQR
+    "LQRResult", "solve_lqr_exact", "is_stabilizable", "is_detectable",
+    # Dissipativity
+    "DissipativityResult", "dissipativity_exact", "dissipativity_noisy",
 ]

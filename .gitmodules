@@ -10,3 +10,6 @@
 [submodule "paper_informativity"]
 	path = paper_informativity
 	url = https://git@git.overleaf.com/69e4d703099a1dca3fba2dca
+[submodule "paper_wfl2"]
+	path = paper_wfl2
+	url = https://git@git.overleaf.com/6a1ddffdec1278844f08f1f5

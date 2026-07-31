@@ -24,15 +24,16 @@ decay like ``n^{-3}``, and a few hundred modes give a reference accurate to
 ``1e-8``.  The two forms agree analytically: integrating ``int e^{lam(t-s)}u'``
 by parts turns ``-d_n u'`` into ``b_n u`` with ``b_n = -lambda_n d_n``.
 
-Modal data (see Pritchard--Salamon Ex. 4.6 and ``sections/lqr.tex``):
+Modal data (see Pritchard--Salamon Ex. 4.6 and ``sections/lqr.tex``); the last
+row is the verbatim example of the cited paper, ``a_n := (n - 1/2) pi``:
 
-===========================  =============  ========================  =========================
-example                      ``lambda_n``   ``phi_n``                 ``b_n``
-===========================  =============  ========================  =========================
-Dirichlet control at 0       ``-n^2pi^2``   ``sqrt2 sin(n pi xi)``    ``sqrt2 n pi``
-Dirichlet control both ends  ``-n^2pi^2``   ``sqrt2 sin(n pi xi)``    ``sqrt2 n pi (1-(-1)^n)``
-Neumann control at 0         ``-n^2pi^2``   ``sqrt2 cos(n pi xi)``    ``-phi_n(0)``
-===========================  =============  ========================  =========================
+===========================  ==============  ==========================  =========================
+example                      ``lambda_n``    ``phi_n``                   ``b_n``
+===========================  ==============  ==========================  =========================
+Dirichlet control at 0       ``-n^2 pi^2``   ``sqrt2 sin(n pi xi)``      ``sqrt2 n pi``
+Dirichlet control both ends  ``-n^2 pi^2``   ``sqrt2 sin(n pi xi)``      ``sqrt2 n pi (1-(-1)^n)``
+Neumann at 0, Dirichlet at 1 ``-nu a_n^2``   ``sqrt2 cos(a_n xi)``       ``-nu phi_n(0)``
+===========================  ==============  ==========================  =========================
 """
 
 from __future__ import annotations
@@ -171,22 +172,20 @@ def heat_modal(kind: str = "dirichlet", n_modes: int = 400, nu: float = 1.0) -> 
         return ModalSystem(f"heat-{kind}", lam, b, phi, lift=lift, d=d, g=np.zeros_like(d))
 
     if kind == "neumann":
-        n = np.arange(0, n_modes)
-        lam = -nu * ((n * np.pi) ** 2)
+        # Neumann control at xi = 0, Dirichlet at xi = 1 (Pritchard--Salamon
+        # Ex. 4.6): a = (n - 1/2) pi, phi_n = sqrt2 cos(a xi), lambda_n = -nu a^2.
+        a = (np.arange(1, n_modes + 1) - 0.5) * np.pi
+        lam = -nu * a**2
 
-        def phi(xi: np.ndarray, n=n) -> np.ndarray:
-            xi = np.asarray(xi, dtype=float)
-            out = np.sqrt(2.0) * np.cos(np.outer(n * np.pi, xi))
-            out[0] = np.ones_like(xi)  # phi_0 == 1
-            return out
+        def phi(xi: np.ndarray, a=a) -> np.ndarray:
+            return np.sqrt(2.0) * np.cos(np.outer(a, np.asarray(xi, dtype=float)))
 
         b = -nu * phi(np.array([0.0]))[:, 0][:, None]  # b_n = -nu phi_n(0)
-        # D(xi) = -(1-xi)^2/2 has D'(0) = 1, D'(1) = 0, D'' = -1
-        lift = lambda xi: -0.5 * (1.0 - np.asarray(xi, dtype=float)) ** 2  # noqa: E731
-        d = np.array([-1.0 / 6.0] + [np.sqrt(2.0) * (-1.0) / (k * np.pi) ** 2
-                                     for k in range(1, n_modes)])
-        g = np.zeros(n_modes)
-        g[0] = -nu  # <nu D'', phi_0> = -nu, and <nu D'', phi_n> = 0 for n >= 1
-        return ModalSystem("heat-neumann", lam, b, phi, lift=lift, d=d, g=g)
+        # D(xi) = xi - 1 has D'(0) = 1, D(1) = 0, D'' = 0, and
+        # <D, phi_n> = -sqrt2 / a^2 because cos((n-1/2) pi) = 0.
+        lift = lambda xi: np.asarray(xi, dtype=float) - 1.0  # noqa: E731
+        d = -np.sqrt(2.0) / a**2
+        return ModalSystem("heat-neumann", lam, b, phi, lift=lift, d=d,
+                           g=np.zeros_like(d))
 
     raise ValueError(f"unknown heat configuration {kind!r}")

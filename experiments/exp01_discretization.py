@@ -1,61 +1,108 @@
-"""Spatial convergence and discrete boundary-control growth."""
+"""Spatial convergence and discrete boundary-control growth, for all three examples.
+
+The three configurations are the concrete instances of the three families of
+Pritchard--Salamon Section 4 that the paper records in ``ex:lqr-nfde``,
+``ex:lqr-parabolic`` and ``ex:lqr-hyperbolic``; the delay example is discretised
+in the delay variable rather than in space and is reported alongside them.
+"""
 
 from __future__ import annotations
 
 import numpy as np
 import matplotlib.pyplot as plt
 
+from ddinf.delay import delay_system, uncontrollable_pair
 from ddinf.heat import fem_eigenvalues, heat_system
 from ddinf.plotting import configure, savefig, write_table
+from ddinf.wave import fem_frequencies, wave_system
 from experiments.common import parser, tex_num
+
+
+def _heat_error(kind: str, exact: float):
+    def err(n: int) -> tuple[float, float]:
+        sys = heat_system(kind, n_elems=n)
+        return abs(fem_eigenvalues(sys, 1)[0].real - exact), sys.control_operator_norm()
+    return err
+
+
+def _wave_error(exact: float):
+    def err(n: int) -> tuple[float, float]:
+        sys = wave_system("dirichlet", n_elems=n)
+        return abs(fem_frequencies(sys, 1)[0] - exact), sys.control_operator_norm()
+    return err
+
+
+def _delay_error(data: dict, exact: complex):
+    def err(n: int) -> tuple[float, float]:
+        sys = delay_system(data["A0"], data["A1"], data["B0"], h=data["h"], n_tau=n)
+        lam = np.linalg.eigvals(sys.A)
+        return float(np.min(np.abs(lam - exact))), sys.control_operator_norm()
+    return err
 
 
 def run(quality: str = "quick") -> dict:
     configure()
-    meshes = np.array([8, 16, 32, 64] if quality == "quick" else [8, 16, 32, 64, 128])
-    kinds = ("dirichlet", "neumann")
-    errors: dict[str, list[float]] = {k: [] for k in kinds}
-    norms: dict[str, list[float]] = {k: [] for k in kinds}
-    for kind in kinds:
-        exact = 0.0 if kind == "neumann" else -np.pi**2
-        mode = 0
-        for ne in meshes:
-            sys = heat_system(kind, n_elems=int(ne))
-            errors[kind].append(abs(fem_eigenvalues(sys, mode + 1)[mode].real - exact)
-                                if exact else abs(fem_eigenvalues(sys, 2)[1].real + np.pi**2))
-            norms[kind].append(sys.control_operator_norm())
+    sizes = np.array([8, 16, 32, 64] if quality == "quick" else [8, 16, 32, 64, 128])
+    delay_data = uncontrollable_pair()
+    # Closed form: the leading root of lambda = d + q e^{-lambda h}.
+    lambert = delay_data["obstruction"]
+    root = complex(lambert[np.argmax(lambert.real)])
 
-    h = 1.0 / meshes
-    rates = {k: float(np.polyfit(np.log(h), np.log(errors[k]), 1)[0]) for k in kinds}
-    growth = {k: float(-np.polyfit(np.log(h), np.log(norms[k]), 1)[0]) for k in kinds}
+    cases = {
+        # label: (error/norm map, symbol of the converged quantity)
+        "heat, Dirichlet control": (_heat_error("dirichlet", -np.pi**2), r"$\lambda_1$"),
+        "heat, Neumann control": (_heat_error("neumann", -0.25 * np.pi**2), r"$\lambda_1$"),
+        "wave, Dirichlet control": (_wave_error(np.pi), r"$\omega_1$"),
+        "delay, leading Lambert root": (_delay_error(delay_data, root), r"$\lambda_1$"),
+    }
 
-    fig, ax = plt.subplots(1, 2, figsize=(7.0, 2.7))
-    for kind, marker in zip(kinds, ("o", "s")):
-        ax[0].loglog(h, errors[kind], marker=marker, label=kind)
-        ax[1].loglog(h, norms[kind], marker=marker, label=kind)
-    ax[0].loglog(h, errors["dirichlet"][-1] * (h / h[-1]) ** 2, "k--", label=r"$h^2$")
-    ax[0].set(xlabel=r"$h$", ylabel=r"first nonzero eigenvalue error")
+    errors, norms = {}, {}
+    for label, (err, _) in cases.items():
+        pairs = [err(int(n)) for n in sizes]
+        errors[label] = np.array([p[0] for p in pairs])
+        norms[label] = np.array([p[1] for p in pairs])
+
+    h = 1.0 / sizes
+    order = {k: float(np.polyfit(np.log(h), np.log(errors[k]), 1)[0]) for k in cases}
+    growth = {k: float(-np.polyfit(np.log(h), np.log(norms[k]), 1)[0]) for k in cases}
+
+    fig, ax = plt.subplots(1, 2, figsize=(7.0, 2.9))
+    for label, marker in zip(cases, ("o", "s", "^", "d")):
+        ax[0].loglog(h, errors[label], marker=marker, ms=4, label=label)
+        ax[1].loglog(h, norms[label], marker=marker, ms=4, label=label)
+    ref = errors["heat, Dirichlet control"][-1]
+    ax[0].loglog(h, ref * (h / h[-1]) ** 2, "k--", lw=1, label=r"$h^2$")
+    ax[0].set(xlabel=r"$h$ (mesh width, or $h/N_\tau$ for the delay)",
+              ylabel="leading-eigenvalue error")
     ax[1].set(xlabel=r"$h$", ylabel=r"$\|B_h\|_{\mathcal{L}(U,X_h)}$")
     for a in ax:
         a.grid(True, which="both", alpha=.25)
-        a.legend()
+        a.legend(fontsize=6.5)
+        # Label only the meshes actually used; the default decade ticks collide.
+        a.set_xticks(h, [rf"$\frac{{1}}{{{n}}}$" for n in sizes], minor=False)
+        a.set_xticks([], minor=True)
     fig_path = savefig(fig, "discretization.pdf")
 
     rows = "\n".join(
-        f"{kind.capitalize()} & {rates[kind]:.2f} & {growth[kind]:.2f} & "
-        f"{tex_num(errors[kind][-1])} \\\\"
-        for kind in kinds
+        f"{label} & {cases[label][1]} & {order[label]:.2f} & "
+        # the retarded equation has a bounded control operator: no growth at all
+        f"{'0 (bounded)' if abs(growth[label]) < .05 else f'{growth[label]:.2f}'} & "
+        f"{tex_num(errors[label][-1])} \\\\"
+        for label in cases
     )
-    table = write_table("discretization.tex", rf"""\begin{{tabular}}{{lrrr}}
+    table = write_table("discretization.tex", rf"""\begin{{tabular}}{{llrrr}}
 \toprule
-Boundary condition & eig. order & $B_h$ exponent & finest eig. error \\
+Example & quantity & observed order & $\|B_h\|$ exponent & finest error \\
 \midrule
 {rows}
 \bottomrule
 \end{{tabular}}""")
-    return {"figure": fig_path, "table": table, "rates": rates, "growth": growth}
+    return {"figure": fig_path, "table": table, "order": order, "growth": growth,
+            "errors": errors, "norms": norms, "sizes": sizes}
 
 
 if __name__ == "__main__":
     args = parser(__doc__).parse_args()
-    print(run(args.quality))
+    result = run(args.quality)
+    print("orders:", result["order"])
+    print("B growth:", result["growth"])

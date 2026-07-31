@@ -245,12 +245,12 @@ __marimo__/
 *.pdfsync
 *.bbl-SAVE-ERROR
 
-# Build directories
+# Compiled documents are not tracked, but generated results are: the figures
+# written by `python -m experiments.run_all` are part of the deliverable and
+# must survive a fresh clone.
 *.pdf
-# Uncomment the line above if you don't want to track PDFs
-# Or be selective: keep only final PDFs by uncommenting:
-# *.pdf
-# !final.pdf
+!**/figures/*.pdf
+!**/images/*.pdf
 
 # Glossaries
 *.acn

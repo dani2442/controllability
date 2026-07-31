@@ -13,10 +13,14 @@
     with the obstruction available in closed form.
 
 ``neumann``
-    ``x_xi(t,0) = u(t)``, ``x_xi(t,1) = 0`` -- Pritchard--Salamon Example 4.6.
-    The control is a natural boundary condition, so no lifting is needed and
-    the discretisation is independent of the Dirichlet one: it serves as a
-    cross-check that the results are not artefacts of the lifting.
+    ``x_xi(t,0) = u(t)``, ``x(t,1) = 0`` -- verbatim Pritchard--Salamon
+    Example 4.6, the concrete instance of the parabolic family
+    ``ex:lqr-parabolic``.  The control is a *natural* boundary condition, so no
+    lifting is needed and the discretisation is independent of the Dirichlet
+    one: it serves as a cross-check that the results are not artefacts of the
+    lifting.  Its eigenvalues are ``lambda_n = -nu (n-1/2)^2 pi^2`` with
+    eigenfunctions ``sqrt2 cos((n-1/2) pi xi)``, and ``||B_h||`` grows only
+    like ``h^{-1/2}``.
 
 Dirichlet control and mass lumping
 ----------------------------------
@@ -88,15 +92,18 @@ def heat_system(kind: str = "dirichlet", *, n_elems: int = 64, nu: float = 1.0,
             return full
 
     elif kind == "neumann":
-        M = mass_matrix(mesh, lumped=False)
-        free = np.arange(mesh.n_nodes)
+        # Neumann control at xi = 0, homogeneous Dirichlet at xi = 1: the free
+        # nodes are 0, ..., N-1 and no lifting is required.
+        M_full = mass_matrix(mesh, lumped=False)
+        free = np.arange(mesh.n_nodes - 1)
+        M = M_full[np.ix_(free, free)]
         Minv = np.linalg.inv(M)
-        A = -Minv @ K
-        e0 = np.zeros((mesh.n_nodes, 1))
+        A = -Minv @ K[np.ix_(free, free)]
+        e0 = np.zeros((free.size, 1))
         e0[0, 0] = 1.0
         B = -nu * (Minv @ e0)  # boundary term nu [x_xi v] of the weak form
         MX = M
-        C = (M @ c_nodal)[None, :]
+        C = (M @ c_nodal[free])[None, :]
 
         def expand(X: np.ndarray, u: np.ndarray | float = 0.0) -> np.ndarray:
             return np.asarray(X)

@@ -35,11 +35,11 @@ def run(quality: str = "quick") -> dict:
     ne = 16 if quality == "quick" else 24
 
     systems = {
-        "heat": (heat_system("dirichlet", n_elems=ne, nu=.02), "X"),
+        "heat": (heat_system("neumann", n_elems=ne, nu=.02), "X"),
         "wave": (wave_system("dirichlet", n_elems=ne // 2, speed=.5), "W"),
     }
     signals = {
-        "harmonic PE": harmonic_pe(10),
+        "harmonic PE": harmonic_pe(10, sigma=.1),
         "multisine": multisine(np.geomspace(.2, 25.0, 20),
                                amps=np.geomspace(1.0, .2, 20), seed=4),
         "PRBS": Prbs(.04, seed=4, horizon=horizon),

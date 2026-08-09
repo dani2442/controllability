@@ -1,9 +1,9 @@
 """Spatial convergence and discrete boundary-control growth, for all three examples.
 
-The three configurations are the concrete instances of the three families of
-Pritchard--Salamon Section 4 that the paper records in ``ex:lqr-nfde``,
-``ex:lqr-parabolic`` and ``ex:lqr-hyperbolic``; the delay example is discretised
-in the delay variable rather than in space and is reported alongside them.
+The source-aligned heat and wave configurations represent the parabolic and
+hyperbolic families of Pritchard--Salamon Section 4. The retarded example is
+the ``M = 0`` specialization of its neutral family and is discretised in the
+delay variable rather than in space.
 """
 
 from __future__ import annotations
@@ -18,10 +18,11 @@ from ddinf.wave import fem_frequencies, wave_system
 from experiments.common import parser, tex_num
 
 
-def _heat_error(kind: str, exact: float):
+def _heat_error(kind: str, exact: float, mode: int = 0):
     def err(n: int) -> tuple[float, float]:
         sys = heat_system(kind, n_elems=n)
-        return abs(fem_eigenvalues(sys, 1)[0].real - exact), sys.control_operator_norm()
+        return (abs(fem_eigenvalues(sys, mode + 1)[mode].real - exact),
+                sys.control_operator_norm())
     return err
 
 
@@ -51,7 +52,8 @@ def run(quality: str = "quick") -> dict:
     cases = {
         # label: (error/norm map, symbol of the converged quantity)
         "heat, Dirichlet control": (_heat_error("dirichlet", -np.pi**2), r"$\lambda_1$"),
-        "heat, Neumann control": (_heat_error("neumann", -0.25 * np.pi**2), r"$\lambda_1$"),
+        "heat, Neumann--Neumann": (_heat_error("neumann", -np.pi**2, mode=1),
+                                      r"$\lambda_1$ (nonzero)"),
         "wave, Dirichlet control": (_wave_error(np.pi), r"$\omega_1$"),
         "delay, leading Lambert root": (_delay_error(delay_data, root), r"$\lambda_1$"),
     }
@@ -72,15 +74,15 @@ def run(quality: str = "quick") -> dict:
         ax[1].loglog(h, norms[label], marker=marker, ms=4, label=label)
     ref = errors["heat, Dirichlet control"][-1]
     ax[0].loglog(h, ref * (h / h[-1]) ** 2, "k--", lw=1, label=r"$h^2$")
-    ax[0].set(xlabel=r"$h$ (mesh width, or $h/N_\tau$ for the delay)",
-              ylabel="leading-eigenvalue error")
-    ax[1].set(xlabel=r"$h$", ylabel=r"$\|B_h\|_{\mathcal{L}(U,X_h)}$")
+    ax[0].set(xlabel="mesh width", ylabel="leading spectral error")
+    ax[1].set(xlabel="mesh width", ylabel=r"$\|B_h\|_{\mathcal{L}(U,X_h)}$")
     for a in ax:
         a.grid(True, which="both", alpha=.25)
         a.legend(fontsize=6.5)
         # Label only the meshes actually used; the default decade ticks collide.
         a.set_xticks(h, [rf"$\frac{{1}}{{{n}}}$" for n in sizes], minor=False)
         a.set_xticks([], minor=True)
+    fig.tight_layout()
     fig_path = savefig(fig, "discretization.pdf")
 
     rows = "\n".join(

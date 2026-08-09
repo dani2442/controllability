@@ -1,10 +1,12 @@
 """The retarded equation of Example ``ex:intro-rde``.
 
-    x'(t) = A0 x(t) + A1 x(t-h) + B0 u(t),      y(t) = x(t-h),
+    x'(t) = A0 x(t) + A1 x(t-h) + B0 u(t),
+    y(t) = e_j' x(t-h),
 
 on the product state space ``X = R^n x L^2(-h,0;R^n)`` carrying the state
 ``(x(t), x_t)`` with ``x_t(tau) = x(t+tau)``.  This is the ``M = 0`` case of the
-neutral family of Example ``ex:lqr-nfde``; the delayed output makes ``C`` a
+neutral family in Pritchard--Salamon Section 4.1 and Example ``ex:intro-rde``;
+the delayed output makes ``C`` a
 point evaluation of the ``L^2`` component, hence unbounded on ``X`` and bounded
 on the finer space ``W``.
 

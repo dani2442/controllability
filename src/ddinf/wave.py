@@ -3,16 +3,16 @@
     z_tt = c^2 z_xixi,   z(t,0) = u(t),  z(t,1) = 0,
     y(t) = int_0^1 c_obs(xi) z(t,xi) dxi,
 
-the concrete hyperbolic instance of Pritchard--Salamon Example 4.10 and the
-third of the three families of ``ex:lqr-hyperbolic``.  Written as a first-order
+the concrete hyperbolic instance of Pritchard--Salamon Example 4.10. Written as a first-order
 system in ``(z, z_t)`` it takes the form ``x' = A x + B u``, ``y = C x`` on
 
     X = L^2(0,1) x H^{-1}(0,1),      W = H_0^1(0,1) x L^2(0,1),
 
 so that ``W -> X -> V`` is the scale of the introduction and Dirichlet boundary
-control is bounded into the coarser space.  The semigroup is a unitary group on
-``W`` and is *not* analytic: this example is precisely the one the sufficiency
-theorem for harmonic persistency of excitation does not reach
+control is bounded into the coarser space.  The semigroup is a strongly
+continuous, nonsmoothing group on ``W`` (unitary in an equivalent
+speed-weighted energy norm) and is *not* analytic: this example is precisely
+the one the sufficiency theorem for harmonic persistency of excitation does not reach
 (Remark ``rmk:analytic-transfer-extension``), while the controllability test of
 ``prop:data-fattorini-hautus`` and the data-driven regulator of
 ``thm:lqr-data`` apply unchanged.
@@ -61,7 +61,7 @@ def wave_system(kind: str = "dirichlet", *, n_elems: int = 64, speed: float = 1.
                 obs: Callable[[np.ndarray], np.ndarray] | None = None) -> LinearSystem:
     """Semi-discrete wave equation ``z_tt = speed^2 z_xixi`` as a :class:`LinearSystem`.
 
-    The observation is the mollified point measurement of the *displacement*,
+    The observation is the smooth distributed measurement of the *displacement*,
     ``y(t) = int_0^1 c(xi) z(t,xi) dxi`` with ``c`` the smooth unit-mass bump of
     :func:`ddinf.fem.bump`, as in Pritchard--Salamon Example 4.10.  Its support
     is kept inside ``(0,1)``, so the boundary lift is not observed and the

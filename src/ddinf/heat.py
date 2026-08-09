@@ -1,8 +1,8 @@
 """The one-dimensional heat equation, in the three configurations of the paper.
 
 ``dirichlet``
-    ``x_t = x_xx``, ``x(t,0) = u(t)``, ``x(t,1) = 0`` -- the introduction's
-    Example ``ex:intro-pde``.  The control operator is unbounded on
+    ``x_t = x_xx``, ``x(t,0) = u(t)``, ``x(t,1) = 0`` -- an auxiliary variant
+    used for the symmetric uncontrollable comparison.  The control operator is unbounded on
     ``X = L^2(0,1)``; discretely ``||B_h||_{L(U,X)}`` grows like ``h^{-3/2}``,
     the resolution of a ``delta'`` at the boundary.
 
@@ -13,13 +13,12 @@
     with the obstruction available in closed form.
 
 ``neumann``
-    ``x_xi(t,0) = u(t)``, ``x(t,1) = 0`` -- verbatim Pritchard--Salamon
-    Example 4.6, the concrete instance of the parabolic family
-    ``ex:lqr-parabolic``.  The control is a *natural* boundary condition, so no
-    lifting is needed and the discretisation is independent of the Dirichlet
-    one: it serves as a cross-check that the results are not artefacts of the
-    lifting.  Its eigenvalues are ``lambda_n = -nu (n-1/2)^2 pi^2`` with
-    eigenfunctions ``sqrt2 cos((n-1/2) pi xi)``, and ``||B_h||`` grows only
+    ``x_xi(t,0) = u(t)``, ``x_xi(t,1) = 0`` -- verbatim
+    Pritchard--Salamon Example 4.6 and the introduction's Example
+    ``ex:intro-pde``.  The control is a *natural* boundary condition, so no
+    lifting is needed.  The homogeneous generator has the constant zero mode,
+    followed by ``lambda_n = -nu n^2 pi^2`` and eigenfunctions
+    ``sqrt2 cos(n pi xi)``, ``n >= 1``.  Discretely ``||B_h||`` grows only
     like ``h^{-1/2}``.
 
 Dirichlet control and mass lumping
@@ -35,23 +34,28 @@ The Neumann configuration needs no lifting and uses the consistent mass matrix.
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Literal
 
 import numpy as np
 
-from .fem import Mesh1D, bump, interpolate, mass_matrix, stiffness_matrix
+from .fem import (Mesh1D, bump, interpolate, mass_matrix, point_evaluation,
+                  stiffness_matrix)
 from .systems import LinearSystem
 
 
-def heat_system(kind: str = "dirichlet", *, n_elems: int = 64, nu: float = 1.0,
+def heat_system(kind: str = "neumann", *, n_elems: int = 64, nu: float = 1.0,
                 obs_center: float = 0.6, obs_width: float = 0.25,
-                obs: Callable[[np.ndarray], np.ndarray] | None = None) -> LinearSystem:
+                obs: Callable[[np.ndarray], np.ndarray] | None = None,
+                observation: Literal["point", "distributed"] | None = None,
+                ) -> LinearSystem:
     """Semi-discrete heat equation ``x_t = nu x_xx`` as a :class:`LinearSystem`.
 
-    The observation is the mollified point measurement
-    ``y(t) = int_0^1 c(xi) x(t,xi) dxi`` with ``c`` a smooth bump of unit mass
-    centred at ``obs_center``; its support is kept inside ``(0,1)`` so that the
-    boundary lift is not observed and the output has no feedthrough term.
+    By default, ``y(t) = x(t, obs_center)`` is evaluated exactly in the P1
+    space.  This functional is unbounded on ``X=L^2(0,1)`` but bounded on the
+    finer space ``W=H^1(0,1)``, matching Example ``ex:intro-pde``.  Set
+    ``observation="distributed"`` to use a smooth unit-mass bump instead.  For
+    backwards compatibility, passing a custom kernel through ``obs`` also
+    selects the distributed observation when ``observation`` is omitted.
 
     The diffusivity ``nu`` rescales time (``lambda_n = -nu n^2 pi^2``) and
     is what makes the example numerically legible: the record can only be
@@ -64,8 +68,20 @@ def heat_system(kind: str = "dirichlet", *, n_elems: int = 64, nu: float = 1.0,
     mesh = Mesh1D(n_elems)
     K0 = stiffness_matrix(mesh)  # unscaled: defines the H^1 structure of W
     K = nu * K0
-    c_fun = obs if obs is not None else bump(obs_center, obs_width)
-    c_nodal = interpolate(mesh, c_fun)
+    obs_kind = observation or ("distributed" if obs is not None else "point")
+    if obs_kind not in ("point", "distributed"):
+        raise ValueError(f"unknown heat observation {obs_kind!r}")
+    if obs_kind == "point" and obs is not None:
+        raise ValueError("a custom kernel requires observation='distributed'")
+
+    if obs_kind == "point":
+        obs_weights = point_evaluation(mesh, obs_center)
+        c_fun = None
+        c_nodal = None
+    else:
+        c_fun = obs if obs is not None else bump(obs_center, obs_width)
+        c_nodal = interpolate(mesh, c_fun)
+        obs_weights = None
 
     if kind in ("dirichlet", "dirichlet_sym"):
         M = mass_matrix(mesh, lumped=True)
@@ -80,7 +96,16 @@ def heat_system(kind: str = "dirichlet", *, n_elems: int = 64, nu: float = 1.0,
             load = K[np.ix_(free, [0])] + K[np.ix_(free, [mesh.n_nodes - 1])]
         B = -Minv @ load
         MX = M_II
-        C = (M_II @ c_nodal[free])[None, :]
+        if obs_kind == "point":
+            controlled = [0] if kind == "dirichlet" else [0, mesh.n_nodes - 1]
+            if np.any(np.abs(obs_weights[controlled]) > 1e-14):
+                raise ValueError(
+                    "point observation must not share a finite element with a "
+                    "controlled Dirichlet boundary"
+                )
+            C = obs_weights[free][None, :]
+        else:
+            C = (M_II @ c_nodal[free])[None, :]
 
         def expand(X: np.ndarray, u: np.ndarray | float = 0.0) -> np.ndarray:
             """Interior dofs -> full nodal values, including the boundary lift."""
@@ -92,18 +117,21 @@ def heat_system(kind: str = "dirichlet", *, n_elems: int = 64, nu: float = 1.0,
             return full
 
     elif kind == "neumann":
-        # Neumann control at xi = 0, homogeneous Dirichlet at xi = 1: the free
-        # nodes are 0, ..., N-1 and no lifting is required.
-        M_full = mass_matrix(mesh, lumped=False)
-        free = np.arange(mesh.n_nodes - 1)
-        M = M_full[np.ix_(free, free)]
+        # Neumann control at xi = 0, homogeneous Neumann data at xi = 1.
+        # Every nodal value is free and no lifting is required.  The weak
+        # boundary term is -nu*u*v(0), hence B = -nu*M^{-1}*e_0.
+        M = mass_matrix(mesh, lumped=False)
+        free = np.arange(mesh.n_nodes)
         Minv = np.linalg.inv(M)
-        A = -Minv @ K[np.ix_(free, free)]
+        A = -Minv @ K
         e0 = np.zeros((free.size, 1))
         e0[0, 0] = 1.0
-        B = -nu * (Minv @ e0)  # boundary term nu [x_xi v] of the weak form
+        B = -nu * (Minv @ e0)
         MX = M
-        C = (M @ c_nodal[free])[None, :]
+        if obs_kind == "point":
+            C = obs_weights[None, :]
+        else:
+            C = (M @ c_nodal)[None, :]
 
         def expand(X: np.ndarray, u: np.ndarray | float = 0.0) -> np.ndarray:
             return np.asarray(X)
@@ -123,6 +151,9 @@ def heat_system(kind: str = "dirichlet", *, n_elems: int = 64, nu: float = 1.0,
             "mesh": mesh,
             "free": free,
             "expand": expand,
+            "observation": obs_kind,
+            "obs_center": obs_center,
+            "obs_weights": obs_weights,
             "obs_kernel": c_fun,
             "obs_nodal": c_nodal,
             "modal_kind": "neumann" if kind == "neumann" else "dirichlet",

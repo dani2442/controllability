@@ -12,15 +12,13 @@ def test_heat_modal_coefficients():
 
 
 def test_neumann_modal_matches_pritchard_salamon_example_4_6():
-    """Neumann control at 0, Dirichlet at 1: lambda_n = -(n-1/2)^2 pi^2."""
+    """Neumann data at both ends: lambda_0=0 and lambda_n=-n^2*pi^2."""
     modal = heat_modal("neumann", n_modes=5, nu=1.0)
-    a = (np.arange(1, 6) - 0.5) * np.pi
-    assert np.allclose(modal.lam, -a**2)
-    # b_n = -nu phi_n(0) = -sqrt2 for every mode: no unreachable mode.
-    assert np.allclose(modal.b[:, 0], -np.sqrt(2.0))
-    # The lift D(xi) = xi - 1 realises the boundary condition it is meant to.
-    assert np.isclose(modal.lift(np.array([1.0]))[0], 0.0)
-    assert np.allclose(modal.d, -np.sqrt(2.0) / a**2)
+    n = np.arange(5)
+    assert np.allclose(modal.lam, -(n * np.pi) ** 2)
+    assert np.isclose(modal.b[0, 0], -1.0)
+    assert np.allclose(modal.b[1:, 0], -np.sqrt(2.0))
+    assert modal.lift is None
 
 
 def test_fem_eigenvalue_converges_quadratically():
@@ -34,7 +32,26 @@ def test_fem_eigenvalue_converges_quadratically():
 def test_neumann_fem_agrees_with_its_modal_reference():
     for ne in (32, 64):
         sys = heat_system("neumann", n_elems=ne)
-        assert abs(fem_eigenvalues(sys, 1)[0].real + 0.25 * np.pi**2) < 6.0 / ne**2
+        eig = fem_eigenvalues(sys, 2)
+        assert abs(eig[0].real) < 1e-10
+        assert abs(eig[1].real + np.pi**2) < 9.0 / ne**2
+
+
+def test_neumann_fem_has_the_exact_controlled_constant_mode():
+    """Example 4.6 has phi_0=1, lambda_0=0, and b_0=-nu."""
+    nu = 0.3
+    sys = heat_system("neumann", n_elems=24, nu=nu)
+    constant = np.ones(sys.n)
+    assert np.linalg.norm(sys.A @ constant) < 1e-11
+    assert np.isclose(constant @ sys.MX @ sys.B[:, 0], -nu)
+
+
+def test_heat_default_output_is_point_evaluation():
+    xi0 = 0.6
+    sys = heat_system("neumann", n_elems=24, obs_center=xi0)
+    nodal_values = 1.0 + 2.0 * sys.meta["mesh"].nodes
+    assert sys.meta["observation"] == "point"
+    assert np.isclose((sys.C @ nodal_values)[0], 1.0 + 2.0 * xi0)
 
 
 def test_symmetric_control_misses_even_modes():

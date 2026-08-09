@@ -75,10 +75,32 @@ def interpolate(mesh: Mesh1D, f: Callable[[np.ndarray], np.ndarray]) -> np.ndarr
     return np.asarray(f(mesh.nodes), dtype=float)
 
 
+def point_evaluation(mesh: Mesh1D, xi0: float) -> np.ndarray:
+    """Row weights for evaluating a P1 function at ``xi0``.
+
+    If ``x`` contains the nodal values of a finite-element function, then
+    ``point_evaluation(mesh, xi0) @ x`` is its exact P1 interpolant at ``xi0``.
+    """
+    if not np.isfinite(xi0) or not 0.0 <= xi0 <= 1.0:
+        raise ValueError("evaluation point must belong to [0, 1]")
+
+    weights = np.zeros(mesh.n_nodes)
+    if xi0 == 1.0:
+        weights[-1] = 1.0
+        return weights
+
+    element = min(int(np.floor(xi0 / mesh.h)), mesh.n_elems - 1)
+    local = (xi0 - element * mesh.h) / mesh.h
+    weights[element] = 1.0 - local
+    weights[element + 1] = local
+    return weights
+
+
 def bump(xi0: float = 0.6, width: float = 0.25) -> Callable[[np.ndarray], np.ndarray]:
     """A ``C^infty`` mollifier of unit mass supported in ``(xi0-width, xi0+width)``.
 
-    Used as the observation kernel ``c`` of a *mollified point measurement*
+    Used as the kernel ``c`` of a smooth distributed observation (and, because
+    it is localized near ``xi0``, as a mollified point measurement).
     ``y(t) = \\int_0^1 c(xi) x(t,xi) dxi \\approx x(t, xi0)``.  Smoothness and
     compact support make the modal coefficients ``c_n = <c, phi_n>`` decay
     faster than any power of ``n``, so ``sum_n |c_n| < infty`` and the pair

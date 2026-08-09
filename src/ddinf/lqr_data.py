@@ -68,16 +68,16 @@ def shift_library(record: Record, horizon: float, n_traj: int, *,
     state, by time invariance; this is the ``varphi_i = delta_{sigma_i}`` case
     of the convolution construction, exact by definition.
     """
-    n_win = int(round(horizon / record.dt)) + 1
-    if n_win > record.n_samples:
+    window_samples = int(round(horizon / record.dt)) + 1
+    if window_samples > record.n_samples:
         raise ValueError("record is shorter than the control horizon")
-    last = record.n_samples - n_win
+    last = record.n_samples - window_samples
     if spread is not None:
         last = min(last, int(round(spread / record.dt)))
     if last < n_traj - 1:
         raise ValueError(f"record too short for {n_traj} distinct shifts")
     starts = np.unique(np.round(np.linspace(0, last, n_traj)).astype(int))
-    return [record.shifted(int(k), n_win) for k in starts]
+    return [record.shifted(int(k), window_samples) for k in starts]
 
 
 def kernel_library(record: Record, horizon: float, kernels: np.ndarray,
@@ -87,19 +87,19 @@ def kernel_library(record: Record, horizon: float, kernels: np.ndarray,
     ``kernels`` has shape ``(N, n_s)`` sampled on ``[0, Theta]``.  Smoothing the
     shifts this way trades a little conditioning for robustness to noise.
     """
-    n_win = int(round(horizon / record.dt)) + 1
+    window_samples = int(round(horizon / record.dt)) + 1
     n_s = kernels.shape[1]
-    if n_win + n_s > record.n_samples:
+    if window_samples + n_s > record.n_samples:
         raise ValueError("record too short for the requested kernels")
     s_grid = np.linspace(0.0, theta_len, n_s)
     w = quadrature_weights(s_grid) if n_s > 2 else np.full(n_s, theta_len / n_s)
     out = []
     for phi in kernels:
         coef = w * phi
-        u = sum(c * record.u[:, j : j + n_win] for j, c in enumerate(coef))
-        x = sum(c * record.x[:, j : j + n_win] for j, c in enumerate(coef))
-        y = sum(c * record.y[:, j : j + n_win] for j, c in enumerate(coef))
-        out.append(Record(record.t[:n_win] - record.t[0], u, x, y))
+        u = sum(c * record.u[:, j : j + window_samples] for j, c in enumerate(coef))
+        x = sum(c * record.x[:, j : j + window_samples] for j, c in enumerate(coef))
+        y = sum(c * record.y[:, j : j + window_samples] for j, c in enumerate(coef))
+        out.append(Record(record.t[:window_samples] - record.t[0], u, x, y))
     return out
 
 

@@ -11,9 +11,12 @@ unbounded input and output operators*, Section 4:
 
 | example | module | control | observation | reference |
 | --- | --- | --- | --- | --- |
-| heat equation | `ddinf.heat` | Dirichlet or Neumann boundary | mollified point | §4.2, Ex. 4.6 |
-| wave equation | `ddinf.wave` | Dirichlet boundary | mollified point | §4.3, Ex. 4.10 |
-| retarded equation | `ddinf.delay` | bounded, in-domain | delayed state | §4.1 |
+| heat equation | `ddinf.heat` | Neumann--Neumann boundary | interior point value | §4.2, Ex. 4.6 |
+| wave equation | `ddinf.wave` | Dirichlet boundary | smooth distributed | §4.3, Ex. 4.10 |
+| retarded equation | `ddinf.delay` | bounded, in-domain | delayed state component | §4.1, $M=0$ specialization |
+
+The heat discretization also includes Dirichlet-control variants used as an
+independent convergence check and as a closed-form uncontrollable comparison.
 
 The `ddinf` package implements:
 

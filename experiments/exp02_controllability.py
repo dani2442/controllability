@@ -36,9 +36,12 @@ def _cases(quality: str) -> dict:
     ne = 12 if quality == "quick" else 20
     n_tau = 6 if quality == "quick" else 12
 
-    heat_xi = heat_system("dirichlet", n_elems=ne, nu=NU)
-    xi = heat_xi.meta["mesh"].nodes[heat_xi.meta["free"]]
-    x0_heat = np.sin(np.pi * xi) + .2 * np.sin(2 * np.pi * xi)
+    heat_c = heat_system("neumann", n_elems=ne, nu=NU)
+    xi_c = heat_c.meta["mesh"].nodes[heat_c.meta["free"]]
+    x0_heat_c = 1.0 + np.cos(np.pi * xi_c) + .2 * np.cos(2 * np.pi * xi_c)
+    heat_u = heat_system("dirichlet_sym", n_elems=ne, nu=NU)
+    xi_u = heat_u.meta["mesh"].nodes[heat_u.meta["free"]]
+    x0_heat_u = np.sin(np.pi * xi_u) + .2 * np.sin(2 * np.pi * xi_u)
 
     delay_u, delay_c = uncontrollable_pair(), controllable_pair()
     lambert = delay_u["obstruction"]
@@ -49,6 +52,7 @@ def _cases(quality: str) -> dict:
 
     wave_c = wave_system("dirichlet", n_elems=ne, speed=SPEED)
     wave_u = wave_system("dirichlet_sym", n_elems=ne, speed=SPEED)
+    xi = wave_c.meta["mesh"].nodes[wave_c.meta["free"]]
     # The predicate of prop:data-fattorini-hautus needs kappa != 0, so the
     # initial state has to put energy into the mode that the input cannot
     # reach; a record in which the unreachable mode is simply absent carries no
@@ -57,9 +61,9 @@ def _cases(quality: str) -> dict:
                               np.zeros(xi.size)])
 
     return {
-        "heat, one-sided": (heat_xi, x0_heat, 8.0, None, "X"),
-        "heat, symmetric": (heat_system("dirichlet_sym", n_elems=ne, nu=NU),
-                            x0_heat, 8.0, -NU * (2 * np.pi) ** 2, "X"),
+        "heat, one-sided": (heat_c, x0_heat_c, 8.0, None, "X"),
+        "heat, symmetric": (heat_u, x0_heat_u, 8.0,
+                            -NU * (2 * np.pi) ** 2, "X"),
         "wave, one-sided": (wave_c, x0_wave, 8.0, None, "W"),
         "wave, symmetric": (wave_u, x0_wave, 8.0, 2j * np.pi * SPEED, "W"),
         "delay, coupled": (delay(delay_c), _rng_state(delay(delay_c).n, 1), 10.0,

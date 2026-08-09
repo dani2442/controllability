@@ -25,15 +25,15 @@ decay like ``n^{-3}``, and a few hundred modes give a reference accurate to
 by parts turns ``-d_n u'`` into ``b_n u`` with ``b_n = -lambda_n d_n``.
 
 Modal data (see Pritchard--Salamon Ex. 4.6 and ``sections/lqr.tex``); the last
-row is the verbatim example of the cited paper, ``a_n := (n - 1/2) pi``:
+row is the verbatim example of the cited paper and includes the constant mode:
 
-===========================  ==============  ==========================  =========================
-example                      ``lambda_n``    ``phi_n``                   ``b_n``
-===========================  ==============  ==========================  =========================
-Dirichlet control at 0       ``-n^2 pi^2``   ``sqrt2 sin(n pi xi)``      ``sqrt2 n pi``
-Dirichlet control both ends  ``-n^2 pi^2``   ``sqrt2 sin(n pi xi)``      ``sqrt2 n pi (1-(-1)^n)``
-Neumann at 0, Dirichlet at 1 ``-nu a_n^2``   ``sqrt2 cos(a_n xi)``       ``-nu phi_n(0)``
-===========================  ==============  ==========================  =========================
+===========================  =======================  ==================================  =========================
+example                      ``lambda_n``             ``phi_n``                           ``b_n``
+===========================  =======================  ==================================  =========================
+Dirichlet control at 0       ``-nu n^2 pi^2``         ``sqrt2 sin(n pi xi)``              ``sqrt2 nu n pi``
+Dirichlet control both ends  ``-nu n^2 pi^2``         ``sqrt2 sin(n pi xi)``              ``sqrt2 nu n pi (1-(-1)^n)``
+Neumann at both endpoints    ``-nu n^2 pi^2``, n>=0  ``1`` (n=0), ``sqrt2 cos(n pi xi)`` ``-nu phi_n(0)``
+===========================  =======================  ==================================  =========================
 """
 
 from __future__ import annotations
@@ -150,8 +150,9 @@ class ModalSystem:
 def heat_modal(kind: str = "dirichlet", n_modes: int = 400, nu: float = 1.0) -> ModalSystem:
     """Closed-form modal data for the three heat-equation configurations.
 
-    ``nu`` is the diffusivity of ``x_t = nu x_xx``; it scales the eigenvalues,
-    and with them the control coefficients ``b_n = -lambda_n <D, phi_n>``.
+    ``nu`` is the diffusivity of ``x_t = nu x_xx``.  For Dirichlet control it
+    scales ``b_n = -lambda_n <D, phi_n>``; for Neumann control the weak
+    boundary term gives ``b_n = -nu phi_n(0)`` directly.
     """
     if kind in ("dirichlet", "dirichlet_sym"):
         n = np.arange(1, n_modes + 1)
@@ -172,20 +173,20 @@ def heat_modal(kind: str = "dirichlet", n_modes: int = 400, nu: float = 1.0) -> 
         return ModalSystem(f"heat-{kind}", lam, b, phi, lift=lift, d=d, g=np.zeros_like(d))
 
     if kind == "neumann":
-        # Neumann control at xi = 0, Dirichlet at xi = 1 (Pritchard--Salamon
-        # Ex. 4.6): a = (n - 1/2) pi, phi_n = sqrt2 cos(a xi), lambda_n = -nu a^2.
-        a = (np.arange(1, n_modes + 1) - 0.5) * np.pi
-        lam = -nu * a**2
+        # Neumann control at xi = 0, homogeneous Neumann data at xi = 1
+        # (Pritchard--Salamon Ex. 4.6).  Indexing starts at n=0 because the
+        # homogeneous generator has the normalized constant eigenfunction.
+        n = np.arange(n_modes)
+        lam = -nu * (n * np.pi) ** 2
 
-        def phi(xi: np.ndarray, a=a) -> np.ndarray:
-            return np.sqrt(2.0) * np.cos(np.outer(a, np.asarray(xi, dtype=float)))
+        def phi(xi: np.ndarray, n=n) -> np.ndarray:
+            xi = np.asarray(xi, dtype=float)
+            values = np.cos(np.outer(n * np.pi, xi))
+            if n.size > 1:
+                values[1:] *= np.sqrt(2.0)
+            return values
 
         b = -nu * phi(np.array([0.0]))[:, 0][:, None]  # b_n = -nu phi_n(0)
-        # D(xi) = xi - 1 has D'(0) = 1, D(1) = 0, D'' = 0, and
-        # <D, phi_n> = -sqrt2 / a^2 because cos((n-1/2) pi) = 0.
-        lift = lambda xi: np.asarray(xi, dtype=float) - 1.0  # noqa: E731
-        d = -np.sqrt(2.0) / a**2
-        return ModalSystem("heat-neumann", lam, b, phi, lift=lift, d=d,
-                           g=np.zeros_like(d))
+        return ModalSystem("heat-neumann", lam, b, phi)
 
     raise ValueError(f"unknown heat configuration {kind!r}")

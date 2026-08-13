@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 from ddinf.controllability import data_driven_controllability, hautus_uncontrollable
 from ddinf.delay import controllable_pair, delay_system, uncontrollable_pair
 from ddinf.heat import heat_system
 from ddinf.moments import moments, sine_tests
-from ddinf.plotting import configure, savefig, write_table
+from ddinf.plotting import configure, family_colors, savefig, write_table
 from ddinf.signals import multisine
 from ddinf.timestepping import simulate, uniform_grid
 from ddinf.wave import wave_system
@@ -79,7 +80,10 @@ def run(quality: str = "quick") -> dict:
     signal = multisine(np.geomspace(.2, 20.0, 20), amps=np.geomspace(1.0, .2, 20), seed=2)
 
     reports, rows, diagnostics = {}, [], {}
-    for label, (sys, x0, horizon, reference, space) in _cases(quality).items():
+    for i, (label, (sys, x0, horizon, reference, space)) in enumerate(
+            _cases(quality).items()):
+        if i and i % 2 == 0:  # blank line between the two rows of one family
+            rows.append(r"\addlinespace")
         rec = simulate(sys, signal, uniform_grid(horizon, dt), x0, theta=.5)
         mom = moments(rec, sine_tests(rec.t, max(30, sys.n + 8)))
         report = data_driven_controllability(
@@ -90,10 +94,13 @@ def run(quality: str = "quick") -> dict:
         found = [c.lam for c in report.obstructions]
         model = [lam for lam, _ in hautus_uncontrollable(sys)]
         residual = mom.dynamics_residual(sys.A, sys.B)
+        # The verdict is the test itself: no surviving candidate is a certificate
+        # of nothing, a surviving one certifies that controllability fails.
+        verdict = r"\xmark" if found else r"\cmark"
         if reference is None:
             # Controllable configuration: success means no candidate survives.
             rows.append(f"{label} & {report.numerical_rank}/{report.dimension} & "
-                        f"{len(found)} & --- & --- & --- & {tex_num(residual)} \\\\")
+                        f"{verdict} & {len(found)} & --- & --- & --- \\\\")
             diagnostics[label] = {"n_obstructions": len(found), "residual": residual}
             continue
 
@@ -105,28 +112,41 @@ def run(quality: str = "quick") -> dict:
         e_data = abs(lam_found - lam_model)
         e_disc = abs(lam_model - reference)
         rows.append(f"{label} & {report.numerical_rank}/{report.dimension} & "
-                    f"{len(found)} & {tex_complex(lam_found)} & "
-                    f"{tex_complex(reference)} & {tex_num(e_data)} & "
-                    f"{tex_num(residual)} \\\\")
+                    f"{verdict} & {len(found)} & {tex_complex(lam_found)} & "
+                    f"{tex_complex(reference)} & {tex_num(e_data, digits=2)} \\\\")
         diagnostics[label] = {"n_obstructions": len(found), "lam_found": lam_found,
                               "lam_model": lam_model, "reference": reference,
                               "error_vs_model": e_data, "error_vs_closed_form": e_disc,
                               "residual": residual}
 
-    fig, ax = plt.subplots(figsize=(4.6, 3.0))
-    for label, report in reports.items():
+    # One colormap per family; within a family the darker shade is the
+    # approximately controllable configuration, drawn solid, and the lighter
+    # one its uncontrollable comparison, drawn dashed.
+    shades = {family: iter(family_colors(family, 2))
+              for family in ("heat", "wave", "delay")}
+    colors = {label: next(shades[label.split(",")[0]]) for label in reports}
+
+    fig, ax = plt.subplots(figsize=(4.8, 3.1))
+    for i, (label, report) in enumerate(reports.items()):
         s = report.singular_values
-        ax.semilogy(np.arange(1, len(s) + 1), s / s[0], "o-", ms=3, label=label)
-    ax.axhline(1e-10, color="k", ls="--", lw=1, label="rank threshold")
-    ax.set(xlabel="moment direction", ylabel="normalized squared singular value")
+        ax.semilogy(np.arange(1, len(s) + 1), s / s[0], "o-" if i % 2 == 0 else "o--",
+                    ms=3, color=colors[label], label=label)
+    ax.axhline(1e-10, color="k", ls=":", lw=1)
+    # Below the line and at the left edge: the only corner no spectrum reaches.
+    ax.annotate("threshold $10^{-10}$", (1, 1e-10), textcoords="offset points",
+                xytext=(2, -4), va="top", fontsize=6.5)
+    ax.set(xlabel="direction", ylabel="normalized squared singular value")
     ax.grid(True, which="both", alpha=.25)
-    ax.legend(fontsize=6.5)
+    handles = [Line2D([0], [0], color=colors[label], marker="o", ms=3,
+                      ls="-" if i % 2 == 0 else "--", label=label)
+               for i, label in enumerate(reports)]
+    ax.legend(handles=handles, fontsize=6.2, ncol=2, loc="lower left")
     fig_path = savefig(fig, "controllability.pdf")
 
-    table = write_table("controllability.tex", r"""\begin{tabular}{lrrllrr}
+    table = write_table("controllability.tex", r"""\begin{tabular}{lrcrllr}
 \toprule
-Configuration & rank & obstr. & recovered $\lambda$ & closed form &
-$|\lambda-\lambda_h|$ & residual \\
+Configuration & resolved & controllable & found & recovered $\lambda$ &
+exact $\lambda$ & error \\
 \midrule
 """ + "\n".join(rows) + r"""
 \bottomrule

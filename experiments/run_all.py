@@ -11,4 +11,7 @@ if __name__ == "__main__":
     args = parser(__doc__).parse_args()
     for run in (run01, run02, run03, run04):
         result = run(args.quality)
-        print(f"{run.__module__}: wrote {result['figure'].name}, {result['table'].name}")
+        written = [result["figure"].name]
+        if result["table"] is not None:  # exp01 reports its fits in the figure
+            written.append(result["table"].name)
+        print(f"{run.__module__}: wrote {', '.join(written)}")

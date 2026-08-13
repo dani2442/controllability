@@ -20,7 +20,7 @@ from ddinf.lqr_data import estimate_graph, solve_graph_lqr
 from ddinf.lqr_model import LqrWeights, riccati_hamiltonian
 from ddinf.lqr_window import shift_library, solve_window_lqr
 from ddinf.moments import hat_tests
-from ddinf.plotting import configure, savefig, write_table
+from ddinf.plotting import configure, family_colors, savefig, write_table
 from ddinf.signals import Prbs
 from ddinf.timestepping import simulate, uniform_grid
 from ddinf.wave import wave_system
@@ -29,6 +29,11 @@ from experiments.common import parser, tex_num
 RANK_TOL = 1e-10
 RHO = 1e-8
 SHOWCASE = "wave"
+# Both methods are run at the same sizes relative to their own dimension.  The
+# graph method needs q >= m + n test functions and the window method N >= b_h
+# windows, so ratio 1 is the smallest size at which either can be exact: below
+# it the graph is not spanned at all and there is nothing to plot.
+RATIOS = (1., 2., 4.)
 
 
 def _dwell_safe(length: float, horizon: float, dt: float, dwell: int,
@@ -83,9 +88,9 @@ def run(quality: str = "quick") -> dict:
         optimum = reference.optimal_cost(x0)
 
         graph_dim = sys.m + sys.n
-        graph_sizes = [graph_dim, 2 * graph_dim, 4 * graph_dim]
+        graph_sizes = [int(round(r * graph_dim)) for r in RATIOS]
         behavior_dim = sys.m * t.size + sys.n
-        window_sizes = [behavior_dim // 2, behavior_dim, 2 * behavior_dim]
+        window_sizes = [int(round(r * behavior_dim)) for r in RATIOS]
         length = _dwell_safe(length, horizon, dt, dwell, window_sizes)
         record = simulate(sys, Prbs(dwell * dt, seed=3, horizon=length + dt),
                           uniform_grid(length, dt), np.zeros(sys.n), theta=.5)
@@ -101,6 +106,8 @@ def run(quality: str = "quick") -> dict:
                 rank_tol=RANK_TOL,
                 theta=.5,
             )
+            # Raises if the moments do not resolve the whole graph, which at
+            # these sizes would mean the record itself is uninformative.
             graph_solutions.append(solve_graph_lqr(graph, t, weights, x0, theta=.5))
 
         window_solutions = [
@@ -133,6 +140,9 @@ def run(quality: str = "quick") -> dict:
             "window_error": window_error,
         }
 
+    colors = {label: family_colors(label)[0] for label in results}
+    dark, light = family_colors(SHOWCASE, 2)
+
     fig, ax = plt.subplots(1, 3, figsize=(7.4, 2.5))
     show = results[SHOWCASE]
     graph_final = show["graph_solutions"][-1]
@@ -142,9 +152,9 @@ def run(quality: str = "quick") -> dict:
         axis.plot(show["t"], getattr(show["optimal"], signal)[0], "k--",
                   label="Riccati")
         axis.plot(show["t"], getattr(graph_final.record, signal)[0], lw=1.0,
-                  label="graph")
+                  color=dark, label="graph")
         axis.plot(show["t"], getattr(window_final.record, signal)[0], lw=.9,
-                  label="window", alpha=.8)
+                  color=light, label="window", alpha=.9)
         axis.set(xlabel=r"$t$", ylabel=name)
         axis.grid(True, alpha=.25)
     ax[1].plot(show["t"], show["free"].y[0], color=".65", lw=.8, zorder=0,
@@ -154,7 +164,6 @@ def run(quality: str = "quick") -> dict:
     ax[0].legend(fontsize=6.5)
     ax[1].legend(fontsize=6.5)
 
-    colors = dict(zip(results, ("C0", "C1", "C2")))
     for label, result in results.items():
         ax[2].loglog(
             np.array(result["graph_sizes"]) / result["graph_dim"],
@@ -164,9 +173,8 @@ def run(quality: str = "quick") -> dict:
             np.array(result["window_sizes"]) / result["behavior_dim"],
             result["window_error"], "s--", ms=3.2, color=colors[label],
         )
-    ax[2].set(xlabel="relative trial size", ylabel="relative cost error")
-    ax[2].set_xticks([.5, 1.0, 2.0, 4.0],
-                     [r"$1/2$", r"$1$", r"$2$", r"$4$"])
+    ax[2].set(xlabel="trial size / dimension", ylabel="relative cost error")
+    ax[2].set_xticks(list(RATIOS), [rf"${r:g}$" for r in RATIOS])
     ax[2].xaxis.set_minor_locator(NullLocator())
     ax[2].set_title("convergence", fontsize=8)
     ax[2].grid(True, which="both", alpha=.25)
@@ -174,7 +182,7 @@ def run(quality: str = "quick") -> dict:
               for label in results]
     legend += [Line2D([0], [0], color=".3", marker="o", label="graph"),
                Line2D([0], [0], color=".3", ls="--", marker="s", label="window")]
-    ax[2].legend(handles=legend, fontsize=6.2, ncol=2)
+    ax[2].legend(handles=legend, fontsize=6.2, ncol=2, loc="upper right")
     fig.tight_layout()
     fig_path = savefig(fig, "lqr.pdf")
 

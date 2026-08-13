@@ -22,16 +22,22 @@ def tex_num(value: float, digits: int = 3) -> str:
     return f"\\num{{{value:.{digits}g}}}"
 
 
-def tex_complex(value: complex, digits: int = 4) -> str:
-    """``a`` or ``a \\pm b i`` -- obstructions of real systems come in pairs."""
+def tex_complex(value: complex, digits: int = 3) -> str:
+    """``a`` or ``a \\pm b i`` -- obstructions of real systems come in pairs.
+
+    ``digits`` counts decimal places, not significant ones, so that a recovered
+    obstruction and its reference are printed to the same precision and can be
+    compared column by column.
+    """
     z = complex(value)
     if not np.isfinite(z):
         return "---"
     scale = max(abs(z), 1.0)
     re = 0.0 if abs(z.real) < 1e-8 * scale else z.real
+    real = "0" if re == 0.0 else f"{re:.{digits}f}"  # a structural zero stays bare
     if abs(z.imag) < 1e-8 * scale:
-        return f"${re:.{digits}g}$"
-    return f"${re:.{digits}g}\\pm{abs(z.imag):.{digits}g}\\mathrm{{i}}$"
+        return f"${real}$"
+    return f"${real}\\pm{abs(z.imag):.{digits}f}\\mathrm{{i}}$"
 
 
 def nearest(values, target: complex) -> complex:

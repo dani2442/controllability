@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 from ddinf.heat import heat_system
 from ddinf.informativity import gramian_spectrum
-from ddinf.plotting import configure, savefig, write_table
+from ddinf.plotting import configure, family_colors, savefig, write_table
 from ddinf.signals import Prbs, harmonic_pe, multisine
 from ddinf.timestepping import simulate, uniform_grid
 from ddinf.wave import wave_system
@@ -51,18 +51,42 @@ def run(quality: str = "quick") -> dict:
             rec = simulate(sys, signal, t, np.zeros(sys.n), theta=.5)
             spectra[sys_name, name] = gramian_spectrum(rec, sys, space=space, tol=TOL)
 
-    fig, ax = plt.subplots(1, 2, figsize=(7.0, 2.9), sharey=True)
+    markers = dict(zip(signals, ("o", "s", "^")))
+    fig = plt.figure(figsize=(7.0, 4.0))
+    grid = fig.add_gridspec(2, 6, height_ratios=(1.0, 1.8), hspace=.62, wspace=1.4)
+
+    # Top row: the three probing inputs themselves, over the first quarter of
+    # the observation window, where their shapes are still legible.
+    t_show = t[t <= horizon / 2.5]
+    for i, (name, signal) in enumerate(signals.items()):
+        a = fig.add_subplot(grid[0, 2 * i:2 * i + 2])
+        a.plot(t_show, np.atleast_2d(signal(t_show))[0], color=".25", lw=.8)
+        a.set(xlabel=r"$t$", title=name)
+        a.title.set_fontsize(8)
+        a.grid(True, alpha=.25)
+        if i == 0:
+            a.set_ylabel(r"$u(t)$")
+
+    # Bottom row: what each input resolves, one panel per system, in the shades
+    # of that system's colormap.
+    ax = [fig.add_subplot(grid[1, :3])]
+    ax.append(fig.add_subplot(grid[1, 3:], sharey=ax[0]))
     for a, sys_name in zip(ax, systems):
-        for name, marker in zip(signals, ("o", "s", "^")):
+        colors = family_colors(sys_name, len(signals))
+        for color, name in zip(colors, signals):
             spec = spectra[sys_name, name]
             a.semilogy(np.arange(1, spec.dimension + 1),
-                       spec.eigenvalues / spec.eigenvalues[0], marker + "-", ms=3,
-                       label=name)
-        a.axhline(TOL, color="k", ls="--", lw=1)
+                       spec.eigenvalues / spec.eigenvalues[0],
+                       markers[name] + "-", ms=3, color=color, label=name)
+        a.axhline(TOL, color="k", ls=":", lw=1)
         a.set(xlabel="Gramian eigenvalue index", title=sys_name)
+        a.title.set_fontsize(8)
         a.grid(True, which="both", alpha=.25)
+        a.legend(fontsize=6.5)
     ax[0].set(ylabel="normalized eigenvalue")
-    ax[0].legend(fontsize=7)
+    # Below the line and at the left edge: the only corner no spectrum reaches.
+    ax[0].annotate(r"threshold $10^{-10}$", (1, TOL), textcoords="offset points",
+                   xytext=(2, -4), va="top", fontsize=6.5)
     fig_path = savefig(fig, "conditioning.pdf")
 
     rows = []

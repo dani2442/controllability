@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 
 from ddinf.delay import delay_system, uncontrollable_pair
 from ddinf.heat import fem_eigenvalues, heat_system
-from ddinf.plotting import configure, savefig, write_table
+from ddinf.plotting import configure, family_colors, savefig
 from ddinf.wave import fem_frequencies, wave_system
-from experiments.common import parser, tex_num
+from experiments.common import parser
 
 
 def _heat_error(kind: str, exact: float, mode: int = 0):
@@ -50,16 +50,21 @@ def run(quality: str = "quick") -> dict:
     root = complex(lambert[np.argmax(lambert.real)])
 
     cases = {
-        # label: (error/norm map, symbol of the converged quantity)
-        "heat, Dirichlet control": (_heat_error("dirichlet", -np.pi**2), r"$\lambda_1$"),
-        "heat, Neumann--Neumann": (_heat_error("neumann", -np.pi**2, mode=1),
-                                      r"$\lambda_1$ (nonzero)"),
-        "wave, Dirichlet control": (_wave_error(np.pi), r"$\omega_1$"),
-        "delay, leading Lambert root": (_delay_error(delay_data, root), r"$\lambda_1$"),
+        # label: (family, error/norm map)
+        "heat, Dirichlet control": ("heat", _heat_error("dirichlet", -np.pi**2)),
+        "heat, Neumann control": ("heat", _heat_error("neumann", -np.pi**2, mode=1)),
+        "wave, Dirichlet control": ("wave", _wave_error(np.pi)),
+        "delay": ("delay", _delay_error(delay_data, root)),
     }
+    # Two heat configurations share the family colormap and are told apart by
+    # its two shades; the other two families use one shade each.
+    shades = {"heat": iter(family_colors("heat", 2)),
+              "wave": iter(family_colors("wave")),
+              "delay": iter(family_colors("delay"))}
+    colors = {label: next(shades[family]) for label, (family, _) in cases.items()}
 
     errors, norms = {}, {}
-    for label, (err, _) in cases.items():
+    for label, (_, err) in cases.items():
         pairs = [err(int(n)) for n in sizes]
         errors[label] = np.array([p[0] for p in pairs])
         norms[label] = np.array([p[1] for p in pairs])
@@ -70,36 +75,30 @@ def run(quality: str = "quick") -> dict:
 
     fig, ax = plt.subplots(1, 2, figsize=(7.0, 2.9))
     for label, marker in zip(cases, ("o", "s", "^", "d")):
-        ax[0].loglog(h, errors[label], marker=marker, ms=4, label=label)
-        ax[1].loglog(h, norms[label], marker=marker, ms=4, label=label)
+        style = dict(marker=marker, ms=4, color=colors[label], label=label)
+        ax[0].loglog(h, errors[label], **style)
+        ax[1].loglog(h, norms[label], **style)
+        # The fitted growth exponent is the quantitative content of the right
+        # panel, so it is written next to the curve it belongs to.
+        text = ("bounded" if abs(growth[label]) < .05
+                else rf"$h^{{-{growth[label]:.2f}}}$")
+        ax[1].annotate(text, (h[0], norms[label][0]), textcoords="offset points",
+                       xytext=(-4, 6), ha="right", fontsize=6.5,
+                       color=colors[label])
     ref = errors["heat, Dirichlet control"][-1]
     ax[0].loglog(h, ref * (h / h[-1]) ** 2, "k--", lw=1, label=r"$h^2$")
     ax[0].set(xlabel="mesh width", ylabel="leading spectral error")
     ax[1].set(xlabel="mesh width", ylabel=r"$\|B_h\|_{\mathcal{L}(U,X_h)}$")
+    ax[0].legend(fontsize=6.5)  # both panels show the same four cases
     for a in ax:
         a.grid(True, which="both", alpha=.25)
-        a.legend(fontsize=6.5)
         # Label only the meshes actually used; the default decade ticks collide.
         a.set_xticks(h, [rf"$\frac{{1}}{{{n}}}$" for n in sizes], minor=False)
         a.set_xticks([], minor=True)
     fig.tight_layout()
     fig_path = savefig(fig, "discretization.pdf")
 
-    rows = "\n".join(
-        f"{label} & {cases[label][1]} & {order[label]:.2f} & "
-        # the retarded equation has a bounded control operator: no growth at all
-        f"{'0 (bounded)' if abs(growth[label]) < .05 else f'{growth[label]:.2f}'} & "
-        f"{tex_num(errors[label][-1])} \\\\"
-        for label in cases
-    )
-    table = write_table("discretization.tex", rf"""\begin{{tabular}}{{llrrr}}
-\toprule
-Example & quantity & observed order & $\|B_h\|$ exponent & finest error \\
-\midrule
-{rows}
-\bottomrule
-\end{{tabular}}""")
-    return {"figure": fig_path, "table": table, "order": order, "growth": growth,
+    return {"figure": fig_path, "table": None, "order": order, "growth": growth,
             "errors": errors, "norms": norms, "sizes": sizes}
 
 

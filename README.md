@@ -77,10 +77,11 @@ installed copy of the package would write elsewhere.
   controllable (every pencil candidate must be rejected) and once with an
   obstruction known in closed form (it must be recovered). Also reports the
   numerical rank of the weak moment map.
-- **exp03 — LQR.** The finite-horizon regulator reconstructed from
-  time-shifted windows of a single record, for library sizes `N/n_T ∈
-  {1/2, 1, 2}` where `n_T = T/Δt + 1`. Scored against a separately computed
-  Riccati solution.
+- **exp03 — LQR.** Comparison of the main paper's synthesis-range method
+  (a weak-moment basis of the system graph followed by a sparse constrained
+  QP) with the shifted-window surrogate analysed in Appendix D of
+  `paper_wfl2/window-informativity.tex`.
+  Both are scored against a separately computed Riccati solution.
 - **exp04 — conditioning.** Gramian spectra for three probing inputs — the
   paper's harmonic PE signal, a well-separated multisine, and a PRBS — on the
   heat equation (analytic, covered by the sufficiency theorem) and the wave
@@ -101,7 +102,8 @@ beyond the `ddinf.systems.LinearSystem` interface.
 | `moments` | the dynamic synthesis operator: `X0`, `X1`, `U0`, `Y0` from a record |
 | `informativity` | Gramian and moment-map spectra, numerical rank at a threshold |
 | `controllability` | the data-driven Fattorini–Hautus test, plus a model-based Hautus baseline |
-| `lqr_data` | the data-driven regulator: shift/kernel libraries, `H`, `E`, `e`, and the penalized solve |
+| `lqr_data` | weak-moment graph estimation and the graph-constrained LQR solve |
+| `lqr_window` | preserved shift/kernel libraries, `H`, `E`, `e`, and penalized window solve |
 | `lqr_model` | the Riccati reference (see below) |
 | `spectral` | closed-form modal series used to validate the discretizations |
 
@@ -110,14 +112,15 @@ used by these experiments.
 
 ## The model-free boundary
 
-No model quantity enters a data-driven routine. `ddinf.controllability` and
-`ddinf.lqr_data` receive only sampled input–state–output records and the two
-Gram matrices representing the discrete Hilbert inner products of `X` and `W`.
+No model quantity enters a data-driven routine. `ddinf.controllability`,
+`ddinf.lqr_data`, and `ddinf.lqr_window` use sampled input–state–output records,
+prescribed LQR weights, and matrices representing the relevant discrete
+Hilbert inner products.
 Model-based quantities — Riccati solutions, Hautus modes, closed-form
 eigenvalues, the dynamics residual `‖X1 - A X0 - B U0‖` — are computed
 separately and used only to score the results. The `sys` argument passed to a
-data-driven routine is used for `MX`/`MW` (and for reshaping `η`) and never for
-`A`, `B` or `C`; `Moments.dynamics_residual` is the one function that takes
+window or controllability routine is used for `MX`/`MW` (and for reshaping
+`η`) and never for `A`, `B` or `C`; `Moments.dynamics_residual` is the one function that takes
 `A`, `B` deliberately, and is a diagnostic only.
 
 ## How the reference quantities are computed
@@ -141,19 +144,20 @@ data-driven routine is used for `MX`/`MW` (and for reshaping `η`) and never for
 
 ## Quadrature conventions
 
-Two different rules are in use, deliberately:
+The numerical weak form is matched to its downstream discretization:
 
 - `ddinf.moments.quadrature_weights` — composite **Simpson**. The moments are
-  the only place the record is integrated for the fundamental-lemma identities,
-  and Simpson puts the quadrature error of `X1 = A X0 + B U0` below the error of
-  the time stepping itself. `hat_tests` snaps its knots to even sample indices
-  so no Simpson panel straddles the kink of a hat function.
+  used for the continuous weak-moment calculations. `hat_tests` snaps its
+  knots to even sample indices so no Simpson panel straddles a kink.
+- `ddinf.moments.theta_moments` — the **theta-consistent discrete weak form**
+  used to learn the LQR graph. For Crank–Nicolson it tests midpoint values and
+  forms `X1 = sum phi_mid (x[k+1]-x[k])`; hence
+  `X1 = A X0 + B U0` holds to the time-stepper's linear-solver tolerance
+  without differentiating the measured state pointwise.
 - `ddinf.informativity.gramian_spectrum` — **trapezoid**, since only the
   spectrum's decay matters there.
-
-- `ddinf.moments.trapezoid_weights` — **trapezoid**, and required for the
-  control term of the LQR cost in `ddinf.lqr_data.assemble` and
-  `ddinf.lqr_model.trajectory_cost`. Crank–Nicolson drives the state with
+- `ddinf.moments.trapezoid_weights` — **trapezoid**, used for the control term
+  in `ddinf.lqr_window` and `ddinf.lqr_model.trajectory_cost`. Crank–Nicolson drives the state with
   `(u_k + u_{k+1})/2`, so the odd–even component of a sampled input never
   reaches the state; charging it with the *alternating* Simpson weights
   `4Δt/3, 2Δt/3` makes a free direction cheap on even samples and expensive on
@@ -163,7 +167,8 @@ Two different rules are in use, deliberately:
   orders of magnitude of achieved cost. A uniform weight prices every sample
   alike; it is also the lumped form of the exact `∫|u|²` of the piecewise-linear
   interpolant the scheme implicitly integrates, so it is the consistent choice
-  and not merely the safe one. The output term keeps Simpson.
+  and not merely the safe one. The graph LQR instead uses one control and
+  output per interval, so this nodal ambiguity does not arise.
 
 `tests/test_lqr_data.py::test_reconstructed_input_carries_no_sample_nyquist_ripple`
 guards this; swapping the weights back makes it and the Riccati-agreement test
@@ -186,10 +191,19 @@ cd paper_wfl2 && git diff --stat -- tables      # must be empty
 Environment used for the committed artifacts: Python 3.11.14, NumPy 2.4.1,
 SciPy 1.17.0, Matplotlib 3.10.8, pinned in `uv.lock`.
 
-## Building the LQR library
+## The two LQR discretizations
 
-Two properties of the shift library are easy to lose without any visible
-symptom, and `experiments/exp03_lqr.py` guards both:
+The main-paper routine first forms `Z = [U0; X0]` and
+`D = [U0; X0; X1; Y0]` from theta-consistent weak moments. A weighted SVD of
+`Z` selects the resolved directions and the corresponding columns of `D` span
+the learned system graph. The LQR then imposes graph membership at every time
+stage and fixes the initial state exactly. It requires no shifted record,
+behavior library, or penalty parameter.
+
+The separate window routine is retained for the window-informativity appendix
+in `paper_wfl2/window-informativity.tex`. Two properties of its shift library
+are easy to lose without any visible symptom, and `experiments/exp03_lqr.py`
+guards both:
 
 - **Redundancy, not just rank.** The sampled behavior on the window has
   dimension `m·n_T + n`. Reaching that rank exactly makes the library a square

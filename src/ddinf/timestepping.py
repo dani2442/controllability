@@ -62,7 +62,7 @@ class Record:
 
         By time invariance this is again a trajectory of the same system, with
         initial state ``x(t_k)``; this is what supplies the library directions
-        of Remark ``rmk:lqr-numerics``.
+        of the window-informativity surrogate.
         """
         sl = slice(k, k + n_samples)
         return Record(self.t[sl] - self.t[k], self.u[:, sl], self.x[:, sl], self.y[:, sl])

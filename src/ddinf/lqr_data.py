@@ -1,33 +1,16 @@
-"""The data-driven regulator: Theorem ``thm:lqr-data`` and Remark ``rmk:lqr-numerics``.
+"""Synthesis-range discretisation of the data-driven finite-horizon LQR.
 
-The model never appears.  The cost ``eq:lqr-cost-traj`` is a functional of the
-measured signals alone, and the fundamental lemma replaces "be a trajectory" by
-a condition on one record.  What remains is a quadratic problem on an affine
-subspace, discretised by restricting it to finitely many admissible directions.
+The measured weak moments satisfy
 
-Those directions come from the record itself: if it is available on
-``[0, T + Theta]`` then, by linearity and time invariance,
+    D = [U0; X0; X1; Y0] = Gamma_h [U0; X0] = Gamma_h Z.
 
-    z_i = int_0^Theta varphi_i(s) (u_bar, x_bar, y_bar)(s + .) ds
+If ``Z`` has full row rank, the columns of ``D`` span the finite-dimensional
+system graph ``im Gamma_h``.  A metric-weighted SVD provides a stable basis of
+that graph without identifying ``A``, ``B`` or ``C``.  Candidate trajectories
+are then constrained, interval by interval, to this learned graph and the LQR
+cost is minimized by a sparse equality-constrained quadratic solve.
 
-is again a trajectory for any kernel ``varphi_i``, and so is any combination
-``z_g = sum_i g_i z_i``.  Taking ``varphi_i`` concentrated at ``sigma_i`` gives
-the time-shifted windows used below -- trajectories exactly, with no quadrature
-error.  The initial condition can only be met approximately, so it is relaxed
-by a penalty ``rho`` and one minimises
-
-    J(z_g) + rho^{-1} ||x_g(0) - x_0||_W^2
-      = g'(H + rho^{-1} E) g - 2 rho^{-1} g'e + rho^{-1}||x_0||_W^2,
-
-whose stationary points solve ``(H + rho^{-1} E) g = rho^{-1} e`` with
-
-    H_ij = <x_i(T), G x_j(T)> + int_0^T <y_i,y_j>_Y + <R u_i, u_j>_U dt,
-    E_ij = <x_i(0), x_j(0)>_W,      e_i = <x_i(0), x_0>_W.
-
-Every entry is an inner product of measured signals.  The system is always
-solvable: ``H`` and ``E`` are symmetric positive semidefinite, so any ``g`` in
-the kernel of ``H + rho^{-1}E`` has ``g'Eg = ||x_g(0)||_W^2 = 0`` and hence
-``g'e = <x_g(0), x_0>_W = 0``, putting ``e`` in the range.
+The shifted-window surrogate is preserved separately in ``ddinf.lqr_window``.
 """
 
 from __future__ import annotations
@@ -35,117 +18,270 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.linalg import block_diag
+from scipy.sparse import bmat, block_diag as sparse_block_diag, lil_matrix
+from scipy.sparse.linalg import spsolve
 
 from .lqr_model import LqrWeights
-from .moments import quadrature_weights, trapezoid_weights
-from .systems import LinearSystem
+from .moments import Moments, TestFunctions, theta_moments
 from .timestepping import Record
 
 
-@dataclass
-class DataLqrSolution:
-    """The regulator recovered from the record."""
+def _metric_root(metric: np.ndarray) -> np.ndarray:
+    """Return ``R`` such that ``||R z||_2^2 = z.T @ metric @ z``."""
+    metric = np.asarray(metric, dtype=float)
+    return np.linalg.cholesky(0.5 * (metric + metric.T)).T
 
-    g: np.ndarray
-    record: Record  # the synthesised optimal trajectory z_g
-    cost: float  # J(z_g), evaluated on measured signals only
-    initial_defect: float  # ||x_g(0) - x0||_W
-    rho: float
-    H: np.ndarray
-    E: np.ndarray
-    e: np.ndarray
+
+def _positive_metric(metric: np.ndarray | None, dimension: int) -> np.ndarray:
+    if metric is None:
+        return np.eye(dimension)
+    metric = np.asarray(metric, dtype=float)
+    if metric.shape != (dimension, dimension):
+        raise ValueError(f"metric must have shape {(dimension, dimension)}")
+    return metric
+
+
+@dataclass
+class GraphBasis:
+    """Resolved finite-dimensional approximation of ``im Gamma``.
+
+    ``constraint`` is a row matrix ``K`` satisfying ``K d = 0`` precisely for
+    vectors in the resolved graph.  Its columns are ordered as
+    ``d = (u, x, xdot, y)``.
+    """
+
+    basis: np.ndarray
+    constraint: np.ndarray
+    singular_values: np.ndarray
+    rank: int
+    rank_tol: float
+    moments: Moments
+    input_metric: np.ndarray
+    state_metric: np.ndarray
+    derivative_metric: np.ndarray
+    output_metric: np.ndarray
 
     @property
-    def n_library(self) -> int:
-        return self.g.size
+    def m(self) -> int:
+        return self.moments.U0.shape[0]
+
+    @property
+    def n(self) -> int:
+        return self.moments.X0.shape[0]
+
+    @property
+    def p(self) -> int:
+        return self.moments.Y0.shape[0]
+
+    @property
+    def domain_dimension(self) -> int:
+        return self.m + self.n
+
+    @property
+    def ambient_dimension(self) -> int:
+        return self.m + 2 * self.n + self.p
+
+    @property
+    def is_full(self) -> bool:
+        return self.rank == self.domain_dimension
+
+    @property
+    def smallest_resolved(self) -> float:
+        return float(self.singular_values[self.rank - 1]) if self.rank else 0.0
+
+    def residual(self, data: np.ndarray) -> float:
+        """Relative distance of one or more ``(u,x,xdot,y)`` columns to the graph."""
+        data = np.asarray(data, dtype=float)
+        if data.ndim == 1:
+            data = data[:, None]
+        root = block_diag(
+            _metric_root(self.input_metric),
+            _metric_root(self.state_metric),
+            _metric_root(self.derivative_metric),
+            _metric_root(self.output_metric),
+        )
+        return float(np.linalg.norm(self.constraint @ data)
+                     / max(np.linalg.norm(root @ data), 1e-300))
 
 
-def shift_library(record: Record, horizon: float, n_traj: int, *,
-                  spread: float | None = None) -> list[Record]:
-    """``n_traj`` time-shifted windows of length ``horizon`` from one long record.
+def estimate_graph(record: Record, tests: TestFunctions, state_metric: np.ndarray, *,
+                   derivative_metric: np.ndarray | None = None,
+                   input_metric: np.ndarray | None = None,
+                   output_metric: np.ndarray | None = None,
+                   rank_tol: float = 1e-10, theta: float = 0.5) -> GraphBasis:
+    """Estimate the resolved system graph from one record's weak moments.
 
-    Each window is a trajectory of the same system with a different initial
-    state, by time invariance; this is the ``varphi_i = delta_{sigma_i}`` case
-    of the convolution construction, exact by definition.
+    ``rank_tol`` is relative to the largest singular value of the moment map
+    ``Z = [U0; X0]``.  The derivative metric defaults to the state metric; this
+    changes conditioning but not the exact finite-dimensional graph.
     """
-    window_samples = int(round(horizon / record.dt)) + 1
-    if window_samples > record.n_samples:
-        raise ValueError("record is shorter than the control horizon")
-    last = record.n_samples - window_samples
-    if spread is not None:
-        last = min(last, int(round(spread / record.dt)))
-    if last < n_traj - 1:
-        raise ValueError(f"record too short for {n_traj} distinct shifts")
-    starts = np.unique(np.round(np.linspace(0, last, n_traj)).astype(int))
-    return [record.shifted(int(k), window_samples) for k in starts]
+    mom = theta_moments(record, tests, theta=theta)
+    m, n, p = mom.U0.shape[0], mom.X0.shape[0], mom.Y0.shape[0]
+    input_metric = _positive_metric(input_metric, m)
+    state_metric = _positive_metric(state_metric, n)
+    derivative_metric = _positive_metric(
+        state_metric if derivative_metric is None else derivative_metric, n
+    )
+    output_metric = _positive_metric(output_metric, p)
+
+    Z = np.vstack([mom.U0, mom.X0])
+    D = np.vstack([mom.U0, mom.X0, mom.X1, mom.Y0])
+    domain_root = block_diag(_metric_root(input_metric), _metric_root(state_metric))
+    ambient_root = block_diag(
+        _metric_root(input_metric),
+        _metric_root(state_metric),
+        _metric_root(derivative_metric),
+        _metric_root(output_metric),
+    )
+
+    _, singular_values, Vt = np.linalg.svd(domain_root @ Z, full_matrices=False)
+    if singular_values.size == 0 or singular_values[0] == 0:
+        rank = 0
+    else:
+        rank = int(np.sum(singular_values > rank_tol * singular_values[0]))
+    if rank == 0:
+        raise ValueError("the record has zero resolved moment rank")
+
+    # Dividing by Sigma makes the first two blocks a metric-orthonormal basis
+    # of the resolved input-state directions before they are lifted by Gamma.
+    trial = D @ (Vt[:rank].T / singular_values[:rank])
+    scaled_basis, _ = np.linalg.qr(ambient_root @ trial, mode="reduced")
+    # Complete QR supplies an orthonormal basis of the ambient complement.
+    complete, _ = np.linalg.qr(scaled_basis, mode="complete")
+    complement = complete[:, rank:]
+    constraint = complement.T @ ambient_root
+
+    return GraphBasis(
+        basis=trial,
+        constraint=constraint,
+        singular_values=singular_values,
+        rank=rank,
+        rank_tol=rank_tol,
+        moments=mom,
+        input_metric=input_metric,
+        state_metric=state_metric,
+        derivative_metric=derivative_metric,
+        output_metric=output_metric,
+    )
 
 
-def kernel_library(record: Record, horizon: float, kernels: np.ndarray,
-                   theta_len: float) -> list[Record]:
-    """Library from general kernels: ``z_i(t) = int_0^Theta varphi_i(s) z(t+s) ds``.
+@dataclass
+class GraphLqrSolution:
+    """Solution of the graph-constrained discrete regulator."""
 
-    ``kernels`` has shape ``(N, n_s)`` sampled on ``[0, Theta]``.  Smoothing the
-    shifts this way trades a little conditioning for robustness to noise.
+    record: Record
+    stage_t: np.ndarray
+    stage_u: np.ndarray
+    stage_y: np.ndarray
+    cost: float
+    initial_defect: float
+    graph_residual: float
+    graph: GraphBasis
+
+
+def _stage_to_nodes(stage: np.ndarray) -> np.ndarray:
+    """Return a plotting representation of interval-stage values on the nodes."""
+    nodes = np.empty((stage.shape[0], stage.shape[1] + 1))
+    nodes[:, 0] = stage[:, 0]
+    nodes[:, -1] = stage[:, -1]
+    if stage.shape[1] > 1:
+        nodes[:, 1:-1] = 0.5 * (stage[:, :-1] + stage[:, 1:])
+    return nodes
+
+
+def solve_graph_lqr(graph: GraphBasis, t: np.ndarray, weights: LqrWeights,
+                    x0: np.ndarray, *, theta: float = 0.5) -> GraphLqrSolution:
+    """Solve the LQR using only the graph learned from measured moments.
+
+    On interval ``k`` the tuple
+
+    ``(u_k, (1-theta)x_k + theta*x_{k+1}, (x_{k+1}-x_k)/dt, y_k)``
+
+    is constrained to the learned graph.  The initial condition is imposed
+    exactly.  Controls and outputs are interval-stage variables, avoiding the
+    checkerboard ambiguity of nodal controls under Crank--Nicolson.
     """
-    window_samples = int(round(horizon / record.dt)) + 1
-    n_s = kernels.shape[1]
-    if window_samples + n_s > record.n_samples:
-        raise ValueError("record too short for the requested kernels")
-    s_grid = np.linspace(0.0, theta_len, n_s)
-    w = quadrature_weights(s_grid) if n_s > 2 else np.full(n_s, theta_len / n_s)
-    out = []
-    for phi in kernels:
-        coef = w * phi
-        u = sum(c * record.u[:, j : j + window_samples] for j, c in enumerate(coef))
-        x = sum(c * record.x[:, j : j + window_samples] for j, c in enumerate(coef))
-        y = sum(c * record.y[:, j : j + window_samples] for j, c in enumerate(coef))
-        out.append(Record(record.t[:window_samples] - record.t[0], u, x, y))
-    return out
+    if not graph.is_full:
+        raise ValueError(
+            f"resolved moment rank {graph.rank}/{graph.domain_dimension}; "
+            "a full graph is required for LQR"
+        )
+    t = np.asarray(t, dtype=float)
+    if t.ndim != 1 or t.size < 2:
+        raise ValueError("t must be a one-dimensional grid with at least two nodes")
+    steps = np.diff(t)
+    if not np.allclose(steps, steps[0]):
+        raise ValueError("the graph LQR currently requires a uniform time grid")
+    dt = float(steps[0])
+    x0 = np.asarray(x0, dtype=float)
+    m, n, p = graph.m, graph.n, graph.p
+    if x0.shape != (n,):
+        raise ValueError(f"x0 must have shape {(n,)}")
+    if weights.R.shape != (m, m) or weights.G.shape != (n, n):
+        raise ValueError("LQR weights are incompatible with the learned graph")
 
+    n_steps = t.size - 1
+    nx = n * (n_steps + 1)
+    nu = m * n_steps
+    ny = p * n_steps
+    nvar = nx + nu + ny
 
-def assemble(library: list[Record], sys: LinearSystem, weights: LqrWeights,
-             x0: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Build ``H``, ``E``, ``e`` from measured signals only."""
-    t = library[0].t
-    # The output term integrates a smooth sampled signal, so Simpson is both
-    # admissible and more accurate.  The control term must use the trapezoid
-    # rule of the time stepping instead -- see :func:`ddinf.moments.trapezoid_weights`.
-    w_y = quadrature_weights(t)
-    w_u = trapezoid_weights(t)
+    # Objective z.T H z.  Zero state blocks are harmless because the graph
+    # constraints and coercive control cost determine a unique trajectory.
+    blocks = [np.zeros((n, n)) for _ in range(n_steps)] + [weights.G]
+    blocks += [dt * weights.R for _ in range(n_steps)]
+    blocks += [dt * graph.output_metric for _ in range(n_steps)]
+    H = sparse_block_diag(blocks, format="csc")
 
-    U = np.stack([z.u for z in library])  # (N, m, T)
-    Y = np.stack([z.y for z in library])  # (N, p, T)
-    XT = np.stack([z.x[:, -1] for z in library])  # (N, n)
-    X0 = np.stack([z.x[:, 0] for z in library])  # (N, n)
+    K = graph.constraint
+    c = K.shape[0]
+    Ku = K[:, :m]
+    Kx = K[:, m:m + n]
+    Kd = K[:, m + n:m + 2 * n]
+    Ky = K[:, m + 2 * n:]
+    Aeq = lil_matrix((n + c * n_steps, nvar))
+    beq = np.zeros(n + c * n_steps)
+    Aeq[:n, :n] = np.eye(n)
+    beq[:n] = x0
 
-    RU = np.einsum("ab,nbt->nat", weights.R, U)
-    H = (np.einsum("nat,mat,t->nm", Y, Y, w_y)
-         + np.einsum("nat,mat,t->nm", RU, U, w_u)
-         + XT @ weights.G @ XT.T)
-    H = 0.5 * (H + H.T)
+    u_offset = nx
+    y_offset = nx + nu
+    left = (1.0 - theta) * Kx - Kd / dt
+    right = theta * Kx + Kd / dt
+    for k in range(n_steps):
+        rows = slice(n + k * c, n + (k + 1) * c)
+        Aeq[rows, k * n:(k + 1) * n] = left
+        Aeq[rows, (k + 1) * n:(k + 2) * n] = right
+        Aeq[rows, u_offset + k * m:u_offset + (k + 1) * m] = Ku
+        Aeq[rows, y_offset + k * p:y_offset + (k + 1) * p] = Ky
+    Aeq = Aeq.tocsc()
 
-    E = X0 @ sys.MW @ X0.T
-    E = 0.5 * (E + E.T)
-    e = X0 @ sys.MW @ x0
-    return H, E, e
+    kkt = bmat([[H, Aeq.T], [Aeq, None]], format="csc")
+    rhs = np.concatenate([np.zeros(nvar), beq])
+    solution = spsolve(kkt, rhs)
+    if not np.all(np.isfinite(solution)):
+        raise np.linalg.LinAlgError("graph-constrained KKT solve failed")
+    primal = solution[:nvar]
 
-
-def solve_data_lqr(library: list[Record], sys: LinearSystem, weights: LqrWeights,
-                   x0: np.ndarray, *, rho: float = 1e-8) -> DataLqrSolution:
-    """Solve ``(H + rho^{-1} E) g = rho^{-1} e`` and synthesise ``z_g``."""
-    H, E, e = assemble(library, sys, weights, x0)
-    Mmat = H + E / rho
-    g, *_ = np.linalg.lstsq(Mmat, e / rho, rcond=None)
-
-    t = library[0].t
-    u = sum(gi * z.u for gi, z in zip(g, library))
-    x = sum(gi * z.x for gi, z in zip(g, library))
-    y = sum(gi * z.y for gi, z in zip(g, library))
-    zg = Record(t, u, x, y)
-
-    d = zg.x[:, 0] - x0
-    return DataLqrSolution(
-        g=g, record=zg, cost=float(g @ H @ g),
-        initial_defect=float(np.sqrt(max(d @ sys.MW @ d, 0.0))),
-        rho=rho, H=H, E=E, e=e,
+    X = primal[:nx].reshape(n_steps + 1, n).T
+    U = primal[u_offset:y_offset].reshape(n_steps, m).T
+    Y = primal[y_offset:].reshape(n_steps, p).T
+    x_theta = (1.0 - theta) * X[:, :-1] + theta * X[:, 1:]
+    xdot = np.diff(X, axis=1) / dt
+    stage_data = np.vstack([U, x_theta, xdot, Y])
+    record = Record(t, _stage_to_nodes(U), X, _stage_to_nodes(Y))
+    defect = X[:, 0] - x0
+    cost = (float(X[:, -1] @ weights.G @ X[:, -1])
+            + dt * float(np.einsum("ik,ij,jk->", U, weights.R, U))
+            + dt * float(np.einsum("ik,ij,jk->", Y, graph.output_metric, Y)))
+    return GraphLqrSolution(
+        record=record,
+        stage_t=(t[:-1] + t[1:]) / 2.0,
+        stage_u=U,
+        stage_y=Y,
+        cost=cost,
+        initial_defect=float(np.sqrt(max(defect @ graph.state_metric @ defect, 0.0))),
+        graph_residual=graph.residual(stage_data),
+        graph=graph,
     )

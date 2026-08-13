@@ -1,6 +1,6 @@
 import numpy as np
 
-from ddinf.moments import moments, sine_tests
+from ddinf.moments import moments, sine_tests, theta_moments
 from ddinf.systems import LinearSystem
 from ddinf.timestepping import Record
 
@@ -24,3 +24,17 @@ def test_dynamics_identity_for_exact_record():
     rec = Record(t, u, x, x)
     mom = moments(rec, sine_tests(t, 5))
     assert mom.dynamics_residual(sys.A, sys.B) < 1e-8
+
+
+def test_theta_moments_match_the_discrete_dynamics_to_roundoff():
+    """The graph estimator uses the weak form consistent with time stepping."""
+    t = np.linspace(0, 1, 101)
+    A = np.array([[-2.0]])
+    B = np.array([[1.0]])
+    sys = LinearSystem("scalar", A, B, np.eye(1), np.eye(1), np.eye(1))
+    from ddinf.timestepping import simulate
+
+    rec = simulate(sys, lambda tt: np.cos(np.asarray(tt))[None, :], t,
+                   np.array([.3]), theta=.5)
+    mom = theta_moments(rec, sine_tests(t, 12), theta=.5)
+    assert mom.dynamics_residual(A, B) < 1e-12

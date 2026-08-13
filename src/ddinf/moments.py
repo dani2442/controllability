@@ -190,3 +190,40 @@ def moments(record: Record, tests: TestFunctions) -> Moments:
         Y0=tests.integrate(record.y),
         tests=tests,
     )
+
+
+def theta_moments(record: Record, tests: TestFunctions, *, theta: float = 0.5
+                  ) -> Moments:
+    """Weak moments consistent with a theta-method sampled trajectory.
+
+    On each interval the theta scheme satisfies
+
+    ``x[k+1]-x[k] = dt * (A x_theta[k] + B u_theta[k])``.
+
+    Testing this identity with the stage value of ``phi`` gives
+    ``X1 = A X0 + B U0`` to linear-solver precision.  The derivative moment is
+    still weak: ``sum phi_theta * (x[k+1]-x[k])`` is the discrete
+    summation-by-parts counterpart of ``-int phi' x`` and never forms a
+    pointwise state derivative.
+    """
+    if tests.phi.shape[1] != record.n_samples:
+        raise ValueError("test functions and record must use the same time grid")
+    dt = np.diff(record.t)
+    if not np.allclose(dt, dt[0]):
+        raise ValueError("theta moments currently require a uniform time grid")
+    phi_stage = ((1.0 - theta) * tests.phi[:, :-1]
+                 + theta * tests.phi[:, 1:])
+    u_stage = ((1.0 - theta) * record.u[:, :-1]
+               + theta * record.u[:, 1:])
+    x_stage = ((1.0 - theta) * record.x[:, :-1]
+               + theta * record.x[:, 1:])
+    y_stage = ((1.0 - theta) * record.y[:, :-1]
+               + theta * record.y[:, 1:])
+    weighted_tests = float(dt[0]) * phi_stage.T
+    return Moments(
+        X0=x_stage @ weighted_tests,
+        X1=np.diff(record.x, axis=1) @ phi_stage.T,
+        U0=u_stage @ weighted_tests,
+        Y0=y_stage @ weighted_tests,
+        tests=tests,
+    )

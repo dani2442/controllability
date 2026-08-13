@@ -20,12 +20,15 @@ TABLES = ROOT / "paper_wfl2" / "tables"
 FAMILY_COLORMAP = {"heat": "Blues", "wave": "Oranges", "delay": "Greens"}
 
 
-def family_colors(family: str, n: int = 1, *, dark: float = .85,
-                  light: float = .45) -> list:
+def family_colors(family: str, n: int = 1, *, dark: float = .75,
+                  light: float = .52) -> list:
     """``n`` shades of the family colormap, darkest first.
 
-    The range stops short of both ends of the colormap: the palest shades are
-    invisible on paper and the darkest are indistinguishable from black.
+    The range stays in the middle of the colormap, and deliberately narrower
+    than legibility alone would require: the dark end of ``Oranges`` is a brick
+    red and its light end a pale peach, so a wider span stops reading as one
+    family. Configurations are told apart by line style and marker as well, so
+    the shades only have to be distinguishable, not far apart.
     """
     cmap = plt.get_cmap(FAMILY_COLORMAP[family])
     levels = [dark] if n == 1 else np.linspace(dark, light, n)

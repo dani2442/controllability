@@ -94,14 +94,21 @@ def run(quality: str = "quick") -> dict:
         found = [c.lam for c in report.obstructions]
         model = [lam for lam, _ in hautus_uncontrollable(sys)]
         residual = mom.dynamics_residual(sys.A, sys.B)
-        # The verdict is the test itself: no surviving candidate is a certificate
-        # of nothing, a surviving one certifies that controllability fails.
+        # The tabulated column is the *true* property of the configuration, known
+        # in closed form and never read from the data: a reference obstruction was
+        # supplied exactly when the system fails to be approximately controllable.
+        # What the test produces is the count of surviving candidates, tabulated
+        # next to it; the experiment succeeds when the two agree on every row.
+        truth = r"\cmark" if reference is None else r"\xmark"
         verdict = r"\xmark" if found else r"\cmark"
+        if verdict != truth:
+            raise AssertionError(f"{label}: test says {verdict}, truth is {truth}")
         if reference is None:
             # Controllable configuration: success means no candidate survives.
             rows.append(f"{label} & {report.numerical_rank}/{report.dimension} & "
-                        f"{verdict} & {len(found)} & --- & --- & --- \\\\")
-            diagnostics[label] = {"n_obstructions": len(found), "residual": residual}
+                        f"{truth} & {len(found)} & --- & --- & --- \\\\")
+            diagnostics[label] = {"n_obstructions": len(found), "residual": residual,
+                                  "verdict_matches_truth": True}
             continue
 
         lam_found = nearest(found, reference)
@@ -112,12 +119,12 @@ def run(quality: str = "quick") -> dict:
         e_data = abs(lam_found - lam_model)
         e_disc = abs(lam_model - reference)
         rows.append(f"{label} & {report.numerical_rank}/{report.dimension} & "
-                    f"{verdict} & {len(found)} & {tex_complex(lam_found)} & "
+                    f"{truth} & {len(found)} & {tex_complex(lam_found)} & "
                     f"{tex_complex(reference)} & {tex_num(e_data, digits=2)} \\\\")
         diagnostics[label] = {"n_obstructions": len(found), "lam_found": lam_found,
                               "lam_model": lam_model, "reference": reference,
                               "error_vs_model": e_data, "error_vs_closed_form": e_disc,
-                              "residual": residual}
+                              "residual": residual, "verdict_matches_truth": True}
 
     # One colormap per family; within a family the darker shade is the
     # approximately controllable configuration, drawn solid, and the lighter
@@ -135,12 +142,14 @@ def run(quality: str = "quick") -> dict:
     # Below the line and at the left edge: the only corner no spectrum reaches.
     ax.annotate("threshold $10^{-10}$", (1, 1e-10), textcoords="offset points",
                 xytext=(2, -4), va="top", fontsize=6.5)
-    ax.set(xlabel="direction", ylabel="normalized squared singular value")
+    ax.set(xlabel="direction index $j$",
+           ylabel="normalized squared singular value")
     ax.grid(True, which="both", alpha=.25)
     handles = [Line2D([0], [0], color=colors[label], marker="o", ms=3,
                       ls="-" if i % 2 == 0 else "--", label=label)
                for i, label in enumerate(reports)]
-    ax.legend(handles=handles, fontsize=6.2, ncol=2, loc="lower left")
+    ax.legend(handles=handles, fontsize=6.2, ncol=3, loc="lower left",
+              columnspacing=1.0, handlelength=1.6)
     fig_path = savefig(fig, "controllability.pdf")
 
     table = write_table("controllability.tex", r"""\begin{tabular}{lrcrllr}

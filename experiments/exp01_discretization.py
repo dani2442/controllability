@@ -87,8 +87,8 @@ def run(quality: str = "quick") -> dict:
                        color=colors[label])
     ref = errors["heat, Dirichlet control"][-1]
     ax[0].loglog(h, ref * (h / h[-1]) ** 2, "k--", lw=1, label=r"$h^2$")
-    ax[0].set(xlabel="mesh width", ylabel="leading spectral error")
-    ax[1].set(xlabel="mesh width", ylabel=r"$\|B_h\|_{\mathcal{L}(U,X_h)}$")
+    ax[0].set(xlabel=r"mesh width ($h$)", ylabel="leading spectral error")
+    ax[1].set(xlabel=r"mesh width ($h$)", ylabel=r"$\|B_h\|_{\mathcal{L}(U,X_h)}$")
     ax[0].legend(fontsize=6.5)  # both panels show the same four cases
     for a in ax:
         a.grid(True, which="both", alpha=.25)

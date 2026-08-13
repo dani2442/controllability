@@ -26,6 +26,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .moments import trapezoid_weights
 from .systems import LinearSystem
 from .timestepping import Record
 
@@ -75,9 +76,7 @@ def gramian_spectrum(record: Record, sys: LinearSystem, *, space: str = "X",
                      tol: float = 1e-12) -> GramianSpectrum:
     """Spectrum of ``G(u_bar, x_bar)`` on ``U x X`` (or ``U x W``)."""
     z = np.vstack([record.u, record.x])  # (m+n, T)
-    w = np.full(record.n_samples, record.dt)
-    w[0] = w[-1] = record.dt / 2.0
-    Z = (z * w) @ z.T  # int z z' dt
+    Z = (z * trapezoid_weights(record.t)) @ z.T  # int z z' dt
 
     S = gram_matrix(sys, space)
     L = np.linalg.cholesky(S)
@@ -90,8 +89,9 @@ def moment_spectrum(stacked: np.ndarray, sys: LinearSystem, *, space: str = "X",
                     tol: float = 1e-12) -> GramianSpectrum:
     """Singular values of the moment matrix ``[X0; U0]``, in the ``U x H`` metric.
 
-    By ``eq:gramian-synthesis`` the record is informative exactly when the range
-    of the synthesis operator is dense, i.e. when this matrix has full row rank.
+    By Theorem ``thm:willems-gramian`` the record is informative exactly when
+    the range of the synthesis operator is dense, i.e. when this matrix has full
+    row rank.
     Reported on the same footing as :func:`gramian_spectrum` so the two views
     can be compared.
     """

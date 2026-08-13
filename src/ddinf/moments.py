@@ -1,4 +1,4 @@
-"""The synthesis operator of Definition ``def:synthesis``, discretised.
+"""The dynamic synthesis operator of Section ``sec:fundamental-lemma``, discretised.
 
 The dynamic synthesis operator of a record is
 
@@ -59,6 +59,9 @@ def quadrature_weights(t: np.ndarray) -> np.ndarray:
     trapezoid rule the identity ``X1 = A X0 + B U0`` holds only to ``O(dt^2)``,
     with Simpson to ``O(dt^4)``, which puts it below the error of the time
     stepping itself.
+
+    Do *not* use this rule to weight a term that the optimiser controls
+    pointwise in the input -- see :func:`trapezoid_weights`.
     """
     dt = t[1] - t[0]
     if t.size % 2 == 1:
@@ -66,7 +69,30 @@ def quadrature_weights(t: np.ndarray) -> np.ndarray:
         w[1:-1:2] = 4.0
         w[2:-1:2] = 2.0
         return w * dt / 3.0
-    w = np.full(t.size, dt)
+    return trapezoid_weights(t)
+
+
+def trapezoid_weights(t: np.ndarray) -> np.ndarray:
+    """Composite trapezoid weights -- the rule the time stepping itself uses.
+
+    Required wherever the quadrature weights multiply a quantity the optimiser
+    is free to choose sample by sample, i.e. the control term of the LQR cost.
+    The theta scheme forces the input through ``theta u^{k+1} + (1-theta) u^k``,
+    which for Crank--Nicolson is the two-point average ``(u_k + u_{k+1})/2``: the
+    odd--even component of a sampled input is invisible to the state.  Charging
+    it with the *alternating* Simpson weights ``4 dt/3, 2 dt/3`` therefore makes
+    a genuinely free direction cheap on the even samples and expensive on the
+    odd ones, and the discrete minimiser splits a given effective input between
+    neighbours in inverse proportion to the weights -- a spurious 2:1
+    sample-Nyquist ripple in an input the continuous problem wants smooth.  A
+    uniform weight prices every sample alike and the ripple disappears.
+
+    This is the lumped form of the exact ``int |u|^2`` of the piecewise-linear
+    interpolant that the theta scheme implicitly integrates, so it is the
+    consistent choice rather than merely the safe one.
+    """
+    dt = t[1] - t[0]
+    w = np.full(t.size, float(dt))
     w[0] = w[-1] = dt / 2.0
     return w
 

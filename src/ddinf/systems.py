@@ -7,7 +7,8 @@ structures the theory uses,
 
 * ``MX`` -- the inner product of the state space ``X`` (the FEM mass matrix),
 * ``MW`` -- the inner product of the finer space ``W`` in which informativity is
-  required when ``C`` is unbounded (Definition ``def:hilbert-informative-W``).
+  required when ``C`` is unbounded (Definition ``def:hilbert-informative``,
+  applied with ``H = W``).
 
 Nothing downstream of this module knows which PDE it is looking at.
 """

@@ -150,7 +150,7 @@ def data_driven_controllability(
     )
 
 
-def hautus_modes(sys: LinearSystem, tol: float = 1e-8) -> list[tuple[complex, np.ndarray, float]]:
+def hautus_modes(sys: LinearSystem) -> list[tuple[complex, np.ndarray, float]]:
     """Model-based baseline: ``(lambda, eta, |eta'B|)`` over the left eigenvectors of ``A``.
 
     The finite-dimensional Hautus test -- the reference the data-driven result

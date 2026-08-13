@@ -37,7 +37,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .lqr_model import LqrWeights
-from .moments import quadrature_weights
+from .moments import quadrature_weights, trapezoid_weights
 from .systems import LinearSystem
 from .timestepping import Record
 
@@ -106,9 +106,12 @@ def kernel_library(record: Record, horizon: float, kernels: np.ndarray,
 def assemble(library: list[Record], sys: LinearSystem, weights: LqrWeights,
              x0: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Build ``H``, ``E``, ``e`` from measured signals only."""
-    N = len(library)
     t = library[0].t
-    w = quadrature_weights(t)
+    # The output term integrates a smooth sampled signal, so Simpson is both
+    # admissible and more accurate.  The control term must use the trapezoid
+    # rule of the time stepping instead -- see :func:`ddinf.moments.trapezoid_weights`.
+    w_y = quadrature_weights(t)
+    w_u = trapezoid_weights(t)
 
     U = np.stack([z.u for z in library])  # (N, m, T)
     Y = np.stack([z.y for z in library])  # (N, p, T)
@@ -116,8 +119,8 @@ def assemble(library: list[Record], sys: LinearSystem, weights: LqrWeights,
     X0 = np.stack([z.x[:, 0] for z in library])  # (N, n)
 
     RU = np.einsum("ab,nbt->nat", weights.R, U)
-    H = (np.einsum("nat,mat,t->nm", Y, Y, w)
-         + np.einsum("nat,mat,t->nm", RU, U, w)
+    H = (np.einsum("nat,mat,t->nm", Y, Y, w_y)
+         + np.einsum("nat,mat,t->nm", RU, U, w_u)
          + XT @ weights.G @ XT.T)
     H = 0.5 * (H + H.T)
 

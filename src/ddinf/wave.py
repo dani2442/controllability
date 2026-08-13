@@ -12,10 +12,10 @@ so that ``W -> X -> V`` is the scale of the introduction and Dirichlet boundary
 control is bounded into the coarser space.  The semigroup is a strongly
 continuous, nonsmoothing group on ``W`` (unitary in an equivalent
 speed-weighted energy norm) and is *not* analytic: this example is precisely
-the one the sufficiency theorem for harmonic persistency of excitation does not reach
-(Remark ``rmk:analytic-transfer-extension``), while the controllability test of
-``prop:data-fattorini-hautus`` and the data-driven regulator of
-``thm:lqr-data`` apply unchanged.
+the one the sufficiency theorem for harmonic persistency of excitation
+(``thm:analytic-universal-sufficiency``) does not reach, while the
+controllability test of ``prop:data-fattorini-hautus`` and the data-driven
+regulator of ``thm:lqr-data`` apply unchanged.
 
 ``dirichlet``
     control at ``xi = 0`` only.  Every mode has ``b_n = sqrt2 n pi c^2 != 0``,

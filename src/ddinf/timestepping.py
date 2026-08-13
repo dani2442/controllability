@@ -5,9 +5,17 @@ For ``x' = A x + B u`` the scheme is
     (I - theta dt A) x^{k+1} = (I + (1-theta) dt A) x^k
                                + dt (theta B u^{k+1} + (1-theta) B u^k),
 
-so ``theta = 1`` is backward Euler (the default: the semi-discrete heat
-operator is stiff, ``|lambda_max| ~ h^{-2}``, and forward Euler would need
-``dt < h^2/2``), ``theta = 0`` forward Euler, ``theta = 1/2`` Crank--Nicolson.
+so ``theta = 1`` is backward Euler, ``theta = 0`` forward Euler and
+``theta = 1/2`` Crank--Nicolson.  ``theta = 1`` is the default because the
+semi-discrete heat operator is stiff (``|lambda_max| ~ nu h^{-2}``, so forward
+Euler would need ``dt < h^2/(2 nu)``), but every experiment in this project
+passes ``theta = 1/2``: only Crank--Nicolson is second-order accurate, which is
+what the moment identities and the LQR cost are scored at.
+
+Note that for ``theta = 1/2`` the input enters a step only through the two-point
+average ``(u_k + u_{k+1})/2``.  The odd--even component of a sampled input is
+therefore invisible to the state, which is why the LQR cost has to weight its
+control term with :func:`ddinf.moments.trapezoid_weights`.
 """
 
 from __future__ import annotations

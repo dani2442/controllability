@@ -19,9 +19,22 @@ the Riccati flow is the Riccati transform of ``exp(-H s)``,
     P(T-s) = (Phi21 + Phi22 G)(Phi11 + Phi12 G)^{-1},   Phi = exp(-H s),
 
 which follows from propagating the Hamiltonian two-point boundary value problem
-backwards from ``p(T) = G x(T)``.  Advancing ``s`` by one step at a time costs a
-single matrix product, and :func:`riccati_ivp` re-derives the same object with
-an adaptive integrator as an independent check.
+backwards from ``p(T) = G x(T)``.
+
+The transform is *restarted at every step* rather than applied to an
+accumulated ``exp(-H s)``: since the Riccati flow is a semigroup on the
+symmetric matrices,
+
+    P(t_k) = (Phi21 + Phi22 P(t_{k+1})) (Phi11 + Phi12 P(t_{k+1}))^{-1},
+    Phi = exp(-H dt),
+
+with the *same* one-step matrix throughout.  Composing the exact flow this way
+is as accurate as propagating ``exp(-H s)`` and avoids its failure mode: the
+Hamiltonian has eigenvalues of both signs of size ``|lambda_max(A)| ~ nu h^-2``,
+so ``exp(-H s)`` overflows and ``Phi11 + Phi12 G`` turns singular once
+``s |lambda_max|`` is large -- the accumulated form breaks down on exactly the
+stiff, long-horizon problems the examples need.  :func:`riccati_ivp` re-derives
+the same object with an adaptive integrator as an independent check.
 """
 
 from __future__ import annotations
@@ -32,6 +45,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.linalg import expm, lu_factor, lu_solve
 
+from .moments import quadrature_weights, trapezoid_weights
 from .systems import LinearSystem
 from .timestepping import Record
 
@@ -92,7 +106,7 @@ class RiccatiSolution:
 
 def riccati_hamiltonian(sys: LinearSystem, weights: LqrWeights,
                         t: np.ndarray) -> RiccatiSolution:
-    """Closed-form ``P(t)`` by propagating ``exp(-H s)`` along the grid."""
+    """Closed-form ``P(t)`` by stepping the Riccati transform of ``exp(-H dt)``."""
     t = np.asarray(t, dtype=float)
     dt = float(t[1] - t[0])
     n = sys.n
@@ -101,16 +115,18 @@ def riccati_hamiltonian(sys: LinearSystem, weights: LqrWeights,
         [sys.A, -sys.B @ Rinv @ sys.B.T],
         [-sys.C.T @ sys.C, -sys.A.T],
     ])
-    step = expm(-H * dt)
+    Phi = expm(-H * dt)
+    P11, P12, P21, P22 = Phi[:n, :n], Phi[:n, n:], Phi[n:, :n], Phi[n:, n:]
 
     P = np.empty((t.size, n, n))
-    Phi = np.eye(2 * n)
-    for j in range(t.size):  # j counts backwards from T: s = j * dt
-        top = Phi[:n, :n] + Phi[:n, n:] @ weights.G
-        bot = Phi[n:, :n] + Phi[n:, n:] @ weights.G
+    Pk = np.array(weights.G, dtype=float)
+    P[-1] = 0.5 * (Pk + Pk.T)
+    for j in range(t.size - 1, 0, -1):  # march backwards from T
+        top = P11 + P12 @ Pk
+        bot = P21 + P22 @ Pk
         Pk = np.linalg.solve(top.T, bot.T).T
-        P[t.size - 1 - j] = 0.5 * (Pk + Pk.T)
-        Phi = Phi @ step
+        Pk = 0.5 * (Pk + Pk.T)
+        P[j - 1] = Pk
     return RiccatiSolution(t, P, sys, weights)
 
 
@@ -140,15 +156,12 @@ def trajectory_cost(rec: Record, sys: LinearSystem, weights: LqrWeights) -> floa
     """``J`` evaluated on a record -- the functional ``eq:lqr-cost-traj``.
 
     Only measured signals enter: the terminal state, the output and the input.
+    Uses the same split of quadrature rules as :func:`ddinf.lqr_data.assemble`,
+    so a cost computed here and a cost computed there are comparable.
     """
-    w = np.full(rec.n_samples, rec.dt)
-    if rec.n_samples % 2 == 1:
-        w = np.ones(rec.n_samples)
-        w[1:-1:2] = 4.0
-        w[2:-1:2] = 2.0
-        w *= rec.dt / 3.0
-    else:
-        w[0] = w[-1] = rec.dt / 2.0
-    running = (rec.y * rec.y).sum(axis=0) + (rec.u * (weights.R @ rec.u)).sum(axis=0)
+    w_y = quadrature_weights(rec.t)
+    w_u = trapezoid_weights(rec.t)
+    output = (rec.y * rec.y).sum(axis=0)
+    control = (rec.u * (weights.R @ rec.u)).sum(axis=0)
     terminal = float(rec.x[:, -1] @ weights.G @ rec.x[:, -1])
-    return terminal + float(w @ running)
+    return terminal + float(w_y @ output) + float(w_u @ control)

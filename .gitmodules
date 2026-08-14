@@ -16,3 +16,6 @@
 [submodule "paper_wfl1"]
 	path = paper_wfl1
 	url = https://git@git.overleaf.com/6a61e37d4290b2446784f119
+[submodule "paper_submission"]
+	path = paper_submission
+	url = https://git@git.overleaf.com/6a7ed157ebcf631caa3f1498

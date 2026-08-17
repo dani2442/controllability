@@ -10,7 +10,8 @@ that graph without identifying ``A``, ``B`` or ``C``.  Candidate trajectories
 are then constrained, interval by interval, to this learned graph and the LQR
 cost is minimized by a sparse equality-constrained quadratic solve.
 
-The shifted-window surrogate is preserved separately in ``ddinf.lqr_window``.
+The input--output counterpart, which reads no state at all, is
+``ddinf.lqr_io``.
 """
 
 from __future__ import annotations

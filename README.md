@@ -30,8 +30,8 @@ dense NumPy/SciPy; there is no GPU or MPI path.
 
 ```bash
 uv sync                                     # pinned by uv.lock
-uv run pytest                               # 20 tests, ~2 s
-uv run python -m experiments.run_all        # quick defaults, ~8 s
+uv run pytest                               # 29 tests, ~20 s
+uv run python -m experiments.run_all        # quick defaults, ~45 s
 ```
 
 Individual experiments take the same `--quality` flag:
@@ -41,7 +41,9 @@ uv run python -m experiments.exp03_lqr --quality paper
 ```
 
 The artifacts committed under `paper_wfl2/` are produced by the
-publication run, which takes about ten seconds:
+publication run, which takes about three minutes -- almost all of it the
+input–output window libraries of `exp03`, whose largest behavior basis is an
+SVD of a few thousand windows:
 
 ```bash
 uv run python -m experiments.run_all --quality paper
@@ -77,11 +79,15 @@ installed copy of the package would write elsewhere.
   controllable (every pencil candidate must be rejected) and once with an
   obstruction known in closed form (it must be recovered). Also reports the
   numerical rank of the weak moment map.
-- **exp03 — LQR.** Comparison of the main paper's synthesis-range method
-  (a weak-moment basis of the system graph followed by a sparse constrained
-  QP) with the shifted-window surrogate analysed in Appendix D of
-  `paper_wfl2/window-informativity.tex`.
-  Both are scored against a separately computed Riccati solution.
+- **exp03 — LQR.** Comparison of the two fundamental lemmas of the paper on the
+  same regulator: the state-record synthesis method (a weak-moment basis of the
+  system graph followed by a sparse constrained QP) and the input–output
+  windowed method of `paper_wfl2/sections/window-informativity.tex` (shifted
+  windows of the measured `(u, y)` span the finite-horizon behavior, and the
+  initial condition enters as the plant's measured past instead of as a state).
+  Both are scored against a separately computed Riccati solution, and each
+  recovered input is replayed on the plant so that the cost a method predicts
+  can be compared with the cost it actually pays.
 - **exp04 — conditioning.** Gramian spectra for three probing inputs — the
   paper's harmonic PE signal, a well-separated multisine, and a PRBS — on the
   heat equation (analytic, covered by the sufficiency theorem) and the wave
@@ -103,7 +109,7 @@ beyond the `ddinf.systems.LinearSystem` interface.
 | `informativity` | Gramian and moment-map spectra, numerical rank at a threshold |
 | `controllability` | the data-driven Fattorini–Hautus test, plus a model-based Hautus baseline |
 | `lqr_data` | weak-moment graph estimation and the graph-constrained LQR solve |
-| `lqr_window` | preserved shift/kernel libraries, `H`, `E`, `e`, and penalized window solve |
+| `lqr_io` | shifted input–output window libraries, the resolved behavior basis, and the past-conditioned window solve |
 | `lqr_model` | the Riccati reference (see below) |
 | `spectral` | closed-form modal series used to validate the discretizations |
 
@@ -112,16 +118,18 @@ used by these experiments.
 
 ## The model-free boundary
 
-No model quantity enters a data-driven routine. `ddinf.controllability`,
-`ddinf.lqr_data`, and `ddinf.lqr_window` use sampled input–state–output records,
-prescribed LQR weights, and matrices representing the relevant discrete
-Hilbert inner products.
+No model quantity enters a data-driven routine. `ddinf.controllability` and
+`ddinf.lqr_data` use sampled input–state–output records, prescribed LQR
+weights, and matrices representing the relevant discrete Hilbert inner
+products; `ddinf.lqr_io` uses even less — the sampled input and output only,
+with no state and no state metric anywhere in its signature.
 Model-based quantities — Riccati solutions, Hautus modes, closed-form
 eigenvalues, the dynamics residual `‖X1 - A X0 - B U0‖` — are computed
 separately and used only to score the results. The `sys` argument passed to a
-window or controllability routine is used for `MX`/`MW` (and for reshaping
+controllability routine is used for `MX`/`MW` (and for reshaping
 `η`) and never for `A`, `B` or `C`; `Moments.dynamics_residual` is the one function that takes
-`A`, `B` deliberately, and is a diagnostic only.
+`A`, `B` deliberately, and is a diagnostic only. `exp03` replays each recovered
+input on the plant for the same reason: to score, never to construct.
 
 ## How the reference quantities are computed
 
@@ -157,7 +165,7 @@ The numerical weak form is matched to its downstream discretization:
 - `ddinf.informativity.gramian_spectrum` — **trapezoid**, since only the
   spectrum's decay matters there.
 - `ddinf.moments.trapezoid_weights` — **trapezoid**, used for the control term
-  in `ddinf.lqr_window` and `ddinf.lqr_model.trajectory_cost`. Crank–Nicolson drives the state with
+  in `ddinf.lqr_io` and `ddinf.lqr_model.trajectory_cost`. Crank–Nicolson drives the state with
   `(u_k + u_{k+1})/2`, so the odd–even component of a sampled input never
   reaches the state; charging it with the *alternating* Simpson weights
   `4Δt/3, 2Δt/3` makes a free direction cheap on even samples and expensive on
@@ -200,20 +208,36 @@ the learned system graph. The LQR then imposes graph membership at every time
 stage and fixes the initial state exactly. It requires no shifted record,
 behavior library, or penalty parameter.
 
-The separate window routine is retained for the window-informativity appendix
-in `paper_wfl2/window-informativity.tex`. Two properties of its shift library
-are easy to lose without any visible symptom, and `experiments/exp03_lqr.py`
-guards both:
+The input–output routine (`ddinf.lqr_io`) never sees a state. Shifted windows
+of the measured `(u, y)` on `[-T_ini, T]` span the sampled behavior, a
+metric-weighted SVD at the same `1e-10` threshold keeps the resolved part of
+that span, and the regulator is the combination of those windows whose past
+segment matches the plant's measured past. Four properties are easy to lose
+without any visible symptom; the tests and `experiments/exp03_lqr.py` guard
+them:
 
-- **Redundancy, not just rank.** The sampled behavior on the window has
-  dimension `m·n_T + n`. Reaching that rank exactly makes the library a square
-  basis and the penalized solve badly conditioned; the reported sizes go up to
-  `2 n_T` because redundancy is what makes the reconstruction accurate rather
-  than merely determined.
+- **Spanning, not just rank.** The sampled behavior on the window has dimension
+  `m·n_w + n`, and reaching that nominal size does not imply that an
+  independent trajectory lies in the span.
+  `tests/test_lqr_io.py::test_shifted_windows_span_the_sampled_behaviour`
+  checks the span itself. Its parabolic counterpart records the opposite fact:
+  the heat library is one direction short at every size, because the fastest
+  semi-discrete mode has decayed below rounding by the end of a window. That is
+  the closure form of the theorem showing up numerically.
 - **Shifts must not be commensurate with the probing signal.** If every window
   start falls in the same residue class modulo the PRBS dwell, all windows carry
   the input on the same dwell grid, the library inputs are piecewise constant on
   it, and the span collapses by the dwell factor while the nominal library size
   is unchanged. `_dwell_safe` picks the record length so this does not happen at
-  any reported size. With the original settings the heat library at `N = n_T`
-  had rank 48 instead of 128.
+  any reported size.
+- **The junction sample belongs to the past.** Under Crank–Nicolson the state
+  at the junction is driven by the two-point average straddling it, so leaving
+  that sample to the regulator lets it move the initial state and report a cost
+  below the true optimum. Including it keeps the reconstruction a genuine
+  trajectory — the predicted and replayed costs then agree to three digits — at
+  the price of one inherited input sample, which is why this method is
+  first-order in `Δt` where the graph method is second-order.
+- **The conditioning window must be observable.** It has to be long enough for
+  the output to determine the state at the junction; for the retarded example
+  that means `T_ini > 2h`, the bound derived in the paper's observability
+  subsection.

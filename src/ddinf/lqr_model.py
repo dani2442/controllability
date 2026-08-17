@@ -157,7 +157,7 @@ def trajectory_cost(rec: Record, sys: LinearSystem, weights: LqrWeights) -> floa
 
     Only measured signals enter: the terminal state, the output and the input.
     Uses the same split of quadrature rules as
-    :func:`ddinf.lqr_window.assemble_window_lqr`,
+    :func:`ddinf.lqr_io.assemble_io_lqr`,
     so a cost computed here and a cost computed there are comparable.
     """
     w_y = quadrature_weights(rec.t)

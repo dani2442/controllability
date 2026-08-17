@@ -1,10 +1,18 @@
-"""Compare two data-driven finite-horizon LQR discretisations.
+"""Compare the two data-driven finite-horizon LQR discretisations of the paper.
 
-``graph`` is the main-paper method: weak moments of one record identify a
-basis of the finite-dimensional system graph, and a sparse QP constrains every
-theta-method stage to that graph.  ``window`` is the shifted-trajectory
-surrogate retained and analysed in ``paper_wfl2/window-informativity.tex``.
-The Riccati solution is computed separately and used only as a reference.
+``graph`` is the state-record method: weak moments of one record identify a
+basis of the finite-dimensional system graph (``thm:willems-synthesis``,
+``rmk:lqr-numerics``), and a sparse QP constrains every theta-method stage to
+that graph.  ``window`` is the input--output method: shifted windows of the
+same record span the finite-horizon behaviour
+(``thm:windowed-io-fundamental-lemma``) and the regulator is a combination of
+them, conditioned on the measured past of the plant instead of on its state.
+
+The terminal weight is zero throughout, because ``<x(T), G_T x(T)>`` is not a
+functional of the measured input and output and the two methods have to
+minimise the same cost.  The Riccati solution is computed separately and used
+only as a reference; each recovered input is also replayed on the plant, so the
+cost a method predicts can be compared with the cost it actually pays.
 """
 
 from __future__ import annotations
@@ -17,8 +25,8 @@ import numpy as np
 from ddinf.delay import controllable_pair, delay_system
 from ddinf.heat import heat_system
 from ddinf.lqr_data import estimate_graph, solve_graph_lqr
-from ddinf.lqr_model import LqrWeights, riccati_hamiltonian
-from ddinf.lqr_window import shift_library, solve_window_lqr
+from ddinf.lqr_io import behaviour_basis, io_shift_library, solve_io_lqr
+from ddinf.lqr_model import LqrWeights, riccati_hamiltonian, trajectory_cost
 from ddinf.moments import hat_tests
 from ddinf.plotting import configure, family_colors, savefig, write_table
 from ddinf.signals import Prbs
@@ -28,21 +36,27 @@ from experiments.common import parser, tex_num
 
 RANK_TOL = 1e-10
 RHO = 1e-8
+CONTROL = .05
 SHOWCASE = "wave"
-# Both methods are run at the same sizes relative to their own dimension.  The
-# graph method needs q >= m + n test functions and the window method N >= b_h
-# windows, so ratio 1 is the smallest size at which either can be exact: below
-# it the graph is not spanned at all and there is nothing to plot.
+# Both methods are run at the same sizes relative to their own dimension: the
+# graph needs q >= m + n test functions, the behaviour on the window needs
+# N >= m n_w + n windows.  Ratio 1 is the smallest size at which either can be
+# exact; below it the corresponding space is not spanned at all.
 RATIOS = (1., 2., 4.)
 
 
-def _dwell_safe(length: float, horizon: float, dt: float, dwell: int,
+def _dwell_safe(length: float, window: float, dt: float, dwell: int,
                 sizes: list[int]) -> float:
-    """Lengthen the record until no shifted library is dwell-aliased."""
-    n_t = int(round(horizon / dt)) + 1
+    """Lengthen the record until no shifted library is dwell-aliased.
+
+    If every window start falls in the same residue class modulo the dwell of
+    the probing signal, all windows carry the input on one dwell grid and the
+    span collapses by the dwell factor with no change in the nominal size.
+    """
+    n_w = int(round(window / dt)) + 1
 
     def aliased(n_rec: int, size: int) -> bool:
-        starts = np.unique(np.round(np.linspace(0, n_rec - n_t, size)).astype(int))
+        starts = np.unique(np.round(np.linspace(0, n_rec - n_w, size)).astype(int))
         return np.unique(starts % dwell).size == 1
 
     for extra in range(400):
@@ -53,45 +67,79 @@ def _dwell_safe(length: float, horizon: float, dt: float, dwell: int,
 
 
 def _cases(quality: str) -> dict:
-    """Return systems and clocks with about 401 control-window samples."""
+    """Systems, clocks and conditioning windows; 401 samples per horizon.
+
+    Each plant is released from a disturbed state and probed over the
+    conditioning window; the state it reaches there is the initial state of the
+    control problem.  The window has to be long enough for the output to
+    determine that state.  The retarded system is the binding case: its output
+    is the delayed first coordinate, so it is approximately observable only for
+    ``T > 2h``, the same delay keeps the control from reaching the output
+    before ``t = h``, and a history disturbance would sit in that unreachable
+    first window.  Hence a horizon of ``2h``, a conditioning window of
+    ``2.5 h``, and a plant that starts at rest and is disturbed by the probing
+    input itself.
+    """
     fine = quality == "paper"
     heat = heat_system("neumann", n_elems=6 if fine else 4, nu=1.0)
     xi_h = heat.meta["mesh"].nodes[heat.meta["free"]]
-
     wave = wave_system("dirichlet", n_elems=4 if fine else 3, speed=.5)
     xi_w = wave.meta["mesh"].nodes[wave.meta["free"]]
-
     data = controllable_pair()
     delay = delay_system(data["A0"], data["A1"], data["B0"], h=data["h"],
                          n_tau=4 if fine else 3)
 
-    step = 1.0 if fine else 2.0
+    step = 1. if fine else 2.
     return {
-        "heat": (heat, 1.0 + .2 * np.cos(np.pi * xi_h), 1.0,
-                 .0025 * step, 8.0, 4),
+        "heat": (heat, 1.0 + .2 * np.cos(np.pi * xi_h), 1.0, .25,
+                 .0025 * step, 12.0, 4),
         "wave": (wave, np.concatenate([np.sin(np.pi * xi_w), np.zeros(xi_w.size)]),
-                 4.0, .01 * step, 24.0, 4),
-        "delay": (delay, np.ones(delay.n) / np.sqrt(delay.n), 1.0,
-                  .0025 * step, 8.0, 4),
+                 4.0, 2.0, .01 * step, 40.0, 4),
+        "delay": (delay, np.zeros(delay.n), 2.0, 2.5, .005 * step, 30.0, 4),
     }
+
+
+def _replayed_cost(sys, weights, t, x0, solution) -> float:
+    """Cost actually paid when the recovered input drives the plant from ``x0``.
+
+    A model-based score: the data-driven routines never see this simulation.
+    """
+    record = solution.record if hasattr(solution, "record") else solution
+    t_u, u = record.t, record.u
+    replay = simulate(
+        sys,
+        lambda s: np.stack([np.interp(np.asarray(s, dtype=float), t_u, ui)
+                            for ui in u]),
+        t, x0, theta=.5,
+    )
+    return trajectory_cost(replay, sys, weights)
 
 
 def run(quality: str = "quick") -> dict:
     configure()
     results = {}
 
-    for label, (sys, x0, horizon, dt, length, dwell) in _cases(quality).items():
+    for label, (sys, start, horizon, past, dt, length, dwell) in _cases(quality).items():
         t = uniform_grid(horizon, dt)
-        weights = LqrWeights.make(sys, terminal=1.0, control=.5)
+        weights = LqrWeights.make(sys, terminal=0.0, control=CONTROL)
+
+        # The plant runs before the regulator takes over.  Its state at the
+        # junction is the initial state of the control problem; the graph
+        # method is given that state, the window method only this record.
+        conditioning = simulate(sys, Prbs(dwell * dt, seed=11, horizon=past + dt),
+                                uniform_grid(past, dt), start, theta=.5)
+        x0 = conditioning.x[:, -1]
+
         reference = riccati_hamiltonian(sys, weights, t)
         optimal = reference.closed_loop(x0)
         optimum = reference.optimal_cost(x0)
 
         graph_dim = sys.m + sys.n
         graph_sizes = [int(round(r * graph_dim)) for r in RATIOS]
-        behavior_dim = sys.m * t.size + sys.n
-        window_sizes = [int(round(r * behavior_dim)) for r in RATIOS]
-        length = _dwell_safe(length, horizon, dt, dwell, window_sizes)
+        n_w = int(round(past / dt)) + int(round(horizon / dt)) + 1
+        behaviour_dim = sys.m * n_w + sys.n
+        window_sizes = [int(round(r * behaviour_dim)) for r in RATIOS]
+        length = _dwell_safe(length, past + horizon, dt, dwell, window_sizes)
         record = simulate(sys, Prbs(dwell * dt, seed=3, horizon=length + dt),
                           uniform_grid(length, dt), np.zeros(sys.n), theta=.5)
         record_t = record.window(0.0, horizon)
@@ -110,34 +158,45 @@ def run(quality: str = "quick") -> dict:
             # these sizes would mean the record itself is uninformative.
             graph_solutions.append(solve_graph_lqr(graph, t, weights, x0, theta=.5))
 
-        window_solutions = [
-            solve_window_lqr(shift_library(record, horizon, size), sys, weights,
-                             x0, rho=RHO)
-            for size in window_sizes
-        ]
+        window_solutions = []
+        for size in window_sizes:
+            library = io_shift_library(record, past=past, horizon=horizon,
+                                       n_windows=size)
+            behaviour = behaviour_basis(library, rank_tol=RANK_TOL)
+            window_solutions.append(solve_io_lqr(behaviour, weights,
+                                                 conditioning.u, conditioning.y,
+                                                 rho=RHO))
+
         free = simulate(sys, lambda tt: np.zeros((sys.m, np.size(tt))), t, x0,
                         theta=.5)
-        graph_error = np.array([
-            abs(solution.cost - optimum) / abs(optimum)
-            for solution in graph_solutions
-        ])
-        window_error = np.array([
-            abs(solution.cost - optimum) / abs(optimum)
-            for solution in window_solutions
-        ])
+        def relative(value: float, optimum: float = optimum) -> float:
+            return abs(value - optimum) / abs(optimum)
+
         results[label] = {
             "t": t,
             "optimal": optimal,
             "free": free,
             "optimum": optimum,
+            # How much the regulator is worth on this horizon: with a delayed
+            # or smoothing observation an optimal input can be close to zero,
+            # and then a cost error says nothing about the method.
+            "undriven_ratio": trajectory_cost(free, sys, weights) / optimum,
             "graph_sizes": graph_sizes,
             "graph_dim": graph_dim,
             "graph_solutions": graph_solutions,
-            "graph_error": graph_error,
+            "graph_error": np.array([relative(s.cost) for s in graph_solutions]),
+            "graph_replayed": np.array([
+                relative(_replayed_cost(sys, weights, t, x0, s))
+                for s in graph_solutions
+            ]),
             "window_sizes": window_sizes,
-            "behavior_dim": behavior_dim,
+            "behaviour_dim": behaviour_dim,
             "window_solutions": window_solutions,
-            "window_error": window_error,
+            "window_error": np.array([relative(s.cost) for s in window_solutions]),
+            "window_replayed": np.array([
+                relative(_replayed_cost(sys, weights, t, x0, s))
+                for s in window_solutions
+            ]),
         }
 
     colors = {label: family_colors(label)[0] for label in results}
@@ -153,7 +212,7 @@ def run(quality: str = "quick") -> dict:
                   label="Riccati")
         axis.plot(show["t"], getattr(graph_final.record, signal)[0], lw=1.0,
                   color=dark, label="graph")
-        axis.plot(show["t"], getattr(window_final.record, signal)[0], lw=.9,
+        axis.plot(window_final.t, getattr(window_final, signal)[0], lw=.9,
                   color=light, label="window", alpha=.9)
         axis.set(xlabel=r"$t$", ylabel=name)
         axis.grid(True, alpha=.25)
@@ -170,7 +229,7 @@ def run(quality: str = "quick") -> dict:
             result["graph_error"], "o-", ms=3.5, color=colors[label],
         )
         ax[2].loglog(
-            np.array(result["window_sizes"]) / result["behavior_dim"],
+            np.array(result["window_sizes"]) / result["behaviour_dim"],
             result["window_error"], "s--", ms=3.2, color=colors[label],
         )
     ax[2].set(xlabel="trial size / dimension", ylabel="relative cost error")
@@ -182,7 +241,10 @@ def run(quality: str = "quick") -> dict:
               for label in results]
     legend += [Line2D([0], [0], color=".3", marker="o", label="graph"),
                Line2D([0], [0], color=".3", ls="--", marker="s", label="window")]
-    ax[2].legend(handles=legend, fontsize=6.2, ncol=2, loc="upper right")
+    # The curves leave one free band, between the window errors and the graph
+    # errors; the legend is anchored into it rather than left to overlap them.
+    ax[2].legend(handles=legend, fontsize=6.2, ncol=2, loc="center left",
+                 bbox_to_anchor=(0., .47), framealpha=.9)
     fig.tight_layout()
     fig_path = savefig(fig, "lqr.pdf")
 
@@ -194,18 +256,18 @@ def run(quality: str = "quick") -> dict:
             f"{label} & graph & {result['graph_sizes'][-1]} & "
             f"{graph.graph.rank}/{graph.graph.domain_dimension} & "
             f"{tex_num(graph.cost)} & {tex_num(result['graph_error'][-1])} & "
-            f"{tex_num(graph.initial_defect)} \\\\"
+            f"{tex_num(result['graph_replayed'][-1])} \\\\"
         )
         rows.append(
-            f"{label} & window & {result['window_sizes'][-1]} & -- & "
+            f"{label} & window & {result['window_sizes'][-1]} & "
+            f"{window.behaviour.rank}/{result['behaviour_dim']} & "
             f"{tex_num(window.cost)} & {tex_num(result['window_error'][-1])} & "
-            f"{tex_num(window.initial_defect)} \\\\"
+            f"{tex_num(result['window_replayed'][-1])} \\\\"
         )
         rows.append(r"\addlinespace")
     table = write_table("lqr.tex", r"""\begin{tabular}{llrrrrr}
 \toprule
-Example & method & size & rank & $J_{\rm dd}$ & relative error &
-initial defect \\
+Example & method & size & rank & $J_{\rm dd}$ & $e_J$ & $e_J^{\rm plant}$ \\
 \midrule
 """ + "\n".join(rows[:-1]) + r"""
 \bottomrule
@@ -217,6 +279,10 @@ if __name__ == "__main__":
     args = parser(__doc__).parse_args()
     result = run(args.quality)
     for label, data in result["results"].items():
-        print(label, "J* =", data["optimum"],
-              "graph:", data["graph_error"],
-              "window:", data["window_error"])
+        print(label, "J* =", data["optimum"], "J0/J* =", data["undriven_ratio"],
+              "\n  graph:   ", data["graph_error"], data["graph_replayed"],
+              "\n  window:  ", data["window_error"], data["window_replayed"],
+              "\n  defects: ", data["graph_solutions"][-1].initial_defect,
+              data["window_solutions"][-1].past_defect,
+              "\n  ranks:   ", [s.behaviour.rank for s in data["window_solutions"]],
+              "/", data["behaviour_dim"])

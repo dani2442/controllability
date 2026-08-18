@@ -26,7 +26,7 @@ The window carries no state, so the two state-dependent items of
   approximately observable in time ``T_ini``, and ``eq:window-state-recovery``
   inverts it stably under exact observability.  All three examples are only
   approximately observable, with a compact ``O_T`` whose singular values decay
-  (``subsec:num-observability``), so the match is imposed as a least-squares fit with
+  (``sec:numerics``), so the match is imposed as a least-squares fit with
   weight ``1/rho`` rather than as an equality.  This is the closure form of the
   theorem, and ``rho`` is the one parameter the state methods do not need.
 
@@ -230,6 +230,7 @@ class IoLqrSolution:
     t: np.ndarray  # control clock 0..T
     u: np.ndarray  # (m, n_future)
     y: np.ndarray  # (p, n_future)
+    past_t: np.ndarray  # conditioning clock -T_ini..0, junction sample included
     past_u: np.ndarray
     past_y: np.ndarray
     cost: float
@@ -326,6 +327,7 @@ def solve_io_lqr(behaviour: BehaviourBasis, weights: LqrWeights,
         t=library.t_future,
         u=u[:, library.future],
         y=y[:, library.future],
+        past_t=library.t[library.past],
         past_u=u[:, library.past],
         past_y=y[:, library.past],
         cost=float(g @ H @ g),

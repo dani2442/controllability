@@ -1,10 +1,11 @@
 """Compare the two data-driven finite-horizon LQR discretisations of the paper.
 
 ``graph`` is the state-record method: weak moments of one record identify a
-basis of the finite-dimensional system graph (``thm:willems-synthesis``,
-``rmk:lqr-numerics``), and a sparse QP constrains every theta-method stage to
-that graph.  ``window`` is the input--output method: shifted windows of the
-same record span the finite-horizon behaviour
+basis of the finite-dimensional system graph (``thm:willems-gramian``,
+``rmk:lqr-numerics``); the derivative-free synthesis construction is given in
+Appendix ``app:willems-synthesis``.  A sparse QP constrains every theta-method
+stage to that graph.  ``window`` is the input--output method: shifted windows
+of the same record span the finite-horizon behaviour
 (``thm:windowed-io-fundamental-lemma``) and the regulator is a combination of
 them, conditioned on the measured past of the plant instead of on its state.
 
@@ -18,7 +19,6 @@ cost a method predicts can be compared with the cost it actually pays.
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
 from matplotlib.ticker import NullLocator
 import numpy as np
 
@@ -38,11 +38,10 @@ RANK_TOL = 1e-10
 RHO = 1e-8
 CONTROL = .05
 SHOWCASE = "wave"
-# Both methods are run at the same sizes relative to their own dimension: the
-# graph needs q >= m + n test functions, the behaviour on the window needs
-# N >= m n_w + n windows.  Ratio 1 is the smallest size at which either can be
-# exact; below it the corresponding space is not spanned at all.
-RATIOS = (1., 2., 4.)
+# Once a library spans its target space, enlarging it does not define a
+# convergence process.  Use twice the nominal dimension throughout and expose
+# the actual numerical rate by refining the time grid instead.
+TRIAL_RATIO = 2.0
 
 
 def _dwell_safe(length: float, window: float, dt: float, dwell: int,
@@ -56,6 +55,8 @@ def _dwell_safe(length: float, window: float, dt: float, dwell: int,
     n_w = int(round(window / dt)) + 1
 
     def aliased(n_rec: int, size: int) -> bool:
+        if dwell <= 1:
+            return False
         starts = np.unique(np.round(np.linspace(0, n_rec - n_w, size)).astype(int))
         return np.unique(starts % dwell).size == 1
 
@@ -115,106 +116,142 @@ def _replayed_cost(sys, weights, t, x0, solution) -> float:
     return trajectory_cost(replay, sys, weights)
 
 
+def _solve_case(case: tuple, *, dt: float | None = None,
+                dwell_time: float | None = None) -> dict:
+    """Solve both regulators at one time resolution and a spanning trial size."""
+    sys, start, horizon, past, base_dt, length, dwell = case
+    dt = base_dt if dt is None else dt
+    dwell_time = dwell * base_dt if dwell_time is None else dwell_time
+    dwell_samples = int(round(dwell_time / dt))
+    if not np.isclose(dwell_samples * dt, dwell_time):
+        raise ValueError("the PRBS dwell must be an integer number of time steps")
+
+    t = uniform_grid(horizon, dt)
+    weights = LqrWeights.make(sys, terminal=0.0, control=CONTROL)
+
+    # Keep the physical conditioning input fixed across time refinements.  Its
+    # terminal state is the initial state of the control problem; the graph
+    # method receives that state, while the window method receives only (u,y).
+    conditioning = simulate(
+        sys, Prbs(dwell_time, seed=11, horizon=past + dt),
+        uniform_grid(past, dt), start, theta=.5,
+    )
+    x0 = conditioning.x[:, -1]
+    reference = riccati_hamiltonian(sys, weights, t)
+    optimal = reference.closed_loop(x0)
+    optimum = reference.optimal_cost(x0)
+
+    graph_dim = sys.m + sys.n
+    graph_size = int(round(TRIAL_RATIO * graph_dim))
+    n_w = int(round(past / dt)) + int(round(horizon / dt)) + 1
+    behaviour_dim = sys.m * n_w + sys.n
+    window_size = int(round(TRIAL_RATIO * behaviour_dim))
+    length = _dwell_safe(length, past + horizon, dt, dwell_samples, [window_size])
+    record = simulate(
+        sys, Prbs(dwell_time, seed=3, horizon=length + dt),
+        uniform_grid(length, dt), np.zeros(sys.n), theta=.5,
+    )
+    record_t = record.window(0.0, horizon)
+    graph = estimate_graph(
+        record_t,
+        hat_tests(record_t.t, graph_size),
+        sys.MW,
+        derivative_metric=sys.MX,
+        rank_tol=RANK_TOL,
+        theta=.5,
+    )
+    graph_solution = solve_graph_lqr(graph, t, weights, x0, theta=.5)
+    library = io_shift_library(record, past=past, horizon=horizon,
+                               n_windows=window_size)
+    behaviour = behaviour_basis(library, rank_tol=RANK_TOL)
+    window_solution = solve_io_lqr(
+        behaviour, weights, conditioning.u, conditioning.y, rho=RHO,
+    )
+    free = simulate(sys, lambda tt: np.zeros((sys.m, np.size(tt))), t, x0,
+                    theta=.5)
+
+    def relative(value: float) -> float:
+        return abs(value - optimum) / abs(optimum)
+
+    return {
+        "t": t,
+        "optimal": optimal,
+        "free": free,
+        "optimum": optimum,
+        # How much the regulator is worth on this horizon: with a delayed or
+        # smoothing observation an optimal input can be close to zero, and then
+        # a cost error says nothing about the method.
+        "undriven_ratio": trajectory_cost(free, sys, weights) / optimum,
+        "graph_size": graph_size,
+        "graph_dim": graph_dim,
+        "graph_solution": graph_solution,
+        "graph_error": relative(graph_solution.cost),
+        "graph_replayed": relative(
+            _replayed_cost(sys, weights, t, x0, graph_solution)
+        ),
+        "window_size": window_size,
+        "behaviour_dim": behaviour_dim,
+        "window_solution": window_solution,
+        "window_error": relative(window_solution.cost),
+        "window_replayed": relative(
+            _replayed_cost(sys, weights, t, x0, window_solution)
+        ),
+    }
+
+
 def run(quality: str = "quick") -> dict:
     configure()
-    results = {}
+    cases = _cases(quality)
+    results = {label: _solve_case(case) for label, case in cases.items()}
 
-    for label, (sys, start, horizon, past, dt, length, dwell) in _cases(quality).items():
-        t = uniform_grid(horizon, dt)
-        weights = LqrWeights.make(sys, terminal=0.0, control=CONTROL)
+    # Refine only the heat case: its error is set by the time discretisation.
+    # The wave and delay errors instead sit on unresolved-behaviour floors, so
+    # a time-grid slope for them would have no convergence interpretation.
+    heat_case = cases["heat"]
+    base_dt = heat_case[4]
+    heat_dts = base_dt * np.array((2.0, 1.0) if quality == "quick"
+                                  else (4.0, 2.0, 1.0))
+    heat_dwell_time = heat_case[6] * base_dt
+    heat_runs = []
+    for dt in heat_dts:
+        if np.isclose(dt, base_dt):
+            heat_runs.append(results["heat"])
+        else:
+            heat_runs.append(_solve_case(heat_case, dt=float(dt),
+                                         dwell_time=heat_dwell_time))
+    time_steps = heat_case[2] / heat_dts
+    graph_errors = np.array([item["graph_error"] for item in heat_runs])
+    window_errors = np.array([item["window_error"] for item in heat_runs])
+    graph_order = float(
+        -np.polyfit(np.log(time_steps), np.log(graph_errors), 1)[0]
+    )
+    window_order = float(
+        -np.polyfit(np.log(time_steps), np.log(window_errors), 1)[0]
+    )
+    refinement = {
+        "dt": heat_dts,
+        "time_steps": time_steps,
+        "graph_error": graph_errors,
+        "window_error": window_errors,
+        "graph_order": graph_order,
+        "window_order": window_order,
+    }
 
-        # The plant runs before the regulator takes over.  Its state at the
-        # junction is the initial state of the control problem; the graph
-        # method is given that state, the window method only this record.
-        conditioning = simulate(sys, Prbs(dwell * dt, seed=11, horizon=past + dt),
-                                uniform_grid(past, dt), start, theta=.5)
-        x0 = conditioning.x[:, -1]
-
-        reference = riccati_hamiltonian(sys, weights, t)
-        optimal = reference.closed_loop(x0)
-        optimum = reference.optimal_cost(x0)
-
-        graph_dim = sys.m + sys.n
-        graph_sizes = [int(round(r * graph_dim)) for r in RATIOS]
-        n_w = int(round(past / dt)) + int(round(horizon / dt)) + 1
-        behaviour_dim = sys.m * n_w + sys.n
-        window_sizes = [int(round(r * behaviour_dim)) for r in RATIOS]
-        length = _dwell_safe(length, past + horizon, dt, dwell, window_sizes)
-        record = simulate(sys, Prbs(dwell * dt, seed=3, horizon=length + dt),
-                          uniform_grid(length, dt), np.zeros(sys.n), theta=.5)
-        record_t = record.window(0.0, horizon)
-
-        graph_solutions = []
-        for q in graph_sizes:
-            graph = estimate_graph(
-                record_t,
-                hat_tests(record_t.t, q),
-                sys.MW,
-                derivative_metric=sys.MX,
-                rank_tol=RANK_TOL,
-                theta=.5,
-            )
-            # Raises if the moments do not resolve the whole graph, which at
-            # these sizes would mean the record itself is uninformative.
-            graph_solutions.append(solve_graph_lqr(graph, t, weights, x0, theta=.5))
-
-        window_solutions = []
-        for size in window_sizes:
-            library = io_shift_library(record, past=past, horizon=horizon,
-                                       n_windows=size)
-            behaviour = behaviour_basis(library, rank_tol=RANK_TOL)
-            window_solutions.append(solve_io_lqr(behaviour, weights,
-                                                 conditioning.u, conditioning.y,
-                                                 rho=RHO))
-
-        free = simulate(sys, lambda tt: np.zeros((sys.m, np.size(tt))), t, x0,
-                        theta=.5)
-        def relative(value: float, optimum: float = optimum) -> float:
-            return abs(value - optimum) / abs(optimum)
-
-        results[label] = {
-            "t": t,
-            "optimal": optimal,
-            "free": free,
-            "optimum": optimum,
-            # How much the regulator is worth on this horizon: with a delayed
-            # or smoothing observation an optimal input can be close to zero,
-            # and then a cost error says nothing about the method.
-            "undriven_ratio": trajectory_cost(free, sys, weights) / optimum,
-            "graph_sizes": graph_sizes,
-            "graph_dim": graph_dim,
-            "graph_solutions": graph_solutions,
-            "graph_error": np.array([relative(s.cost) for s in graph_solutions]),
-            "graph_replayed": np.array([
-                relative(_replayed_cost(sys, weights, t, x0, s))
-                for s in graph_solutions
-            ]),
-            "window_sizes": window_sizes,
-            "behaviour_dim": behaviour_dim,
-            "window_solutions": window_solutions,
-            "window_error": np.array([relative(s.cost) for s in window_solutions]),
-            "window_replayed": np.array([
-                relative(_replayed_cost(sys, weights, t, x0, s))
-                for s in window_solutions
-            ]),
-        }
-
-    colors = {label: family_colors(label)[0] for label in results}
     dark, light = family_colors(SHOWCASE, 2)
 
     fig, ax = plt.subplots(1, 3, figsize=(7.4, 2.5))
     show = results[SHOWCASE]
-    graph_final = show["graph_solutions"][-1]
-    window_final = show["window_solutions"][-1]
+    graph_final = show["graph_solution"]
+    window_final = show["window_solution"]
     for axis, signal, name in ((ax[0], "u", r"$u(t)$"),
                                (ax[1], "y", r"$y(t)$")):
         axis.plot(show["t"], getattr(show["optimal"], signal)[0], "k--",
                   label="Riccati")
         axis.plot(show["t"], getattr(graph_final.record, signal)[0], lw=1.0,
-                  color=dark, label="graph")
+                  color=dark, label="i-s-o")
         axis.plot(window_final.t, getattr(window_final, signal)[0], lw=.9,
-                  color=light, label="window", alpha=.9)
-        axis.set(xlabel=r"$t$", ylabel=name)
+                  color=light, label="i-o", alpha=.9)
+        axis.set(xlabel=r"$t$", ylabel=name, xlim=(0.0, show["t"][-1]))
         axis.grid(True, alpha=.25)
     ax[1].plot(show["t"], show["free"].y[0], color=".65", lw=.8, zorder=0,
                label="undriven")
@@ -223,56 +260,52 @@ def run(quality: str = "quick") -> dict:
     ax[0].legend(fontsize=6.5)
     ax[1].legend(fontsize=6.5)
 
-    for label, result in results.items():
-        ax[2].loglog(
-            np.array(result["graph_sizes"]) / result["graph_dim"],
-            result["graph_error"], "o-", ms=3.5, color=colors[label],
-        )
-        ax[2].loglog(
-            np.array(result["window_sizes"]) / result["behaviour_dim"],
-            result["window_error"], "s--", ms=3.2, color=colors[label],
-        )
-    ax[2].set(xlabel="trial size / dimension", ylabel="relative cost error")
-    ax[2].set_xticks(list(RATIOS), [rf"${r:g}$" for r in RATIOS])
+    heat_dark, heat_light = family_colors("heat", 2)
+    ax[2].loglog(
+        time_steps, graph_errors, "o-", ms=3.5, color=heat_dark,
+        label=rf"i-s-o (order {graph_order:.2f})",
+    )
+    ax[2].loglog(
+        time_steps, window_errors, "s--", ms=3.2, color=heat_light,
+        label=rf"i-o (order {window_order:.2f})",
+    )
+    ax[2].set(xlabel=r"time steps per horizon ($T/\Delta t$)",
+              ylabel="relative cost error")
+    ax[2].set_xticks(time_steps, [rf"${int(round(n))}$" for n in time_steps])
     ax[2].xaxis.set_minor_locator(NullLocator())
-    ax[2].set_title("convergence", fontsize=8)
+    ax[2].set_title("heat: time refinement", fontsize=8)
     ax[2].grid(True, which="both", alpha=.25)
-    legend = [Line2D([0], [0], color=colors[label], label=label)
-              for label in results]
-    legend += [Line2D([0], [0], color=".3", marker="o", label="graph"),
-               Line2D([0], [0], color=".3", ls="--", marker="s", label="window")]
-    # The curves leave one free band, between the window errors and the graph
-    # errors; the legend is anchored into it rather than left to overlap them.
-    ax[2].legend(handles=legend, fontsize=6.2, ncol=2, loc="center left",
-                 bbox_to_anchor=(0., .47), framealpha=.9)
+    ax[2].legend(fontsize=6.2, loc="center left", borderpad=.4,
+                 labelspacing=.3, handlelength=1.6, framealpha=.9)
     fig.tight_layout()
     fig_path = savefig(fig, "lqr.pdf")
 
     rows = []
     for label, result in results.items():
-        graph = result["graph_solutions"][-1]
-        window = result["window_solutions"][-1]
+        graph = result["graph_solution"]
+        window = result["window_solution"]
         rows.append(
-            f"{label} & graph & {result['graph_sizes'][-1]} & "
+            f"{label} & i-s-o & {result['graph_size']} & "
             f"{graph.graph.rank}/{graph.graph.domain_dimension} & "
-            f"{tex_num(graph.cost)} & {tex_num(result['graph_error'][-1])} & "
-            f"{tex_num(result['graph_replayed'][-1])} \\\\"
+            f"{tex_num(graph.cost)} & {tex_num(result['graph_error'])} & "
+            f"{tex_num(result['graph_replayed'])} \\\\"
         )
         rows.append(
-            f"{label} & window & {result['window_sizes'][-1]} & "
+            f"{label} & i-o & {result['window_size']} & "
             f"{window.behaviour.rank}/{result['behaviour_dim']} & "
-            f"{tex_num(window.cost)} & {tex_num(result['window_error'][-1])} & "
-            f"{tex_num(result['window_replayed'][-1])} \\\\"
+            f"{tex_num(window.cost)} & {tex_num(result['window_error'])} & "
+            f"{tex_num(result['window_replayed'])} \\\\"
         )
         rows.append(r"\addlinespace")
     table = write_table("lqr.tex", r"""\begin{tabular}{llrrrrr}
 \toprule
-Example & method & size & rank & $J_{\rm dd}$ & $e_J$ & $e_J^{\rm plant}$ \\
+Example & data & size & rank & $J_{\rm dd}$ & $e_J$ & $e_J^{\rm plant}$ \\
 \midrule
 """ + "\n".join(rows[:-1]) + r"""
 \bottomrule
 \end{tabular}""")
-    return {"figure": fig_path, "table": table, "results": results}
+    return {"figure": fig_path, "table": table, "results": results,
+            "refinement": refinement}
 
 
 if __name__ == "__main__":
@@ -282,7 +315,9 @@ if __name__ == "__main__":
         print(label, "J* =", data["optimum"], "J0/J* =", data["undriven_ratio"],
               "\n  graph:   ", data["graph_error"], data["graph_replayed"],
               "\n  window:  ", data["window_error"], data["window_replayed"],
-              "\n  defects: ", data["graph_solutions"][-1].initial_defect,
-              data["window_solutions"][-1].past_defect,
-              "\n  ranks:   ", [s.behaviour.rank for s in data["window_solutions"]],
+              "\n  defects: ", data["graph_solution"].initial_defect,
+              data["window_solution"].past_defect,
+              "\n  rank:    ", data["window_solution"].behaviour.rank,
               "/", data["behaviour_dim"])
+    print("heat time orders:", result["refinement"]["graph_order"],
+          result["refinement"]["window_order"])

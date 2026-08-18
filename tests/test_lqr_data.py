@@ -1,7 +1,7 @@
 import numpy as np
 
 from ddinf.heat import heat_system
-from ddinf.lqr_data import estimate_graph, solve_graph_lqr
+from ddinf.lqr_data import estimate_graph, estimate_sampled_graph, solve_graph_lqr
 from ddinf.lqr_model import LqrWeights, riccati_hamiltonian
 from ddinf.moments import hat_tests
 from ddinf.signals import Prbs
@@ -48,7 +48,7 @@ def test_moment_graph_accepts_an_independent_heat_trajectory():
 
 
 def test_graph_lqr_reproduces_the_riccati_optimum_with_exact_initial_state():
-    """The synthesis-range QP is the main-paper numerical regulator."""
+    """The weak-moment graph QP is the main-paper numerical regulator."""
     sys, x0, weights, t, ref, record = _heat_case()
     graph = estimate_graph(
         record.window(0.0, t[-1]),
@@ -65,3 +65,22 @@ def test_graph_lqr_reproduces_the_riccati_optimum_with_exact_initial_state():
     opt = ref.closed_loop(x0)
     assert (np.linalg.norm(sol.record.u[0] - opt.u[0])
             / np.linalg.norm(opt.u[0])) < 5e-2
+
+
+def test_direct_sampled_graph_reproduces_the_riccati_optimum():
+    """Pointwise theta stages provide the graph without synthesis moments."""
+    sys, x0, weights, t, ref, record = _heat_case()
+    graph = estimate_sampled_graph(
+        record,
+        sys.MW,
+        derivative_metric=sys.MX,
+        rank_tol=1e-10,
+    )
+    assert graph.is_full
+    assert graph.moments is None
+
+    sol = solve_graph_lqr(graph, t, weights, x0)
+    optimum = ref.optimal_cost(x0)
+    assert abs(sol.cost - optimum) / abs(optimum) < 1e-4
+    assert sol.initial_defect < 1e-10
+    assert sol.graph_residual < 1e-10

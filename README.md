@@ -74,11 +74,17 @@ installed copy of the package would write elsewhere.
   four converge at order 2; the control-operator norm grows like `h^{-3/2}`
   (heat, Dirichlet), `h^{-1/2}` (heat Neumann and wave), and is bounded for the
   retarded equation.
-- **exp02 — controllability.** The data-driven Fattorini–Hautus test on one
-  record per configuration. Each example is run twice: once approximately
-  controllable (every pencil candidate must be rejected) and once with an
-  obstruction known in closed form (it must be recovered). Also reports the
-  numerical rank of the weak moment map.
+- **exp02 — controllability.** Both data-driven Fattorini–Hautus tests, on one
+  record per configuration and data class. Each example is run twice: once
+  approximately controllable (every candidate must be rejected) and once with an
+  obstruction known in closed form (it must be recovered). The `i-s` rows read
+  `(u, x)` and look for a state functional; the `i-o` rows read `(u, y)` and look
+  for a functional of one length-`T` window. The two use different probing
+  inputs on purpose: the window test needs the shifted windows to span the
+  behavior, and on the multisine of the state test a length-`T` kernel can
+  isolate a single line, which the test then reports as an obstruction of a
+  controllable system (`multisine_window_failure`). Also reports the numerical
+  rank of the weak moment map and of the window library.
 - **exp03 — LQR.** Comparison of the two fundamental lemmas of the paper on the
   same regulator: the state-record synthesis method (a weak-moment basis of the
   system graph followed by a sparse constrained QP) and the input–output
@@ -107,7 +113,8 @@ beyond the `ddinf.systems.LinearSystem` interface.
 | `signals` | probing inputs: harmonic PE, multisine, PRBS |
 | `moments` | the dynamic synthesis operator: `X0`, `X1`, `U0`, `Y0` from a record |
 | `informativity` | Gramian and moment-map spectra, numerical rank at a threshold |
-| `controllability` | the data-driven Fattorini–Hautus test, plus a model-based Hautus baseline |
+| `controllability` | the state (`i-s`) data-driven Fattorini–Hautus test, plus a model-based Hautus baseline |
+| `controllability_io` | the input–output (`i-o`) window test: shifted windows, the weak pencil for the candidates, and the exponential fit that decides them |
 | `lqr_data` | weak-moment graph estimation and the graph-constrained LQR solve |
 | `lqr_io` | shifted input–output window libraries, the resolved behavior basis, and the past-conditioned window solve |
 | `lqr_model` | the Riccati reference (see below) |
@@ -162,6 +169,12 @@ The numerical weak form is matched to its downstream discretization:
   forms `X1 = sum phi_mid (x[k+1]-x[k])`; hence
   `X1 = A X0 + B U0` holds to the time-stepper's linear-solver tolerance
   without differentiating the measured state pointwise.
+- `ddinf.lqr_data.estimate_sampled_graph` — the **direct sampled graph**
+  counterpart. It forms the theta-stage difference quotient
+  `(x[k+1] - x[k]) / dt` and learns the same finite-dimensional graph without
+  test functions. It is useful for exact simulated records; the weak-moment
+  estimator is preferable when differentiating measured noise would be
+  unstable.
 - `ddinf.informativity.gramian_spectrum` — **trapezoid**, since only the
   spectrum's decay matters there.
 - `ddinf.moments.trapezoid_weights` — **trapezoid**, used for the control term

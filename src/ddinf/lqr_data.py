@@ -1,6 +1,7 @@
-"""Synthesis-range discretisation of the data-driven finite-horizon LQR.
+"""Graph discretisations of the data-driven finite-horizon LQR.
 
-The measured weak moments satisfy
+The graph can be learned either from pointwise theta-method stages or from weak
+moments.  In the latter, derivative-free construction the data satisfy
 
     D = [U0; X0; X1; Y0] = Gamma_h [U0; X0] = Gamma_h Z.
 
@@ -43,6 +44,59 @@ def _positive_metric(metric: np.ndarray | None, dimension: int) -> np.ndarray:
     return metric
 
 
+def _resolved_graph(
+    Z: np.ndarray,
+    D: np.ndarray,
+    *,
+    input_metric: np.ndarray,
+    state_metric: np.ndarray,
+    derivative_metric: np.ndarray,
+    output_metric: np.ndarray,
+    rank_tol: float,
+    moments: Moments | None,
+) -> "GraphBasis":
+    """Build a metric-orthogonal graph basis from ``D = Gamma_h Z``."""
+    domain_root = block_diag(
+        _metric_root(input_metric), _metric_root(state_metric)
+    )
+    ambient_root = block_diag(
+        _metric_root(input_metric),
+        _metric_root(state_metric),
+        _metric_root(derivative_metric),
+        _metric_root(output_metric),
+    )
+
+    _, singular_values, Vt = np.linalg.svd(domain_root @ Z, full_matrices=False)
+    if singular_values.size == 0 or singular_values[0] == 0:
+        rank = 0
+    else:
+        rank = int(np.sum(singular_values > rank_tol * singular_values[0]))
+    if rank == 0:
+        raise ValueError("the record has zero resolved input-state rank")
+
+    # Dividing by Sigma makes the first two blocks a metric-orthonormal basis
+    # of the resolved input-state directions before they are lifted by Gamma.
+    trial = D @ (Vt[:rank].T / singular_values[:rank])
+    scaled_basis, _ = np.linalg.qr(ambient_root @ trial, mode="reduced")
+    # Complete QR supplies an orthonormal basis of the ambient complement.
+    complete, _ = np.linalg.qr(scaled_basis, mode="complete")
+    complement = complete[:, rank:]
+    constraint = complement.T @ ambient_root
+
+    return GraphBasis(
+        basis=trial,
+        constraint=constraint,
+        singular_values=singular_values,
+        rank=rank,
+        rank_tol=rank_tol,
+        moments=moments,
+        input_metric=input_metric,
+        state_metric=state_metric,
+        derivative_metric=derivative_metric,
+        output_metric=output_metric,
+    )
+
+
 @dataclass
 class GraphBasis:
     """Resolved finite-dimensional approximation of ``im Gamma``.
@@ -57,7 +111,7 @@ class GraphBasis:
     singular_values: np.ndarray
     rank: int
     rank_tol: float
-    moments: Moments
+    moments: Moments | None
     input_metric: np.ndarray
     state_metric: np.ndarray
     derivative_metric: np.ndarray
@@ -65,15 +119,15 @@ class GraphBasis:
 
     @property
     def m(self) -> int:
-        return self.moments.U0.shape[0]
+        return self.input_metric.shape[0]
 
     @property
     def n(self) -> int:
-        return self.moments.X0.shape[0]
+        return self.state_metric.shape[0]
 
     @property
     def p(self) -> int:
-        return self.moments.Y0.shape[0]
+        return self.output_metric.shape[0]
 
     @property
     def domain_dimension(self) -> int:
@@ -126,44 +180,69 @@ def estimate_graph(record: Record, tests: TestFunctions, state_metric: np.ndarra
     )
     output_metric = _positive_metric(output_metric, p)
 
-    Z = np.vstack([mom.U0, mom.X0])
-    D = np.vstack([mom.U0, mom.X0, mom.X1, mom.Y0])
-    domain_root = block_diag(_metric_root(input_metric), _metric_root(state_metric))
-    ambient_root = block_diag(
-        _metric_root(input_metric),
-        _metric_root(state_metric),
-        _metric_root(derivative_metric),
-        _metric_root(output_metric),
-    )
-
-    _, singular_values, Vt = np.linalg.svd(domain_root @ Z, full_matrices=False)
-    if singular_values.size == 0 or singular_values[0] == 0:
-        rank = 0
-    else:
-        rank = int(np.sum(singular_values > rank_tol * singular_values[0]))
-    if rank == 0:
-        raise ValueError("the record has zero resolved moment rank")
-
-    # Dividing by Sigma makes the first two blocks a metric-orthonormal basis
-    # of the resolved input-state directions before they are lifted by Gamma.
-    trial = D @ (Vt[:rank].T / singular_values[:rank])
-    scaled_basis, _ = np.linalg.qr(ambient_root @ trial, mode="reduced")
-    # Complete QR supplies an orthonormal basis of the ambient complement.
-    complete, _ = np.linalg.qr(scaled_basis, mode="complete")
-    complement = complete[:, rank:]
-    constraint = complement.T @ ambient_root
-
-    return GraphBasis(
-        basis=trial,
-        constraint=constraint,
-        singular_values=singular_values,
-        rank=rank,
-        rank_tol=rank_tol,
-        moments=mom,
+    return _resolved_graph(
+        np.vstack([mom.U0, mom.X0]),
+        np.vstack([mom.U0, mom.X0, mom.X1, mom.Y0]),
         input_metric=input_metric,
         state_metric=state_metric,
         derivative_metric=derivative_metric,
         output_metric=output_metric,
+        moments=mom,
+        rank_tol=rank_tol,
+    )
+
+
+def estimate_sampled_graph(
+    record: Record,
+    state_metric: np.ndarray,
+    *,
+    derivative_metric: np.ndarray | None = None,
+    input_metric: np.ndarray | None = None,
+    output_metric: np.ndarray | None = None,
+    rank_tol: float = 1e-10,
+    theta: float = 0.5,
+) -> GraphBasis:
+    """Estimate the graph directly from sampled theta-method stage data.
+
+    On interval ``k`` the estimator uses the column
+
+    ``(u_theta, x_theta, (x[k+1]-x[k])/dt, y_theta)``.
+
+    This is the direct finite-dimensional realization of the pointwise graph
+    theorem.  Unlike :func:`estimate_graph`, it forms a difference quotient of
+    the measured state, so the weak-moment estimator remains preferable for
+    noisy data.  A uniform grid is required to match :func:`solve_graph_lqr`.
+    """
+    steps = np.diff(record.t)
+    if steps.size == 0 or not np.allclose(steps, steps[0]):
+        raise ValueError(
+            "the sampled graph currently requires a uniform time grid"
+        )
+
+    m, n, p = record.u.shape[0], record.x.shape[0], record.y.shape[0]
+    input_metric = _positive_metric(input_metric, m)
+    state_metric = _positive_metric(state_metric, n)
+    derivative_metric = _positive_metric(
+        state_metric if derivative_metric is None else derivative_metric, n
+    )
+    output_metric = _positive_metric(output_metric, p)
+
+    def stage(values: np.ndarray) -> np.ndarray:
+        return (1.0 - theta) * values[:, :-1] + theta * values[:, 1:]
+
+    U = stage(record.u)
+    X = stage(record.x)
+    Xdot = np.diff(record.x, axis=1) / float(steps[0])
+    Y = stage(record.y)
+    return _resolved_graph(
+        np.vstack([U, X]),
+        np.vstack([U, X, Xdot, Y]),
+        input_metric=input_metric,
+        state_metric=state_metric,
+        derivative_metric=derivative_metric,
+        output_metric=output_metric,
+        moments=None,
+        rank_tol=rank_tol,
     )
 
 
@@ -193,7 +272,7 @@ def _stage_to_nodes(stage: np.ndarray) -> np.ndarray:
 
 def solve_graph_lqr(graph: GraphBasis, t: np.ndarray, weights: LqrWeights,
                     x0: np.ndarray, *, theta: float = 0.5) -> GraphLqrSolution:
-    """Solve the LQR using only the graph learned from measured moments.
+    """Solve the LQR using only the graph learned from measured data.
 
     On interval ``k`` the tuple
 

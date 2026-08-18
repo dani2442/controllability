@@ -1,4 +1,4 @@
-"""The dynamic synthesis operator of Section ``sec:fundamental-lemma``, discretised.
+"""The dynamic synthesis operator of Appendix ``app:willems-synthesis``, discretised.
 
 The dynamic synthesis operator of a record is
 
@@ -17,7 +17,7 @@ satisfy the *exact* linear identity
     X1 = A X0 + B U0,      Y0 = C X0,
 
 which is the finite-dimensional shadow of the factorisation
-``W = Gamma_C o Z`` in the proof of ``thm:hilbert-state-output-willems-synthesis``.
+``W = Gamma o Z`` in the proof of ``thm:willems-synthesis``.
 """
 
 from __future__ import annotations

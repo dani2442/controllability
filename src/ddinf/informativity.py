@@ -89,7 +89,7 @@ def moment_spectrum(stacked: np.ndarray, sys: LinearSystem, *, space: str = "X",
                     tol: float = 1e-12) -> GramianSpectrum:
     """Singular values of the moment matrix ``[X0; U0]``, in the ``U x H`` metric.
 
-    By Theorem ``thm:willems-gramian`` the record is informative exactly when
+    By Theorem ``thm:willems-synthesis`` the record is informative exactly when
     the range of the synthesis operator is dense, i.e. when this matrix has full
     row rank.
     Reported on the same footing as :func:`gramian_spectrum` so the two views

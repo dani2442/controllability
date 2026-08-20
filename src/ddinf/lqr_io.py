@@ -21,10 +21,11 @@ The window carries no state, so the two state-dependent items of
 * **Initial condition.**  Each window is extended backwards by ``T_ini``, and
   the past part of the combination is matched to the measured past
   ``(u_ini, y_ini)`` of the plant, up to and including the junction sample at
-  which the regulator takes over.  By ``eq:output-shift-property`` this pins
+  which the regulator takes over.  By the shift identity of
+  ``lem:finite-horizon-output`` this pins
   the state at the junction: it is unique as soon as ``(A, C)`` is
-  approximately observable in time ``T_ini``, and ``eq:window-state-recovery``
-  inverts it stably under exact observability.  All three examples are only
+  approximately observable in time ``T_ini`` (``def:observability``), and the
+  inversion is stable under exact observability.  All three examples are only
   approximately observable, with a compact ``O_T`` whose singular values decay
   (``sec:numerics``), so the match is imposed as a least-squares fit with
   weight ``1/rho`` rather than as an equality.  This is the closure form of the
@@ -167,7 +168,7 @@ class BehaviourBasis:
     in the ``L^2`` metric of the window, ``spectrum`` holds the ``mu_j`` of
     ``eq:num-resolved`` -- squared singular values of the library in that
     metric -- and ``rank`` is ``r_eps``.  Truncating at ``rank_tol`` is what
-    makes the closure form of ``eq:windowed-io-fundamental-lemma`` usable in
+    makes the closure form of ``thm:windowed-io-fundamental-lemma`` usable in
     finite precision: the discarded directions are combinations of windows that
     nearly cancel, and keeping them only amplifies rounding error.
     """

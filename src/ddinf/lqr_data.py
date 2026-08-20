@@ -134,10 +134,6 @@ class GraphBasis:
         return self.m + self.n
 
     @property
-    def ambient_dimension(self) -> int:
-        return self.m + 2 * self.n + self.p
-
-    @property
     def is_full(self) -> bool:
         return self.rank == self.domain_dimension
 

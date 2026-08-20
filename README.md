@@ -6,6 +6,10 @@ Infinite-Dimensional Spaces: Fundamental Lemma and Applications*
 every table of Section~*Numerical experiments* directly into the paper source
 tree.
 
+The scope of this repository is exactly what `paper_wfl2/main.tex` consumes:
+three experiments, three figures, two tables. Anything the paper does not use
+has been removed.
+
 The three examples are concrete instances of the three families of
 Pritchard--Salamon, *The linear quadratic control problem for infinite
 dimensional systems with unbounded input and output operators*, §4:
@@ -19,9 +23,9 @@ dimensional systems with unbounded input and output operators*, §4:
 They differ in exactly the ways the theory predicts should matter: the heat
 semigroup is analytic and smoothing, the wave semigroup is a nonanalytic group,
 and the retarded system has a bounded control operator but an unbounded
-observation. The heat discretization also carries Dirichlet-control variants,
-used as an independent convergence check (`dirichlet`) and as a closed-form
-uncontrollable comparison (`dirichlet_sym`).
+observation. Each example also carries a symmetric-control variant
+(`dirichlet_sym`, and the decoupled delay pair) whose obstruction is known in
+closed form; those are the uncontrollable comparisons of `exp02`.
 
 ## Quick start
 
@@ -30,8 +34,8 @@ dense NumPy/SciPy; there is no GPU or MPI path.
 
 ```bash
 uv sync                                     # pinned by uv.lock
-uv run pytest                               # 29 tests, ~20 s
-uv run python -m experiments.run_all        # quick defaults, ~45 s
+uv run pytest                               # 40 tests, ~25 s
+uv run python -m experiments.run_all        # quick defaults, ~1 min
 ```
 
 Individual experiments take the same `--quality` flag:
@@ -40,10 +44,10 @@ Individual experiments take the same `--quality` flag:
 uv run python -m experiments.exp03_lqr --quality paper
 ```
 
-The artifacts committed under `paper_wfl2/` are produced by the
-publication run, which takes about three minutes -- almost all of it the
-input–output window libraries of `exp03`, whose largest behavior basis is an
-SVD of a few thousand windows:
+The artifacts committed under `paper_wfl2/` are produced by the publication
+run, which takes about a minute and a half -- almost all of it the input–output
+window libraries of `exp03`, whose largest behavior basis is an SVD of a few
+thousand windows:
 
 ```bash
 uv run python -m experiments.run_all --quality paper
@@ -62,18 +66,10 @@ installed copy of the package would write elsewhere.
 
 | experiment | figure | table | paper |
 | --- | --- | --- | --- |
-| `exp01_discretization` | `figures/discretization.pdf` | `tables/discretization.tex` | Fig. 1, Tab. 1 |
-| `exp02_controllability` | `figures/controllability.pdf` | `tables/controllability.tex` | Fig. 2, Tab. 2 |
-| `exp03_lqr` | `figures/lqr.pdf` | `tables/lqr.tex` | Fig. 3, Tab. 3 |
-| `exp04_conditioning` | `figures/conditioning.pdf` | `tables/conditioning.tex` | Fig. 4, Tab. 4 |
+| `exp02_controllability` | `figures/controllability.pdf` | `tables/controllability.tex` | Fig. 1, Tab. 1 |
+| `exp03_lqr` | `figures/lqr.pdf` | `tables/lqr.tex` | Fig. 2, Tab. 2 |
+| `exp04_conditioning` | `figures/conditioning.pdf` | `tables/conditioning.tex` | Fig. 3 |
 
-- **exp01 — discretization.** Spatial convergence of the leading spectral
-  quantity of each example (first Dirichlet eigenvalue `-π²`; first nonzero
-  Neumann–Neumann eigenvalue; first wave frequency `ω₁ = π`; leading Lambert
-  root of `λ = d + q e^{-λ}`), and the mesh growth of `‖B_h‖_{L(U,X_h)}`. All
-  four converge at order 2; the control-operator norm grows like `h^{-3/2}`
-  (heat, Dirichlet), `h^{-1/2}` (heat Neumann and wave), and is bounded for the
-  retarded equation.
 - **exp02 — controllability.** Both data-driven Fattorini–Hautus tests, on one
   record per configuration and data class. Each example is run twice: once
   approximately controllable (every candidate must be rejected) and once with an
@@ -88,16 +84,20 @@ installed copy of the package would write elsewhere.
 - **exp03 — LQR.** Comparison of the two fundamental lemmas of the paper on the
   same regulator: the state-record synthesis method (a weak-moment basis of the
   system graph followed by a sparse constrained QP) and the input–output
-  windowed method of `paper_wfl2/sections/window-informativity.tex` (shifted
-  windows of the measured `(u, y)` span the finite-horizon behavior, and the
-  initial condition enters as the plant's measured past instead of as a state).
-  Both are scored against a separately computed Riccati solution, and each
-  recovered input is replayed on the plant so that the cost a method predicts
-  can be compared with the cost it actually pays.
+  windowed method of the *Input–output behavior* subsection of
+  `paper_wfl2/sections/fundamental-lemma.tex` (shifted windows of the measured
+  `(u, y)` span the finite-horizon behavior, and the initial condition enters as
+  the plant's measured past instead of as a state). Both are scored against a
+  separately computed Riccati solution, and each recovered input is replayed on
+  the plant so that the cost a method predicts can be compared with the cost it
+  actually pays.
 - **exp04 — conditioning.** Gramian spectra for three probing inputs — the
   paper's harmonic PE signal, a well-separated multisine, and a PRBS — on the
   heat equation (analytic, covered by the sufficiency theorem) and the wave
-  equation (nonanalytic, not covered).
+  equation (nonanalytic, not covered). Its table is the one artifact `main.tex`
+  does not `\input`: the paper quotes those numbers (`9/26`, `11/26`, and the
+  ratio of the weakest resolved directions) in the prose of §*Excitation and
+  conditioning*, and `tables/conditioning.tex` is where they come from.
 
 ## Package layout
 
@@ -118,10 +118,11 @@ beyond the `ddinf.systems.LinearSystem` interface.
 | `lqr_data` | weak-moment graph estimation and the graph-constrained LQR solve |
 | `lqr_io` | shifted input–output window libraries, the resolved behavior basis, and the past-conditioned window solve |
 | `lqr_model` | the Riccati reference (see below) |
-| `spectral` | closed-form modal series used to validate the discretizations |
+| `spectral` | closed-form modal data for the heat configurations, used by the tests to validate the discretization |
 
-Older finite-dimensional control modules live directly under `src/` and are not
-used by these experiments.
+Every docstring cross-reference of the form ``thm:...``, ``eq:...`` names a
+`\label` that exists in `paper_wfl2/sections/`; they are kept in sync
+deliberately, so a renamed label in the paper should be renamed here too.
 
 ## The model-free boundary
 
@@ -148,14 +149,16 @@ input on the plant for the same reason: to score, never to construct.
   precomputed step `exp(-H Δt)`. This is exact for the semi-discrete system up
   to the accuracy of `scipy.linalg.expm`. `riccati_ivp` re-derives the same
   object by stiff backward integration (Radau, `rtol = 1e-11`) as an
-  independent check; the two agree to ~6·10⁻¹⁴ on the paper's heat case.
+  independent check; the two agree to ~10⁻¹³ in absolute terms on the
+  paper's heat case.
   The optimal cost is `J* = ⟨x₀, P(0) x₀⟩`, again exact — no trajectory is
   simulated to obtain it.
-- **Spectral references.** Heat and wave eigenvalues are closed form; the
-  retarded roots come from the Lambert `W` function
-  (`ddinf.delay.lambert_roots`) for the block-triangular example, and from
-  Newton-polished eigenvalues of a fine discretization
-  (`characteristic_roots`) in general.
+- **Spectral references.** Heat and wave eigenvalues are closed form
+  (`ddinf.spectral.heat_modal` carries the modal data, including the vanishing
+  control coefficients that make `dirichlet_sym` uncontrollable); the retarded
+  roots come from the Lambert `W` function (`ddinf.delay.lambert_roots`) for the
+  block-triangular example, and `ddinf.delay.hautus_delay_defect` scores them
+  against `σ_min([Δ(λ), B₀])`.
 
 ## Quadrature conventions
 
@@ -191,7 +194,7 @@ The numerical weak form is matched to its downstream discretization:
   and not merely the safe one. The graph LQR instead uses one control and
   output per interval, so this nodal ambiguity does not arise.
 
-`tests/test_lqr_data.py::test_reconstructed_input_carries_no_sample_nyquist_ripple`
+`tests/test_lqr_io.py::test_reconstructed_input_carries_no_sample_nyquist_ripple`
 guards this; swapping the weights back makes it and the Riccati-agreement test
 fail.
 
@@ -200,8 +203,8 @@ fail.
 Every random draw is seeded (`np.random.default_rng(seed)` in
 `ddinf.signals.Prbs`, `multisine`, and `experiments.exp02_controllability`),
 and no routine uses unseeded randomness or threading-dependent reductions.
-Rerunning `--quality paper` reproduces the four `tables/*.tex` **byte for
-byte** and the four `figures/*.pdf` byte for byte apart from the embedded
+Rerunning `--quality paper` reproduces the three `tables/*.tex` **byte for
+byte** and the three `figures/*.pdf` byte for byte apart from the embedded
 `CreationDate`/`ModDate`/`/ID` metadata. To verify:
 
 ```bash

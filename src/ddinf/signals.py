@@ -1,7 +1,7 @@
 """Probing inputs for the record.
 
 The default is the paper's own harmonically persistently exciting signal
-(Example ``ex:harmonic-pe``) multiplied by ``e^{sigma t}``, which
+(``lem:harmonic-pe``) multiplied by ``e^{sigma t}``, which
 Theorem ``thm:analytic-universal-sufficiency`` shows to be sufficient for
 informativity of *every* approximately controllable analytic system.  A plain
 well-separated multisine is provided for comparison: the frequency clustering
@@ -9,8 +9,8 @@ well-separated multisine is provided for comparison: the frequency clustering
 also what makes it numerically stiff, and ``exp04`` quantifies the difference.
 
 Signals with an exponential-sum representation carry their ``(coefficient,
-exponent)`` pairs, which lets :mod:`ddinf.spectral` evaluate the mild solution
-in closed form.
+exponent)`` pairs, so that a frequency of the probing input can be compared
+directly with a recovered obstruction.
 """
 
 from __future__ import annotations
@@ -45,31 +45,10 @@ class ExpSum:
         vals = np.real(self.coeffs.T @ phases)  # (m, T)
         return vals[:, 0] if np.isscalar(t) or np.ndim(t) == 0 else vals
 
-    def derivative(self) -> "ExpSum":
-        return ExpSum(self.coeffs * self.exponents[:, None], self.exponents,
-                      label=f"d/dt {self.label}")
-
-    def scaled(self, factor: float) -> "ExpSum":
-        return ExpSum(self.coeffs * factor, self.exponents, label=self.label)
-
-    def ramped(self, rate: float = 20.0) -> "ExpSum":
-        """Multiply by ``1 - e^{-rate t}``, again exactly an exponential sum.
-
-        Used only where compatibility of the data matters: with Dirichlet
-        control an input with ``u(0) != 0`` is incompatible with ``x_0 = 0``
-        (the boundary value jumps at ``t=0``), which produces an initial layer
-        and the usual order reduction of the time stepping.  The mild solution
-        is perfectly well defined either way -- this only makes measured
-        convergence rates meaningful.
-        """
-        return ExpSum(np.vstack([self.coeffs, -self.coeffs]),
-                      np.concatenate([self.exponents, self.exponents - rate]),
-                      label=f"{self.label}, ramped({rate:g})")
-
 
 def harmonic_pe(n_terms: int = 8, sigma: float = 0.0, m: int = 1,
                 directions: np.ndarray | None = None) -> ExpSum:
-    """``e^{sigma t} h(t)`` with ``h`` the harmonic PE signal of ``ex:harmonic-pe``.
+    """``e^{sigma t} h(t)`` with ``h`` the harmonic PE signal of ``eq:harmonic-pe-example``.
 
     ``h(t) = sum_{j,k} 2^{-j-k} cos(omega_{j,k} t) phi_j`` with
     ``omega_{j,k} = 2 - 2^{-j} - 2^{-j-k}``.  For each direction ``phi_j`` the

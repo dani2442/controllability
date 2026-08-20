@@ -135,13 +135,3 @@ def _bump_mass(xi0: float, width: float) -> float:
     w[1:-1:2] = 4.0
     w[2:-1:2] = 2.0
     return width * (2.0 / (n - 1)) / 3.0 * float(w @ vals)
-
-
-def quad_inner(f: Callable, g: Callable, n: int = 20001) -> float:
-    """``\\int_0^1 f g`` by fine Simpson quadrature (for closed-form references)."""
-    xi = np.linspace(0.0, 1.0, n)
-    vals = np.asarray(f(xi), dtype=float) * np.asarray(g(xi), dtype=float)
-    w = np.ones(n)
-    w[1:-1:2] = 4.0
-    w[2:-1:2] = 2.0
-    return float((1.0 / (n - 1)) / 3.0 * (w @ vals))

@@ -1,4 +1,4 @@
-"""The dynamic synthesis operator of Appendix ``app:willems-synthesis``, discretised.
+"""The dynamic synthesis operator of Appendix ``app:willems-gramian``, discretised.
 
 The dynamic synthesis operator of a record is
 
@@ -17,7 +17,7 @@ satisfy the *exact* linear identity
     X1 = A X0 + B U0,      Y0 = C X0,
 
 which is the finite-dimensional shadow of the factorisation
-``W = Gamma o Z`` in the proof of ``thm:willems-synthesis``.
+``W = Gamma o Z`` in the proof of ``thm:willems-gramian``.
 """
 
 from __future__ import annotations
@@ -142,14 +142,6 @@ def sine_tests(t: np.ndarray, q: int) -> TestFunctions:
     phi = np.sin(k * np.pi * s / L)
     dphi = (k * np.pi / L) * np.cos(k * np.pi * s / L)
     return TestFunctions(phi, dphi, quadrature_weights(t), "sine")
-
-
-def make_tests(t: np.ndarray, q: int, kind: str = "hat") -> TestFunctions:
-    if kind == "hat":
-        return hat_tests(t, q)
-    if kind == "sine":
-        return sine_tests(t, q)
-    raise ValueError(f"unknown test-function family {kind!r}")
 
 
 @dataclass

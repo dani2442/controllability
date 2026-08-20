@@ -51,11 +51,6 @@ class ModeCandidate:
     kappa: complex
     accepted: bool = False
 
-    def eta_as_function(self, sys: LinearSystem) -> np.ndarray:
-        """``eta`` seen as an element of ``X``: ``psi`` with ``<psi, x>_X = eta'x``."""
-        psi = np.linalg.solve(sys.MX, np.real(self.eta))
-        return psi / np.linalg.norm(psi)
-
 
 @dataclass
 class ControllabilityReport:

@@ -1,28 +1,16 @@
 """Closed-form modal references for the heat equation examples.
 
-These are the ground truth the FEM + Euler discretisation is measured against.
-For a diagonalisable generator ``A phi_n = lambda_n phi_n``, the mild solution
+These are the ground truth the finite-element discretisation of
+:mod:`ddinf.heat` is measured against.  Each configuration is diagonal in its
+own eigenbasis, ``A phi_n = lambda_n phi_n``, and the modal control
+coefficients ``b_n`` decide the Fattorini--Hautus obstructions in closed form:
+``b_n = 0`` is exactly the ``n``-th mode being unreachable.  That is what makes
+``dirichlet_sym`` usable as the uncontrollable comparison of ``exp02`` -- its
+obstruction is known before any data is generated.
 
-    x(t) = S(t) x_0 + int_0^t S(t-s) B u(s) ds
-
-is, mode by mode, an explicit sum of exponentials whenever the input is one --
-which is exactly the class :class:`ddinf.signals.ExpSum`.
-
-Boundary control and the lift
------------------------------
-Written directly in the eigenbasis, boundary control has slowly converging
-modal coefficients: for Dirichlet control ``b_n = sqrt(2) n pi`` grows, the
-solution does not vanish at ``xi = 0``, and its sine series converges only like
-``1/n``.  The reference is therefore evaluated in *lifted* form
-
-    x(t, xi) = u(t) D(xi) + sum_n v_n(t) phi_n(xi),
-    v_n' = lambda_n v_n + g_n u - d_n u',   d_n = <D, phi_n>, g_n = <D'', phi_n>,
-
-with ``D`` a fixed function carrying the inhomogeneous boundary condition.
-The remainder ``v`` satisfies homogeneous boundary conditions, its coefficients
-decay like ``n^{-3}``, and a few hundred modes give a reference accurate to
-``1e-8``.  The two forms agree analytically: integrating ``int e^{lam(t-s)}u'``
-by parts turns ``-d_n u'`` into ``b_n u`` with ``b_n = -lambda_n d_n``.
+For boundary control the modal coefficients come from a lift.  With ``D`` a
+fixed function carrying the inhomogeneous boundary condition,
+``d_n = <D, phi_n>`` and integration by parts gives ``b_n = -lambda_n d_n``.
 
 Modal data (see Pritchard--Salamon Ex. 4.6 and ``sections/lqr.tex``); the last
 row is the verbatim example of the cited paper and includes the constant mode:
@@ -43,104 +31,16 @@ from typing import Callable
 
 import numpy as np
 
-from .signals import ExpSum
-
-
-def _simpson_weights(n_quad: int) -> np.ndarray:
-    if n_quad % 2 == 0:
-        raise ValueError("Simpson quadrature needs an odd number of points")
-    w = np.ones(n_quad)
-    w[1:-1:2] = 4.0
-    w[2:-1:2] = 2.0
-    return w * (1.0 / (n_quad - 1)) / 3.0
-
 
 @dataclass
 class ModalSystem:
-    """Diagonal realisation of an example, with exact mild solutions."""
+    """Diagonal realisation of an example in its own eigenbasis."""
 
     name: str
     lam: np.ndarray  # (N,)
     b: np.ndarray  # (N, m) modal control coefficients
     phi: Callable[[np.ndarray], np.ndarray]  # xi -> (N, len(xi))
     lift: Callable[[np.ndarray], np.ndarray] | None = None  # D(xi)
-    d: np.ndarray | None = None  # <D, phi_n>
-    g: np.ndarray | None = None  # <D'', phi_n>
-
-    @property
-    def n_modes(self) -> int:
-        return self.lam.shape[0]
-
-    def modes_of(self, f: Callable[[np.ndarray], np.ndarray],
-                 n_quad: int = 20001) -> np.ndarray:
-        """Modal coefficients ``<f, phi_n>``, all modes in one Simpson pass."""
-        xi = np.linspace(0.0, 1.0, n_quad)
-        return self.phi(xi) @ (_simpson_weights(n_quad) * np.asarray(f(xi), dtype=float))
-
-    def convolve(self, t: np.ndarray, gain: np.ndarray, u: ExpSum,
-                 free_exp: np.ndarray | None = None) -> np.ndarray:
-        """``int_0^t e^{lam(t-s)} gain_n u(s) ds`` for every mode, shape ``(N, T)``.
-
-        Uses ``int_0^t e^{lam(t-s)} e^{s_k s} ds = (e^{s_k t}-e^{lam t})/(s_k-lam)``.
-        Summing over the exponents first turns the whole convolution into one
-        ``(N,K) @ (K,T)`` product plus a rank-one correction, so the expensive
-        ``e^{lam t}`` array is formed once; pass it in as ``free_exp`` to reuse
-        it across calls.  The confluent case ``s_k = lam_n`` gets ``t e^{lam t}``.
-        """
-        t = np.atleast_1d(np.asarray(t, dtype=float))
-        lam = self.lam[:, None]
-        E_lam = np.exp(lam * t) if free_exp is None else free_exp  # (N, T)
-        E_s = np.exp(np.outer(u.exponents, t))  # (K, T)
-
-        gain2 = gain if gain.ndim == 2 else gain[:, None]  # (N, m)
-        modal_gain = gain2 @ u.coeffs.T  # (N, K)
-
-        denom = u.exponents[None, :] - lam  # (N, K)
-        confluent = np.abs(denom) < 1e-14
-        safe = np.where(confluent, 1.0, denom)
-        coef = modal_gain / safe  # (N, K)
-        coef[confluent] = 0.0
-
-        out = coef @ E_s - coef.sum(axis=1)[:, None] * E_lam
-        if np.any(confluent):
-            rows, cols = np.nonzero(confluent)
-            out[rows] += (modal_gain[rows, cols][:, None]
-                          * t[None, :] * E_lam[rows])
-        return out
-
-    def mild_solution_modes(self, t: np.ndarray, x0_modes: np.ndarray,
-                            u: ExpSum) -> np.ndarray:
-        """Modal coefficients of ``S(t)x_0 + int S(t-s)Bu(s)ds``, shape ``(N, T)``.
-
-        Direct (unlifted) form -- correct, but for boundary control the series
-        it belongs to converges slowly; prefer :meth:`solution_on_grid`.
-        """
-        t = np.atleast_1d(np.asarray(t, dtype=float))
-        E_lam = np.exp(self.lam[:, None] * t)
-        return E_lam * x0_modes[:, None] + np.real(self.convolve(t, self.b, u, E_lam))
-
-    def solution_on_grid(self, t: np.ndarray, x0: Callable, u: ExpSum,
-                         xi: np.ndarray) -> np.ndarray:
-        """Physical solution values ``x(t, xi)``, shape ``(len(xi), T)``.
-
-        Evaluated in lifted form when the configuration has a boundary lift.
-        """
-        t = np.atleast_1d(np.asarray(t, dtype=float))
-        xi = np.asarray(xi, dtype=float)
-        u_vals = np.atleast_2d(u(t))[0]
-
-        if self.lift is None:
-            modes = self.mild_solution_modes(t, self.modes_of(x0), u)
-            return self.phi(xi).T @ modes
-
-        x0_modes = self.modes_of(x0)
-        u0 = float(np.atleast_2d(u(np.array([0.0])))[0, 0])
-        v0_modes = x0_modes - u0 * self.d
-        E_lam = np.exp(self.lam[:, None] * t)
-        v = (E_lam * v0_modes[:, None]
-             + np.real(self.convolve(t, self.g, u, E_lam))
-             - np.real(self.convolve(t, self.d, u.derivative(), E_lam)))
-        return self.lift(xi)[:, None] * u_vals[None, :] + self.phi(xi).T @ v
 
     def uncontrollable_modes(self, tol: float = 1e-12) -> np.ndarray:
         """Indices ``n`` with ``b_n = 0`` -- the Fattorini--Hautus obstructions."""
@@ -162,15 +62,15 @@ def heat_modal(kind: str = "dirichlet", n_modes: int = 400, nu: float = 1.0) -> 
             return np.sqrt(2.0) * np.sin(np.outer(n * np.pi, np.asarray(xi, dtype=float)))
 
         if kind == "dirichlet":
-            # D u = (1-xi) u,  <D, phi_n> = sqrt(2)/(n pi),  D'' = 0
+            # D u = (1-xi) u,  <D, phi_n> = sqrt(2)/(n pi)
             lift = lambda xi: 1.0 - np.asarray(xi, dtype=float)  # noqa: E731
             d = np.sqrt(2.0) / (n * np.pi)
         else:
-            # D u = u (both ends),  <1, phi_n> = sqrt(2)(1-(-1)^n)/(n pi),  D'' = 0
+            # D u = u (both ends),  <1, phi_n> = sqrt(2)(1-(-1)^n)/(n pi), so the
+            # even modes -- those antisymmetric about xi = 1/2 -- are unreachable
             lift = lambda xi: np.ones_like(np.asarray(xi, dtype=float))  # noqa: E731
             d = np.sqrt(2.0) * (1.0 - (-1.0) ** n) / (n * np.pi)
-        b = (-lam * d)[:, None]
-        return ModalSystem(f"heat-{kind}", lam, b, phi, lift=lift, d=d, g=np.zeros_like(d))
+        return ModalSystem(f"heat-{kind}", lam, (-lam * d)[:, None], phi, lift=lift)
 
     if kind == "neumann":
         # Neumann control at xi = 0, homogeneous Neumann data at xi = 1

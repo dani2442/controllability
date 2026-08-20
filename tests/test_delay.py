@@ -1,5 +1,3 @@
-import numpy as np
-
 from ddinf.delay import hautus_delay_defect, lambert_roots, uncontrollable_pair
 
 

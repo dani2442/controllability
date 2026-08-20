@@ -18,8 +18,8 @@ recover it.  The two tests differ in what they are allowed to read.
     :mod:`ddinf.controllability_io`.
 
 The two are run on different records, and that is the point rather than an
-accident.  The state test needs the record to be informative on ``U x X``,
-which the smooth multisine of ``ex:harmonic-pe`` supplies.  The window test
+accident.  The state test needs the record to be informative on ``U x X``
+(``lem:informative-gramian``), which the smooth multisine supplies.  The window test
 needs the *shifted windows* to span the input--output behaviour, a strictly
 stronger demand: a length-``T`` FIR kernel can null every line of a multisine
 but one, so on such a record the window pairing ``<alpha, ubar_s>`` is itself a
@@ -237,8 +237,7 @@ def run(quality: str = "quick") -> dict:
             lam_model = nearest(model, reference)
             # What each data-driven test controls is the distance to the
             # obstruction of the *discretised* system; the distance from that to
-            # the closed form is the discretisation error, which converges at
-            # the rate measured by exp01.
+            # the closed form is the discretisation error of the mesh.
             entry |= {"lam_state": lam_state, "lam_window": lam_window,
                       "lam_model": lam_model, "reference": reference,
                       "state_error": abs(lam_state - lam_model),

@@ -47,16 +47,6 @@ class GramianSpectrum:
     def dimension(self) -> int:
         return self.eigenvalues.size
 
-    @property
-    def is_informative(self) -> bool:
-        """Whether the Gramian is nonsingular down to the stated threshold."""
-        return self.numerical_rank == self.dimension
-
-    @property
-    def condition(self) -> float:
-        smallest = self.eigenvalues[-1]
-        return float(self.eigenvalues[0] / smallest) if smallest > 0 else np.inf
-
     def __str__(self) -> str:
         return (f"Gramian on U x {self.space}: dim {self.dimension}, "
                 f"numerical rank {self.numerical_rank} at tol {self.tol:.1e}, "
@@ -89,7 +79,8 @@ def moment_spectrum(stacked: np.ndarray, sys: LinearSystem, *, space: str = "X",
                     tol: float = 1e-12) -> GramianSpectrum:
     """Singular values of the moment matrix ``[X0; U0]``, in the ``U x H`` metric.
 
-    By Theorem ``thm:willems-synthesis`` the record is informative exactly when
+    By characterization ``item:wfl-synthesis`` of ``thm:willems-gramian`` the
+    record is informative exactly when
     the range of the synthesis operator is dense, i.e. when this matrix has full
     row rank.
     Reported on the same footing as :func:`gramian_spectrum` so the two views
@@ -100,13 +91,3 @@ def moment_spectrum(stacked: np.ndarray, sys: LinearSystem, *, space: str = "X",
     reordered = np.vstack([stacked[sys.n :], stacked[: sys.n]])  # [U0; X0] -> U x H order
     sv = np.linalg.svd(L.T @ reordered, compute_uv=False)
     return GramianSpectrum(sv**2, space, tol)
-
-
-def informative_subspace(stacked: np.ndarray, rank: int) -> np.ndarray:
-    """Leading ``rank`` right singular directions of the moment matrix, ``(q, rank)``.
-
-    These select the test-function combinations the record actually excites;
-    projecting onto them is how a compact Gramian is handled in practice.
-    """
-    _, _, Vt = np.linalg.svd(stacked, full_matrices=False)
-    return Vt[:rank].T

@@ -1,9 +1,9 @@
 """Compare the two data-driven finite-horizon LQR discretisations of the paper.
 
 ``graph`` is the state-record method: weak moments of one record identify a
-basis of the finite-dimensional system graph (``thm:willems-gramian``,
-``rmk:lqr-numerics``); the derivative-free synthesis construction is given in
-Appendix ``app:willems-synthesis``.  A sparse QP constrains every theta-method
+basis of the finite-dimensional system graph (characterization
+``item:wfl-synthesis`` of ``thm:willems-gramian``, whose proof is given in
+Appendix ``app:willems-gramian``).  A sparse QP constrains every theta-method
 stage to that graph.  ``window`` is the input--output method: shifted windows
 of the same record span the finite-horizon behaviour
 (``thm:windowed-io-fundamental-lemma``) and the regulator is a combination of

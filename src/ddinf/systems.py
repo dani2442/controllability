@@ -56,25 +56,3 @@ class LinearSystem:
     @property
     def p(self) -> int:
         return self.C.shape[0]
-
-    # -- Hilbert structure -------------------------------------------------
-
-    def inner_X(self, a: np.ndarray, b: np.ndarray) -> np.ndarray:
-        """``<a, b>_X``; broadcasts over trailing columns."""
-        return np.einsum("i...,ij,j...->...", a, self.MX, b)
-
-    def inner_W(self, a: np.ndarray, b: np.ndarray) -> np.ndarray:
-        """``<a, b>_W``."""
-        return np.einsum("i...,ij,j...->...", a, self.MW, b)
-
-    def norm_X(self, a: np.ndarray) -> float:
-        return float(np.sqrt(max(self.inner_X(a, a), 0.0)))
-
-    def norm_W(self, a: np.ndarray) -> float:
-        return float(np.sqrt(max(self.inner_W(a, a), 0.0)))
-
-    def control_operator_norm(self) -> float:
-        """``||B||_{L(U, X)}`` -- the discrete shadow of the unboundedness of ``B``."""
-        # largest singular value of B measured in the X norm on the range
-        LX = np.linalg.cholesky(self.MX)
-        return float(np.linalg.norm(LX.T @ self.B, 2))

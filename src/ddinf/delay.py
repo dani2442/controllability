@@ -1,11 +1,11 @@
-"""The retarded equation of Example ``ex:intro-rde``.
+"""The retarded equation of Example ``ex:intro-delay``.
 
     x'(t) = A0 x(t) + A1 x(t-h) + B0 u(t),
     y(t) = e_j' x(t-h),
 
 on the product state space ``X = R^n x L^2(-h,0;R^n)`` carrying the state
 ``(x(t), x_t)`` with ``x_t(tau) = x(t+tau)``.  This is the ``M = 0`` case of the
-neutral family in Pritchard--Salamon Section 4.1 and Example ``ex:intro-rde``;
+neutral family in Pritchard--Salamon Section 4.1 and Example ``ex:intro-delay``;
 the delayed output makes ``C`` a
 point evaluation of the ``L^2`` component, hence unbounded on ``X`` and bounded
 on the finer space ``W``.
@@ -38,10 +38,7 @@ through the Lambert ``W`` function.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
-from scipy.optimize import brentq
 from scipy.special import lambertw
 
 from .systems import LinearSystem
@@ -123,39 +120,6 @@ def characteristic_matrix(lam: complex, A0: np.ndarray, A1: np.ndarray,
     return lam * np.eye(A0.shape[0]) - A0 - A1 * np.exp(-lam * h)
 
 
-def characteristic_roots(A0: np.ndarray, A1: np.ndarray, h: float, *,
-                         n_roots: int = 12, n_tau: int = 60) -> np.ndarray:
-    """Roots of ``det Delta(lambda) = 0`` with the largest real part.
-
-    Found by polishing the eigenvalues of a fine P1 discretisation with Newton
-    steps on ``det Delta``: the discretisation supplies globally correct
-    starting points and Newton makes each root exact to machine precision.
-    """
-    B0 = np.zeros((A0.shape[0], 1))
-    seeds = np.linalg.eigvals(delay_system(A0, A1, B0, h=h, n_tau=n_tau).A)
-    seeds = seeds[np.argsort(-seeds.real)][: 4 * n_roots]
-
-    def f(z: complex) -> complex:
-        return np.linalg.det(characteristic_matrix(z, A0, A1, h))
-
-    roots: list[complex] = []
-    for z in seeds:
-        for _ in range(60):
-            fz = f(z)
-            step = 1e-7 * max(1.0, abs(z))
-            df = (f(z + step) - f(z - step)) / (2 * step)
-            if abs(df) < 1e-300:
-                break
-            dz = fz / df
-            z = z - dz
-            if abs(dz) < 1e-14 * max(1.0, abs(z)):
-                break
-        if abs(f(z)) < 1e-6 and not any(abs(z - r) < 1e-8 for r in roots):
-            roots.append(z)
-    out = np.array(roots)
-    return out[np.argsort(-out.real)][:n_roots]
-
-
 def lambert_roots(d: float, q: float, h: float, *, branches: int = 4) -> np.ndarray:
     """Closed-form roots of the scalar equation ``lambda = d + q e^{-lambda h}``.
 
@@ -195,56 +159,3 @@ def hautus_delay_defect(lam: complex, A0: np.ndarray, A1: np.ndarray,
     """``sigma_min([Delta(lambda), B0])`` -- zero exactly at an obstruction."""
     blk = np.hstack([characteristic_matrix(lam, A0, A1, h), B0])
     return float(np.linalg.svd(blk, compute_uv=False)[-1])
-
-
-def solve_reference(A0: np.ndarray, A1: np.ndarray, B0: np.ndarray, h: float,
-                    u, t: np.ndarray, x0: np.ndarray,
-                    history: np.ndarray | None = None) -> np.ndarray:
-    """High-accuracy solution of the delay equation by RK4 on the given grid.
-
-    ``h`` must be an integer multiple of the step, so the delayed argument is a
-    stored grid value at every stage except the midpoints, which are taken from
-    a cubic Hermite interpolation of the stored solution.  Used to verify the
-    P1-in-tau discretisation, not inside any data-driven computation.
-    """
-    t = np.asarray(t, dtype=float)
-    dt = float(t[1] - t[0])
-    lag = int(round(h / dt))
-    if abs(lag * dt - h) > 1e-12:
-        raise ValueError("delay h must be an integer multiple of the time step")
-
-    n = A0.shape[0]
-    hist = np.zeros(n) if history is None else np.asarray(history, dtype=float)
-    X = np.empty((n, t.size))
-    X[:, 0] = x0
-
-    def lagged(k: float) -> np.ndarray:
-        """State at index ``k - lag``; constant history before ``t = 0``."""
-        j = k - lag
-        if j <= 0:
-            return hist
-        lo = int(np.floor(j))
-        frac = j - lo
-        if frac == 0.0:
-            return X[:, lo]
-        return (1 - frac) * X[:, lo] + frac * X[:, min(lo + 1, t.size - 1)]
-
-    U = np.atleast_2d(u(t))
-
-    def uu(k: float) -> np.ndarray:
-        lo = int(np.floor(k))
-        frac = k - lo
-        if frac == 0.0:
-            return U[:, lo]
-        return (1 - frac) * U[:, lo] + frac * U[:, min(lo + 1, t.size - 1)]
-
-    for k in range(t.size - 1):
-        def rhs(kk: float, x: np.ndarray) -> np.ndarray:
-            return A0 @ x + A1 @ lagged(kk) + B0 @ uu(kk)
-
-        k1 = rhs(k, X[:, k])
-        k2 = rhs(k + 0.5, X[:, k] + 0.5 * dt * k1)
-        k3 = rhs(k + 0.5, X[:, k] + 0.5 * dt * k2)
-        k4 = rhs(k + 1.0, X[:, k] + dt * k3)
-        X[:, k + 1] = X[:, k] + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
-    return X

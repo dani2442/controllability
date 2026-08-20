@@ -1,11 +1,11 @@
 import numpy as np
 
-from ddinf.heat import heat_system
-from ddinf.lqr_data import estimate_graph, estimate_sampled_graph, solve_graph_lqr
-from ddinf.lqr_model import LqrWeights, riccati_hamiltonian
-from ddinf.moments import hat_tests
-from ddinf.signals import Prbs
-from ddinf.timestepping import simulate, uniform_grid
+from ddinf.systems.heat import heat_system
+from ddinf.lqr.graph import estimate_graph, estimate_sampled_graph, solve_graph_lqr
+from ddinf.lqr.riccati import LqrWeights, riccati_hamiltonian
+from ddinf.data.moments import hat_tests
+from ddinf.data.signals import Prbs
+from ddinf.data.records import simulate, uniform_grid
 
 
 def _heat_case(dt=.01, horizon=.5, length=4.0, dwell=4):

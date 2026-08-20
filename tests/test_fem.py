@@ -1,6 +1,6 @@
 import numpy as np
 
-from ddinf.fem import Mesh1D, mass_matrix, point_evaluation, stiffness_matrix
+from ddinf.systems.fem import Mesh1D, mass_matrix, point_evaluation, stiffness_matrix
 
 
 def test_p1_matrices_have_exact_integrals():

@@ -27,9 +27,9 @@ regulator of ``thm:lqr-data`` apply unchanged.
     the reference *uncontrollable* hyperbolic system, with the obstruction
     ``lambda = pm i n pi c`` available in closed form.
 
-Discretisation
+Discretization
 --------------
-Identical in spirit to :mod:`ddinf.heat`.  Writing ``z_h = Z_I psi_I + u psi_0``
+Identical in spirit to :mod:`ddinf.systems.heat`.  Writing ``z_h = Z_I psi_I + u psi_0``
 and testing against interior hats gives
 ``M_II Z_I'' + M_I0 u'' + K_II Z_I + K_I0 u = 0``; row-sum mass lumping makes
 ``M`` diagonal, so ``M_I0 = 0`` and the ``u''`` term disappears *exactly*.  The
@@ -53,7 +53,7 @@ from typing import Callable
 import numpy as np
 
 from .fem import Mesh1D, bump, interpolate, mass_matrix, stiffness_matrix
-from .systems import LinearSystem
+from .base import LinearSystem
 
 
 def wave_system(kind: str = "dirichlet", *, n_elems: int = 64, speed: float = 1.0,
@@ -63,7 +63,7 @@ def wave_system(kind: str = "dirichlet", *, n_elems: int = 64, speed: float = 1.
 
     The observation is the smooth distributed measurement of the *displacement*,
     ``y(t) = int_0^1 c(xi) z(t,xi) dxi`` with ``c`` the smooth unit-mass bump of
-    :func:`ddinf.fem.bump`, as in Pritchard--Salamon Example 4.10.  Its support
+    :func:`ddinf.systems.fem.bump`, as in Pritchard--Salamon Example 4.10.  Its support
     is kept inside ``(0,1)``, so the boundary lift is not observed and the
     output carries no feedthrough term.
 
@@ -139,7 +139,7 @@ def fem_frequencies(sys: LinearSystem, k: int | None = None) -> np.ndarray:
 
     The generator of the semi-discrete wave equation has purely imaginary
     eigenvalues, and these are the exact obstruction candidates of the
-    *discretised* system.  With lumped mass they are
+    *discretized* system.  With lumped mass they are
     ``omega_{h,n} = (2 c/h) sin(n pi h/2) = n pi c (1 + O(h^2))``.
     """
     omega = np.sort(np.abs(np.linalg.eigvals(sys.A).imag))

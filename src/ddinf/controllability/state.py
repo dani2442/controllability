@@ -34,10 +34,10 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.linalg import eig
 
-from .informativity import moment_spectrum
-from .moments import Moments
-from .systems import LinearSystem
-from .timestepping import Record
+from ..data.informativity import moment_spectrum
+from ..data.moments import Moments
+from ..systems import LinearSystem
+from ..data.records import Record
 
 
 @dataclass

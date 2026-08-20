@@ -1,4 +1,4 @@
-"""Input--output windows: the discretisation of ``thm:windowed-io-fundamental-lemma``.
+"""Input--output windows: the discretization of ``thm:windowed-io-fundamental-lemma``.
 
 The lemmas of ``sec:fundamental-lemma`` read the state.  When only the input
 and the output are measured, ``subsec:window-informativity`` lifts whole
@@ -9,7 +9,7 @@ informative record satisfies
     B_T^{u,y} = { (u, F_T u + O_T x0) } = im M_T,
 
 so the shifted windows of one record span the finite-horizon input--output
-behaviour.  Sampled, this is a library ``(u_i, y_i)`` of measured windows, and a
+behavior.  Sampled, this is a library ``(u_i, y_i)`` of measured windows, and a
 trial signal is a combination ``z_g = sum_i g_i (u_i, y_i)``.  Neither a state
 sample, nor a state derivative, nor ``O_T`` enters the construction.
 
@@ -38,11 +38,11 @@ The window carries no state, so the two state-dependent items of
   cost below the true optimum.  The price is that the regulator inherits one
   sample of the conditioning input, which costs ``O(dt)`` in the achieved cost
   -- the accuracy floor of this method, against ``O(dt^2)`` for the
-  interval-stage graph regulator of :mod:`ddinf.lqr_data`.
+  interval-stage graph regulator of :mod:`ddinf.lqr.graph`.
 * **Terminal weight.**  ``<x(T), G_T x(T)>`` is not a functional of ``(u, y)``
   and cannot be represented here at all; :func:`solve_io_lqr` therefore refuses
-  a nonzero ``G``.  The comparison in ``experiments/exp03_lqr.py`` runs both
-  regulators with ``G_T = 0`` so that they minimise the same functional.
+  a nonzero ``G``.  The comparison in ``experiments/lqr.py`` runs both
+  regulators with ``G_T = 0`` so that they minimize the same functional.
 
 The resulting problem is the small dense system
 
@@ -58,9 +58,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .lqr_model import LqrWeights
-from .moments import quadrature_weights, trapezoid_weights
-from .timestepping import Record
+from .riccati import LqrWeights
+from ..data.moments import quadrature_weights, trapezoid_weights
+from ..data.records import Record
 
 
 def _metric_root(metric: np.ndarray) -> np.ndarray:
@@ -125,8 +125,8 @@ class WindowLibrary:
     def t_future(self) -> np.ndarray:
         return self.t[self.future] - self.t[self.n_past]
 
-    def behaviour_dimension(self, n_states: int) -> int:
-        """``m n_w + n``: the dimension of the sampled behaviour on the window.
+    def behavior_dimension(self, n_states: int) -> int:
+        """``m n_w + n``: the dimension of the sampled behavior on the window.
 
         The reference size a library is measured against.  It uses the state
         dimension of the model and is a scoring quantity only, never an input
@@ -141,7 +141,7 @@ def io_shift_library(record: Record, *, past: float, horizon: float,
     """``n_windows`` shifted ``[-T_ini, T]`` windows of the measured ``(u, y)``.
 
     By time invariance each window is again an input--output trajectory of the
-    same system, which is what makes the library a subspace of the behaviour;
+    same system, which is what makes the library a subspace of the behavior;
     the theorem says the span fills it out as the shifts fill ``(0, Theta)``.
     """
     n_past = int(round(past / record.dt))
@@ -161,8 +161,8 @@ def io_shift_library(record: Record, *, past: float, horizon: float,
 
 
 @dataclass
-class BehaviourBasis:
-    """The resolved part of the behaviour spanned by a window library.
+class BehaviorBasis:
+    """The resolved part of the behavior spanned by a window library.
 
     ``windows`` are combinations of the measured windows that are orthonormal
     in the ``L^2`` metric of the window, ``spectrum`` holds the ``mu_j`` of
@@ -188,12 +188,12 @@ class BehaviourBasis:
         return float(self.spectrum[self.rank - 1]) if self.rank else 0.0
 
 
-def behaviour_basis(library: WindowLibrary, *, rank_tol: float = 1e-10
-                    ) -> BehaviourBasis:
+def behavior_basis(library: WindowLibrary, *, rank_tol: float = 1e-10
+                   ) -> BehaviorBasis:
     """Metric-weighted SVD of the window library, truncated at ``rank_tol``.
 
     The counterpart, for input--output data, of the weighted SVD of ``Z_q`` in
-    :func:`ddinf.lqr_data.estimate_graph`: both replace a raw data matrix by a
+    :func:`ddinf.lqr.graph.estimate_graph`: both replace a raw data matrix by a
     well-scaled basis of the subspace it resolves, at the same relative
     threshold on the squared singular values.
     """
@@ -219,13 +219,13 @@ def behaviour_basis(library: WindowLibrary, *, rank_tol: float = 1e-10
         n_past=library.n_past,
         starts=library.starts,
     )
-    return BehaviourBasis(windows=windows, coefficients=coefficients,
+    return BehaviorBasis(windows=windows, coefficients=coefficients,
                           spectrum=spectrum, rank=rank, rank_tol=rank_tol)
 
 
 @dataclass
 class IoLqrSolution:
-    """Regulator reconstructed inside the measured input--output behaviour."""
+    """Regulator reconstructed inside the measured input--output behavior."""
 
     g: np.ndarray
     t: np.ndarray  # control clock 0..T
@@ -237,11 +237,11 @@ class IoLqrSolution:
     cost: float
     past_defect: float
     rho: float
-    behaviour: BehaviourBasis
+    behavior: BehaviorBasis
 
     @property
     def n_windows(self) -> int:
-        return self.behaviour.n_windows
+        return self.behavior.n_windows
 
     def input_callable(self):
         """The recovered input as a function of time, for a scoring simulation."""
@@ -250,18 +250,18 @@ class IoLqrSolution:
                                    for ui in u])
 
 
-def assemble_io_lqr(behaviour: BehaviourBasis, weights: LqrWeights,
+def assemble_io_lqr(behavior: BehaviorBasis, weights: LqrWeights,
                     u_past: np.ndarray, y_past: np.ndarray, *,
                     output_metric: np.ndarray | None = None
                     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Cost Gram ``H`` and past-match normal equations ``(E, e)``.
 
-    ``H`` uses the quadrature split of :mod:`ddinf.moments`: Simpson for the
-    output, trapezoid for the control, because the optimiser chooses the input
+    ``H`` uses the quadrature split of :mod:`ddinf.data.moments`: Simpson for the
+    output, trapezoid for the control, because the optimizer chooses the input
     sample by sample and the alternating Simpson weights would price the
     sample-Nyquist direction unevenly.
     """
-    library = behaviour.windows
+    library = behavior.windows
     if np.any(weights.G):
         raise ValueError(
             "the terminal state cost is not a functional of (u, y); "
@@ -293,10 +293,10 @@ def assemble_io_lqr(behaviour: BehaviourBasis, weights: LqrWeights,
     return H, P @ P.T, P @ target
 
 
-def solve_io_lqr(behaviour: BehaviourBasis, weights: LqrWeights,
+def solve_io_lqr(behavior: BehaviorBasis, weights: LqrWeights,
                  u_past: np.ndarray, y_past: np.ndarray, *, rho: float = 1e-8,
                  output_metric: np.ndarray | None = None) -> IoLqrSolution:
-    """Minimise the measured cost over the behaviour spanned by the windows.
+    """Minimize the measured cost over the behavior spanned by the windows.
 
     Solves ``(rho H + E) g = e``, the stationarity condition of
 
@@ -307,8 +307,8 @@ def solve_io_lqr(behaviour: BehaviourBasis, weights: LqrWeights,
     problem whenever ``O_{T_ini}`` fails to be bounded below, which is the
     generic situation in infinite dimensions.
     """
-    library = behaviour.windows
-    H, E, e = assemble_io_lqr(behaviour, weights, u_past, y_past,
+    library = behavior.windows
+    H, E, e = assemble_io_lqr(behavior, weights, u_past, y_past,
                               output_metric=output_metric)
     # rho H + E is symmetric positive semidefinite and can be singular in the
     # directions the past window does not see; a symmetric eigendecomposition
@@ -334,5 +334,5 @@ def solve_io_lqr(behaviour: BehaviourBasis, weights: LqrWeights,
         cost=float(g @ H @ g),
         past_defect=float(np.sqrt(max(np.sum(w_p * defect ** 2), 0.0))),
         rho=rho,
-        behaviour=behaviour,
+        behavior=behavior,
     )

@@ -1,17 +1,17 @@
-"""Compare the two data-driven finite-horizon LQR discretisations of the paper.
+"""Compare the two data-driven finite-horizon LQR discretizations of the paper.
 
 ``graph`` is the state-record method: weak moments of one record identify a
 basis of the finite-dimensional system graph (characterization
 ``item:wfl-synthesis`` of ``thm:willems-gramian``, whose proof is given in
 Appendix ``app:willems-gramian``).  A sparse QP constrains every theta-method
 stage to that graph.  ``window`` is the input--output method: shifted windows
-of the same record span the finite-horizon behaviour
+of the same record span the finite-horizon behavior
 (``thm:windowed-io-fundamental-lemma``) and the regulator is a combination of
 them, conditioned on the measured past of the plant instead of on its state.
 
 The terminal weight is zero throughout, because ``<x(T), G_T x(T)>`` is not a
 functional of the measured input and output and the two methods have to
-minimise the same cost.  The Riccati solution is computed separately and used
+minimize the same cost.  The Riccati solution is computed separately and used
 only as a reference; each recovered input is also replayed on the plant, so the
 cost a method predicts can be compared with the cost it actually pays.
 """
@@ -22,16 +22,16 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import NullLocator
 import numpy as np
 
-from ddinf.delay import controllable_pair, delay_system
-from ddinf.heat import heat_system
-from ddinf.lqr_data import estimate_graph, solve_graph_lqr
-from ddinf.lqr_io import behaviour_basis, io_shift_library, solve_io_lqr
-from ddinf.lqr_model import LqrWeights, riccati_hamiltonian, trajectory_cost
-from ddinf.moments import hat_tests
-from ddinf.plotting import configure, family_colors, savefig, write_table
-from ddinf.signals import Prbs
-from ddinf.timestepping import simulate, uniform_grid
-from ddinf.wave import wave_system
+from ddinf.systems.delay import controllable_pair, delay_system
+from ddinf.systems.heat import heat_system
+from ddinf.lqr.graph import estimate_graph, solve_graph_lqr
+from ddinf.lqr.window import behavior_basis, io_shift_library, solve_io_lqr
+from ddinf.lqr.riccati import LqrWeights, riccati_hamiltonian, trajectory_cost
+from ddinf.data.moments import hat_tests
+from ddinf.paper import configure, family_colors, savefig, write_table
+from ddinf.data.signals import Prbs
+from ddinf.data.records import simulate, uniform_grid
+from ddinf.systems.wave import wave_system
 from experiments.common import parser, tex_num
 
 RANK_TOL = 1e-10
@@ -144,8 +144,8 @@ def _solve_case(case: tuple, *, dt: float | None = None,
     graph_dim = sys.m + sys.n
     graph_size = int(round(TRIAL_RATIO * graph_dim))
     n_w = int(round(past / dt)) + int(round(horizon / dt)) + 1
-    behaviour_dim = sys.m * n_w + sys.n
-    window_size = int(round(TRIAL_RATIO * behaviour_dim))
+    behavior_dim = sys.m * n_w + sys.n
+    window_size = int(round(TRIAL_RATIO * behavior_dim))
     length = _dwell_safe(length, past + horizon, dt, dwell_samples, [window_size])
     record = simulate(
         sys, Prbs(dwell_time, seed=3, horizon=length + dt),
@@ -163,9 +163,9 @@ def _solve_case(case: tuple, *, dt: float | None = None,
     graph_solution = solve_graph_lqr(graph, t, weights, x0, theta=.5)
     library = io_shift_library(record, past=past, horizon=horizon,
                                n_windows=window_size)
-    behaviour = behaviour_basis(library, rank_tol=RANK_TOL)
+    behavior = behavior_basis(library, rank_tol=RANK_TOL)
     window_solution = solve_io_lqr(
-        behaviour, weights, conditioning.u, conditioning.y, rho=RHO,
+        behavior, weights, conditioning.u, conditioning.y, rho=RHO,
     )
     free = simulate(sys, lambda tt: np.zeros((sys.m, np.size(tt))), t, x0,
                     theta=.5)
@@ -190,7 +190,7 @@ def _solve_case(case: tuple, *, dt: float | None = None,
             _replayed_cost(sys, weights, t, x0, graph_solution)
         ),
         "window_size": window_size,
-        "behaviour_dim": behaviour_dim,
+        "behavior_dim": behavior_dim,
         "window_solution": window_solution,
         "window_error": relative(window_solution.cost),
         "window_replayed": relative(
@@ -204,8 +204,8 @@ def run(quality: str = "quick") -> dict:
     cases = _cases(quality)
     results = {label: _solve_case(case) for label, case in cases.items()}
 
-    # Refine only the heat case: its error is set by the time discretisation.
-    # The wave and delay errors instead sit on unresolved-behaviour floors, so
+    # Refine only the heat case: its error is set by the time discretization.
+    # The wave and delay errors instead sit on unresolved-behavior floors, so
     # a time-grid slope for them would have no convergence interpretation.
     heat_case = cases["heat"]
     base_dt = heat_case[4]
@@ -292,7 +292,7 @@ def run(quality: str = "quick") -> dict:
         )
         rows.append(
             f"{label} & i-o & {result['window_size']} & "
-            f"{window.behaviour.rank}/{result['behaviour_dim']} & "
+            f"{window.behavior.rank}/{result['behavior_dim']} & "
             f"{tex_num(window.cost)} & {tex_num(result['window_error'])} & "
             f"{tex_num(result['window_replayed'])} \\\\"
         )
@@ -317,7 +317,7 @@ if __name__ == "__main__":
               "\n  window:  ", data["window_error"], data["window_replayed"],
               "\n  defects: ", data["graph_solution"].initial_defect,
               data["window_solution"].past_defect,
-              "\n  rank:    ", data["window_solution"].behaviour.rank,
-              "/", data["behaviour_dim"])
+              "\n  rank:    ", data["window_solution"].behavior.rank,
+              "/", data["behavior_dim"])
     print("heat time orders:", result["refinement"]["graph_order"],
           result["refinement"]["window_order"])

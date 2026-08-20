@@ -40,7 +40,7 @@ import numpy as np
 
 from .fem import (Mesh1D, bump, interpolate, mass_matrix, point_evaluation,
                   stiffness_matrix)
-from .systems import LinearSystem
+from .base import LinearSystem
 
 
 def heat_system(kind: str = "neumann", *, n_elems: int = 64, nu: float = 1.0,
@@ -164,7 +164,7 @@ def heat_system(kind: str = "neumann", *, n_elems: int = 64, nu: float = 1.0,
 def fem_eigenvalues(sys: LinearSystem, k: int | None = None) -> np.ndarray:
     """Eigenvalues of the semi-discrete generator, sorted by decreasing real part.
 
-    These are the exact obstruction candidates for the *discretised* system, and
+    These are the exact obstruction candidates for the *discretized* system, and
     approximate ``-n^2 pi^2`` to second order in ``h``.
     """
     lam = np.linalg.eigvals(sys.A)

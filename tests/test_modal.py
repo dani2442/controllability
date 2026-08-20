@@ -1,7 +1,7 @@
 import numpy as np
 
-from ddinf.heat import fem_eigenvalues, heat_system
-from ddinf.spectral import heat_modal
+from ddinf.systems.heat import fem_eigenvalues, heat_system
+from ddinf.systems.modal import heat_modal
 
 
 def test_heat_modal_coefficients():

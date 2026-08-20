@@ -6,7 +6,7 @@ Theorem ``thm:analytic-universal-sufficiency`` shows to be sufficient for
 informativity of *every* approximately controllable analytic system.  A plain
 well-separated multisine is provided for comparison: the frequency clustering
 ``omega_k -> nu_j`` that makes the harmonic signal theoretically sufficient is
-also what makes it numerically stiff, and ``exp04`` quantifies the difference.
+also what makes it numerically stiff, and ``experiments/conditioning.py`` quantifies the difference.
 
 Signals with an exponential-sum representation carry their ``(coefficient,
 exponent)`` pairs, so that a frequency of the probing input can be compared

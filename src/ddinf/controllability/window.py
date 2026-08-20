@@ -28,16 +28,16 @@ reaches every state functional the state test could have used.
 What the record has to supply is stronger than before.  The step from
 "``l`` is exponential on the record" to "``eta`` is a Fattorini--Hautus
 obstruction" needs ``alpha = 0``, and the proof gets it from output-window
-informativity at horizon ``3T``: the measured windows must span the behaviour,
+informativity at horizon ``3T``: the measured windows must span the behavior,
 or else an ``alpha != 0`` supported on the unexcited directions survives.  This
 is not a technicality.  On a multisine record the shifted windows span only a
-few dozen behaviour directions, a length-``T`` FIR kernel can null every line
+few dozen behavior directions, a length-``T`` FIR kernel can null every line
 but one, and ``<alpha, ubar_s>`` is then *itself* a pure exponential
 ``e^{i omega_k s}``: the test returns one spurious obstruction per line.  A
 broadband record has far more lines than the window has taps and no such kernel
-exists.  ``experiments/exp02_controllability.py`` shows both.
+exists.  ``experiments/controllability.py`` shows both.
 
-Discretisation
+Discretization
 --------------
 The window is sampled on the record's own grid, and the pairing is the
 quadrature of the ``L^2`` product.  Folding ``sqrt(w_j)`` into both sides,
@@ -49,7 +49,7 @@ gives ``theta' w(s) = l(ubar_s, ybar_s)`` and ``||theta||_2 = ||(v,g)||_{L^2}``,
 so the Euclidean geometry of the coefficient vector is the ``L^2`` geometry of
 the kernels.  The record is generated on this grid, so the sampled window
 relation ``y = F u + O x`` holds exactly and the span of ``{w(s)}`` has the
-behaviour dimension ``m n_w + n`` it should.
+behavior dimension ``m n_w + n`` it should.
 
 Finding the obstructions is then a two-stage problem, and both stages are
 needed.  Testing (eq:io-window-fh) against ``phi_i in H_0^1`` and integrating by
@@ -63,7 +63,7 @@ therefore re-decided by the literal predicate: (eq:io-window-fh) says that
 
     rho(lambda) := dist_{L^2(0,2T+Theta)}( e^{lambda s}, span ) / ||e^{lambda s}||
 
-is a well-posed least-squares quantity, and ``lambda`` is polished by minimising
+is a well-posed least-squares quantity, and ``lambda`` is polished by minimizing
 it.  Normalising the target to unit amplitude builds the theorem's ``kappa != 0``
 clause into the formulation; what the fit reports instead is ``||theta||``, the
 size of the kernel pair that a unit exponential costs.
@@ -78,9 +78,9 @@ import numpy as np
 from scipy.linalg import eig
 from scipy.optimize import minimize
 
-from .controllability import ControllabilityReport
-from .moments import hat_tests, trapezoid_weights
-from .timestepping import Record
+from .state import ControllabilityReport
+from ..data.moments import hat_tests, trapezoid_weights
+from ..data.records import Record
 
 
 @dataclass
@@ -127,8 +127,8 @@ class WindowRecord:
         """``pi/dt``: beyond it, ``e^{lambda s}`` aliases on the shift grid."""
         return math.pi / self.dt
 
-    def behaviour_dimension(self, n_states: int) -> int:
-        """``m n_w + n``, the dimension of the sampled behaviour on the window.
+    def behavior_dimension(self, n_states: int) -> int:
+        """``m n_w + n``, the dimension of the sampled behavior on the window.
 
         The reference size the resolved rank is reported against.  It uses the
         state dimension of the model and is a scoring quantity only, never an
@@ -191,11 +191,11 @@ class WindowCandidate:
 
 
 class _ExponentialFit:
-    """``rho(lambda)`` and its minimiser over the span of the shifted windows.
+    """``rho(lambda)`` and its minimizer over the span of the shifted windows.
 
     The span is represented by an orthonormal basis of the *row* space of the
     window matrix in the ``L^2(0, 2T+Theta)`` metric of the shift variable, so
-    the distance is one projection and the minimisation over ``lambda`` is the
+    the distance is one projection and the minimization over ``lambda`` is the
     variable-projection form of the joint problem in ``(lambda, v, g)``.
     """
 
@@ -217,7 +217,7 @@ class _ExponentialFit:
     def target(self, lam: complex) -> np.ndarray | None:
         """``e^{lambda s}`` in the weighted coordinates, or ``None`` if unusable.
 
-        The exponential is normalised by its own peak before anything else is
+        The exponential is normalized by its own peak before anything else is
         done with it.  ``rho`` is a relative residual, so the scale is free, and
         without it a candidate with a large positive real part overflows and
         poisons the ordering of the candidates with a ``nan``.
@@ -244,7 +244,7 @@ class _ExponentialFit:
 
     def refine(self, lam: complex, *, maxiter: int = 250,
                slack: float = 1e-3) -> complex:
-        """Polish ``lambda`` by minimising ``log10 rho``, a smooth 2-parameter fit.
+        """Polish ``lambda`` by minimizing ``log10 rho``, a smooth 2-parameter fit.
 
         The record is real, so ``rho(conj lambda) = rho(lambda)`` and the real
         axis is a critical line of the objective; a real mode is therefore
@@ -265,11 +265,11 @@ class _ExponentialFit:
         return polished
 
     def functional(self, lam: complex) -> tuple[np.ndarray, float]:
-        """The minimising ``theta`` in the window coordinates, and its ``L^2`` norm.
+        """The minimizing ``theta`` in the window coordinates, and its ``L^2`` norm.
 
         Solves ``min_theta ||theta' G - e^{lambda s}||`` for ``G`` the weighted
         resolved windows, which is ``theta = U Sigma^{-1} V' b`` on the pseudo-
-        inverse.  The exponential is normalised to unit peak, so the norm that
+        inverse.  The exponential is normalized to unit peak, so the norm that
         comes back is the size of the kernel pair a unit exponential costs.
         """
         b = self.target(lam)
@@ -353,7 +353,7 @@ def io_window_controllability(
         approximately_controllable=not any(c.accepted for c in candidates),
         candidates=candidates,
         numerical_rank=rank,
-        dimension=windows.behaviour_dimension(n_states),
+        dimension=windows.behavior_dimension(n_states),
         rank_tol=rank_tol,
         residual_tol=residual_tol,
         singular_values=spectrum,

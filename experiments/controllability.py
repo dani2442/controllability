@@ -9,18 +9,18 @@ recover it.  The two tests differ in what they are allowed to read.
     Proposition ``prop:data-fattorini-hautus``: the record is ``(ubar, xbar)``
     and the obstruction is a state functional ``eta`` with
     ``<eta, xbar(t)> = kappa e^{lambda t}``.  Implemented in
-    :mod:`ddinf.controllability`.
+    :mod:`ddinf.controllability.state`.
 
 ``i-o``
     Theorem ``thm:io-window-controllability``: the record is ``(ubar, ybar)``
     and the obstruction is a functional of a length-``T`` input--output window
     whose value along the shifted record is a pure exponential.  Implemented in
-    :mod:`ddinf.controllability_io`.
+    :mod:`ddinf.controllability.window`.
 
 The two are run on different records, and that is the point rather than an
 accident.  The state test needs the record to be informative on ``U x X``
 (``lem:informative-gramian``), which the smooth multisine supplies.  The window test
-needs the *shifted windows* to span the input--output behaviour, a strictly
+needs the *shifted windows* to span the input--output behavior, a strictly
 stronger demand: a length-``T`` FIR kernel can null every line of a multisine
 but one, so on such a record the window pairing ``<alpha, ubar_s>`` is itself a
 pure exponential and the test returns one spurious obstruction per line.
@@ -37,18 +37,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-from ddinf.controllability import data_driven_controllability, hautus_uncontrollable
-from ddinf.controllability_io import io_shift_windows, io_window_controllability
-from ddinf.delay import controllable_pair, delay_system, uncontrollable_pair
-from ddinf.heat import heat_system
-from ddinf.moments import moments, sine_tests
-from ddinf.plotting import configure, family_colors, savefig, write_table
-from ddinf.signals import Prbs, multisine
-from ddinf.timestepping import simulate, uniform_grid
-from ddinf.wave import wave_system
+from ddinf.controllability.state import data_driven_controllability, hautus_uncontrollable
+from ddinf.controllability.window import io_shift_windows, io_window_controllability
+from ddinf.systems.delay import controllable_pair, delay_system, uncontrollable_pair
+from ddinf.systems.heat import heat_system
+from ddinf.data.moments import moments, sine_tests
+from ddinf.paper import configure, family_colors, savefig, write_table
+from ddinf.data.signals import Prbs, multisine
+from ddinf.data.records import simulate, uniform_grid
+from ddinf.systems.wave import wave_system
 from experiments.common import nearest, parser, tex_complex
 
-NU = .02  # diffusivity; see the module docstring of ddinf.heat
+NU = .02  # diffusivity; see the module docstring of ddinf.systems.heat
 SPEED = .5  # wave speed, chosen so the excited band covers the leading modes
 
 RANK_TOL = 1e-10
@@ -158,7 +158,7 @@ def multisine_window_failure(quality: str = "quick") -> dict:
     """What the window test does on a record the theorem's hypothesis excludes.
 
     Run on the *controllable* one-sided heat equation with the multisine of the
-    state test.  The shifted windows then span a few dozen behaviour directions
+    state test.  The shifted windows then span a few dozen behavior directions
     instead of ``m n_w + n``, a length-``T`` kernel can isolate a single line,
     and the test reports its frequency as an obstruction.  Reported in the text,
     not in the table: it scores the record, not the system.
@@ -236,13 +236,13 @@ def run(quality: str = "quick") -> dict:
             lam_window = nearest([c.lam for c in window.obstructions], reference)
             lam_model = nearest(model, reference)
             # What each data-driven test controls is the distance to the
-            # obstruction of the *discretised* system; the distance from that to
-            # the closed form is the discretisation error of the mesh.
+            # obstruction of the *discretized* system; the distance from that to
+            # the closed form is the discretization error of the mesh.
             entry |= {"lam_state": lam_state, "lam_window": lam_window,
                       "lam_model": lam_model, "reference": reference,
                       "state_error": abs(lam_state - lam_model),
                       "window_error": abs(lam_window - lam_model),
-                      "discretisation_error": abs(lam_model - reference)}
+                      "discretization_error": abs(lam_model - reference)}
         diagnostics[label] = entry
 
     # One colormap per family; within a family the darker shade is the

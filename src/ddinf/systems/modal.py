@@ -1,11 +1,12 @@
 """Closed-form modal references for the heat equation examples.
 
-These are the ground truth the finite-element discretisation of
-:mod:`ddinf.heat` is measured against.  Each configuration is diagonal in its
+These are the ground truth the finite-element discretization of
+:mod:`ddinf.systems.heat` is measured against.  Each configuration is diagonal in its
 own eigenbasis, ``A phi_n = lambda_n phi_n``, and the modal control
 coefficients ``b_n`` decide the Fattorini--Hautus obstructions in closed form:
 ``b_n = 0`` is exactly the ``n``-th mode being unreachable.  That is what makes
-``dirichlet_sym`` usable as the uncontrollable comparison of ``exp02`` -- its
+``dirichlet_sym`` usable as the uncontrollable comparison of
+``experiments/controllability.py`` -- its
 obstruction is known before any data is generated.
 
 For boundary control the modal coefficients come from a lift.  With ``D`` a

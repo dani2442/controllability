@@ -1,8 +1,8 @@
 import numpy as np
 
-from ddinf.moments import moments, sine_tests, theta_moments
+from ddinf.data.moments import moments, sine_tests, theta_moments
 from ddinf.systems import LinearSystem
-from ddinf.timestepping import Record
+from ddinf.data.records import Record
 
 
 def test_weak_derivative_moment_for_exact_exponential():
@@ -32,7 +32,7 @@ def test_theta_moments_match_the_discrete_dynamics_to_roundoff():
     A = np.array([[-2.0]])
     B = np.array([[1.0]])
     sys = LinearSystem("scalar", A, B, np.eye(1), np.eye(1), np.eye(1))
-    from ddinf.timestepping import simulate
+    from ddinf.data.records import simulate
 
     rec = simulate(sys, lambda tt: np.cos(np.asarray(tt))[None, :], t,
                    np.array([.3]), theta=.5)

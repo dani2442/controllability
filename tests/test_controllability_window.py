@@ -9,11 +9,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ddinf.controllability_io import (io_shift_windows, io_window_controllability,
+from ddinf.controllability.window import (io_shift_windows, io_window_controllability,
                                       _ExponentialFit)
-from ddinf.signals import Prbs
+from ddinf.data.signals import Prbs
 from ddinf.systems import LinearSystem
-from ddinf.timestepping import simulate, uniform_grid
+from ddinf.data.records import simulate, uniform_grid
 
 DT = .02
 WINDOW = 2.0
@@ -76,7 +76,7 @@ def test_shift_count_is_capped_by_the_record():
         io_shift_windows(record, horizon=1.0, spread=9.0)
 
 
-def test_resolved_rank_stops_at_the_behaviour_dimension():
+def test_resolved_rank_stops_at_the_behavior_dimension():
     """The shifted windows span ``m n_w + n`` directions and no more."""
     sys = _modal(np.array([-.4, -1.3, -2.2]), np.ones(3), np.array([1., .8, .6]))
     report = _run(sys, np.array([1., .5, .3]))
@@ -138,7 +138,7 @@ def test_the_recovered_kernels_satisfy_the_predicate():
     relative = (np.linalg.norm((values - scale * reference) * weights)
                 / np.linalg.norm(values * weights))
     assert relative < 1e-2
-    assert abs(scale) > 0  # the kappa != 0 clause, built into the normalisation
+    assert abs(scale) > 0  # the kappa != 0 clause, built into the normalization
     assert candidate.functional_norm == pytest.approx(
         np.linalg.norm(candidate.theta), rel=1e-12)
 
@@ -179,7 +179,7 @@ def test_a_multisine_record_fabricates_obstructions_at_its_own_lines():
     lines the individual modal transients separate as well, and those come back
     as obstructions too.
     """
-    from ddinf.signals import multisine
+    from ddinf.data.signals import multisine
 
     lams = np.array([-.35, -1.2, -2.4])
     sys = _modal(lams, np.ones(3), np.array([1., .8, .6]))

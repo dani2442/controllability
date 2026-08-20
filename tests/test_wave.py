@@ -1,7 +1,7 @@
 import numpy as np
 
-from ddinf.controllability import hautus_uncontrollable
-from ddinf.wave import exact_frequencies, fem_frequencies, wave_system
+from ddinf.controllability.state import hautus_uncontrollable
+from ddinf.systems.wave import exact_frequencies, fem_frequencies, wave_system
 
 
 def test_frequencies_converge_quadratically():

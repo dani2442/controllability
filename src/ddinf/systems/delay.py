@@ -10,13 +10,13 @@ the delayed output makes ``C`` a
 point evaluation of the ``L^2`` component, hence unbounded on ``X`` and bounded
 on the finer space ``W``.
 
-Discretisation
+Discretization
 --------------
 The second component solves the transport equation ``d/dt x_t = d/dtau x_t`` on
 ``(-h,0)``, whose inflow boundary is ``tau = 0``, where the value is prescribed
-by the delay equation itself.  Discretising *that* by P1 finite elements in
+by the delay equation itself.  Discretizing *that* by P1 finite elements in
 ``tau`` -- the linear-spline scheme of Banks and Kappel -- is the exact analogue
-of the FEM discretisation used for the PDE examples:
+of the FEM discretization used for the PDE examples:
 
     rows 0..N-1 :  M w' = D w          (Galerkin transport, M, D the P1 mass
                                         and derivative matrices on [-h,0])
@@ -41,7 +41,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.special import lambertw
 
-from .systems import LinearSystem
+from .base import LinearSystem
 
 
 def _p1_matrices(n_tau: int, h: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

@@ -45,9 +45,9 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.linalg import expm, lu_factor, lu_solve
 
-from .moments import quadrature_weights, trapezoid_weights
-from .systems import LinearSystem
-from .timestepping import Record
+from ..data.moments import quadrature_weights, trapezoid_weights
+from ..systems import LinearSystem
+from ..data.records import Record
 
 
 @dataclass
@@ -85,7 +85,7 @@ class RiccatiSolution:
         """Simulate ``x' = (A + B F(t)) x`` and return the optimal record.
 
         The feedback is time varying, so the propagator is rebuilt each step;
-        the same theta scheme as :func:`ddinf.timestepping.simulate` is used.
+        the same theta scheme as :func:`ddinf.data.records.simulate` is used.
         """
         t, sys = self.t, self.sys
         dt = float(t[1] - t[0])
@@ -157,7 +157,7 @@ def trajectory_cost(rec: Record, sys: LinearSystem, weights: LqrWeights) -> floa
 
     Only measured signals enter: the terminal state, the output and the input.
     Uses the same split of quadrature rules as
-    :func:`ddinf.lqr_io.assemble_io_lqr`,
+    :func:`ddinf.lqr.window.assemble_io_lqr`,
     so a cost computed here and a cost computed there are comparable.
     """
     w_y = quadrature_weights(rec.t)

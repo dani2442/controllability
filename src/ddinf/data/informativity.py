@@ -12,9 +12,9 @@ that of the symmetric positive semidefinite matrix ``L' Z L`` where ``S = L L'``
 That spectrum is what these functions return.
 
 The caveat the paper states (Remark following ``prop:data-fattorini-hautus``) is
-visible here and is not a numerical artefact: on an infinite-dimensional space
+visible here and is not a numerical artifact: on an infinite-dimensional space
 ``G`` is compact, so its eigenvalues accumulate at zero and its range is dense
-but not closed.  Under discretisation the eigenvalues decay geometrically, and
+but not closed.  Under discretization the eigenvalues decay geometrically, and
 "informative" can only ever mean "informative down to a threshold".  Every
 routine here therefore reports a *numerical rank* together with the threshold
 that produced it.
@@ -27,8 +27,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from .moments import trapezoid_weights
-from .systems import LinearSystem
-from .timestepping import Record
+from ..systems import LinearSystem
+from .records import Record
 
 
 @dataclass

@@ -1,4 +1,4 @@
-"""The dynamic synthesis operator of Appendix ``app:willems-gramian``, discretised.
+"""The dynamic synthesis operator of Appendix ``app:willems-gramian``, discretized.
 
 The dynamic synthesis operator of a record is
 
@@ -26,7 +26,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .timestepping import Record
+from .records import Record
 
 
 @dataclass
@@ -60,7 +60,7 @@ def quadrature_weights(t: np.ndarray) -> np.ndarray:
     with Simpson to ``O(dt^4)``, which puts it below the error of the time
     stepping itself.
 
-    Do *not* use this rule to weight a term that the optimiser controls
+    Do *not* use this rule to weight a term that the optimizer controls
     pointwise in the input -- see :func:`trapezoid_weights`.
     """
     dt = t[1] - t[0]
@@ -75,14 +75,14 @@ def quadrature_weights(t: np.ndarray) -> np.ndarray:
 def trapezoid_weights(t: np.ndarray) -> np.ndarray:
     """Composite trapezoid weights -- the rule the time stepping itself uses.
 
-    Required wherever the quadrature weights multiply a quantity the optimiser
+    Required wherever the quadrature weights multiply a quantity the optimizer
     is free to choose sample by sample, i.e. the control term of the LQR cost.
     The theta scheme forces the input through ``theta u^{k+1} + (1-theta) u^k``,
     which for Crank--Nicolson is the two-point average ``(u_k + u_{k+1})/2``: the
     odd--even component of a sampled input is invisible to the state.  Charging
     it with the *alternating* Simpson weights ``4 dt/3, 2 dt/3`` therefore makes
     a genuinely free direction cheap on the even samples and expensive on the
-    odd ones, and the discrete minimiser splits a given effective input between
+    odd ones, and the discrete minimizer splits a given effective input between
     neighbours in inverse proportion to the weights -- a spurious 2:1
     sample-Nyquist ripple in an input the continuous problem wants smooth.  A
     uniform weight prices every sample alike and the ripple disappears.
@@ -166,7 +166,7 @@ class Moments:
         """Relative violation of ``X1 = A X0 + B U0``; a consistency check only.
 
         Uses the model, so it is never part of a data-driven computation -- it
-        verifies that the discretisation really produces trajectories of the
+        verifies that the discretization really produces trajectories of the
         semi-discrete system.
         """
         r = self.X1 - A @ self.X0 - B @ self.U0

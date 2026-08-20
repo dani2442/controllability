@@ -15,7 +15,7 @@ what the moment identities and the LQR cost are scored at.
 Note that for ``theta = 1/2`` the input enters a step only through the two-point
 average ``(u_k + u_{k+1})/2``.  The odd--even component of a sampled input is
 therefore invisible to the state, which is why the LQR cost has to weight its
-control term with :func:`ddinf.moments.trapezoid_weights`.
+control term with :func:`ddinf.data.moments.trapezoid_weights`.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from typing import Callable
 import numpy as np
 from scipy.linalg import lu_factor, lu_solve
 
-from .systems import LinearSystem
+from ..systems import LinearSystem
 
 
 @dataclass

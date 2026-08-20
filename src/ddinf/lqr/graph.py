@@ -1,4 +1,4 @@
-"""Graph discretisations of the data-driven finite-horizon LQR.
+"""Graph discretizations of the data-driven finite-horizon LQR.
 
 The graph can be learned either from pointwise theta-method stages or from weak
 moments.  In the latter, derivative-free construction the data satisfy
@@ -12,7 +12,7 @@ are then constrained, interval by interval, to this learned graph and the LQR
 cost is minimized by a sparse equality-constrained quadratic solve.
 
 The input--output counterpart, which reads no state at all, is
-``ddinf.lqr_io``.
+``ddinf.lqr.window``.
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ from scipy.linalg import block_diag
 from scipy.sparse import bmat, block_diag as sparse_block_diag, lil_matrix
 from scipy.sparse.linalg import spsolve
 
-from .lqr_model import LqrWeights
-from .moments import Moments, TestFunctions, theta_moments
-from .timestepping import Record
+from .riccati import LqrWeights
+from ..data.moments import Moments, TestFunctions, theta_moments
+from ..data.records import Record
 
 
 def _metric_root(metric: np.ndarray) -> np.ndarray:

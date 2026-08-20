@@ -1,13 +1,13 @@
 """Run every paper experiment and regenerate all numerical artifacts."""
 
-from experiments.exp02_controllability import run as run02
-from experiments.exp03_lqr import run as run03
-from experiments.exp04_conditioning import run as run04
 from experiments.common import parser
+from experiments.conditioning import run as run_conditioning
+from experiments.controllability import run as run_controllability
+from experiments.lqr import run as run_lqr
 
 
 if __name__ == "__main__":
     args = parser(__doc__).parse_args()
-    for run in (run02, run03, run04):
+    for run in (run_controllability, run_lqr, run_conditioning):
         result = run(args.quality)
         print(f"{run.__module__}: wrote {result['figure'].name}, {result['table'].name}")

@@ -1,7 +1,7 @@
 """P1 finite elements on the interval (0, 1).
 
 Everything is dense: the meshes used here have at most a few hundred nodes, and
-the downstream algorithms (generalised eigenproblems, matrix exponentials,
+the downstream algorithms (generalized eigenproblems, matrix exponentials,
 dense least squares) want dense matrices anyway.
 
 Conventions
@@ -118,14 +118,14 @@ def bump(xi0: float = 0.6, width: float = 0.25) -> Callable[[np.ndarray], np.nda
         out = np.zeros_like(s)
         inside = np.abs(s) < 1.0
         out[inside] = np.exp(1.0 - 1.0 / (1.0 - s[inside] ** 2))
-        # normalise to unit mass by high-order quadrature on the support
+        # normalize to unit mass by high-order quadrature on the support
         return out / _bump_mass(xi0, width)
 
     return c
 
 
 def _bump_mass(xi0: float, width: float) -> float:
-    """``\\int`` of the unnormalised bump, by fine Simpson quadrature."""
+    """``\\int`` of the unnormalized bump, by fine Simpson quadrature."""
     n = 4001
     s = np.linspace(-1.0, 1.0, n)
     vals = np.zeros_like(s)

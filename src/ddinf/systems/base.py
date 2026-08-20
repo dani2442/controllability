@@ -1,4 +1,4 @@
-"""The plug-in interface between the discretised examples and the algorithms.
+"""The plug-in interface between the discretized examples and the algorithms.
 
 Every example (heat equation, retarded equation, ...) is reduced to a
 :class:`LinearSystem`: a semi-discrete realisation ``x' = A x + B u``,

@@ -45,7 +45,7 @@ def nearest(values, target: complex) -> complex:
 
     Obstructions must be matched to their reference by proximity, never by
     ordering: the semi-discrete generators here carry high-frequency modes whose
-    position in any ordering is an artefact of the mesh.
+    position in any ordering is an artifact of the mesh.
     """
     arr = np.asarray(list(values), dtype=complex)
     if arr.size == 0:

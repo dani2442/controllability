@@ -1,6 +1,6 @@
 import numpy as np
 
-from ddinf.lqr_model import LqrWeights, riccati_hamiltonian, riccati_ivp, trajectory_cost
+from ddinf.lqr.riccati import LqrWeights, riccati_hamiltonian, riccati_ivp, trajectory_cost
 from ddinf.systems import LinearSystem
 
 
@@ -25,7 +25,7 @@ def test_riccati_survives_a_stiff_long_horizon():
     ``s |lambda_max(A)|`` is large and ``Phi11 + Phi12 G`` turns singular; the
     semi-discrete heat operator reaches that regime on any useful horizon.
     """
-    from ddinf.heat import heat_system
+    from ddinf.systems.heat import heat_system
 
     sys = heat_system("neumann", n_elems=8, nu=1.0)
     weights = LqrWeights.make(sys, terminal=1.0, control=.5)

@@ -1,4 +1,8 @@
-"""Shared plotting and LaTeX-output helpers for the paper experiments."""
+"""Figure and table output into the paper source tree.
+
+Every experiment writes through this module, so the location of the paper is
+fixed in exactly one place: ``<repo>/paper/``, the Overleaf submodule.
+"""
 
 from __future__ import annotations
 
@@ -11,10 +15,11 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[2]
-FIGURES = ROOT / "paper_wfl2" / "figures"
-TABLES = ROOT / "paper_wfl2" / "tables"
+PAPER = ROOT / "paper"
+FIGURES = PAPER / "figures"
+TABLES = PAPER / "tables"
 
-# One graded colormap per example family, so that a colour identifies the
+# One graded colormap per example family, so that a color identifies the
 # system across every figure of the paper and the shades within it identify the
 # configuration, the probing input or the method.
 FAMILY_COLORMAP = {"heat": "Blues", "wave": "Oranges", "delay": "Greens"}

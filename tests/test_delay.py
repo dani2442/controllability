@@ -1,4 +1,4 @@
-from ddinf.delay import hautus_delay_defect, lambert_roots, uncontrollable_pair
+from ddinf.systems.delay import hautus_delay_defect, lambert_roots, uncontrollable_pair
 
 
 def test_lambert_roots_are_hautus_obstructions():

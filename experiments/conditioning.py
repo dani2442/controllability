@@ -16,12 +16,12 @@ from __future__ import annotations
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ddinf.heat import heat_system
-from ddinf.informativity import gramian_spectrum
-from ddinf.plotting import configure, family_colors, savefig, write_table
-from ddinf.signals import Prbs, harmonic_pe, multisine
-from ddinf.timestepping import simulate, uniform_grid
-from ddinf.wave import wave_system
+from ddinf.systems.heat import heat_system
+from ddinf.data.informativity import gramian_spectrum
+from ddinf.paper import configure, family_colors, savefig, write_table
+from ddinf.data.signals import Prbs, harmonic_pe, multisine
+from ddinf.data.records import simulate, uniform_grid
+from ddinf.systems.wave import wave_system
 from experiments.common import parser, tex_num
 
 TOL = 1e-10
